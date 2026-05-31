@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:15-alpine
     env_file:
-      - .env
+      - ${ENV_FILE:-.env.development}
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-matchhire}
+      POSTGRES_USER: ${DB_USER:-matchhire}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-matchhire}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,6 +18,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    env_file:
+      - ${ENV_FILE:-.env.development}
     restart: unless-stopped
 
   web:
@@ -25,10 +27,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: matchhire_backend.settings.dev
-      PYTHONUNBUFFERED: "1"
+      - ${ENV_FILE:-.env.development}
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker
@@ -49,10 +48,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: matchhire_backend.settings.dev
-      PYTHONUNBUFFERED: "1"
+      - ${ENV_FILE:-.env.development}
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker
@@ -71,10 +67,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: matchhire_backend.settings.dev
-      PYTHONUNBUFFERED: "1"
+      - ${ENV_FILE:-.env.development}
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker
@@ -92,6 +85,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.nginx
+    env_file:
+      - ${ENV_FILE:-.env.development}
     ports:
       - "80:80"
     depends_on:

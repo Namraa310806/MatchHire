@@ -1,19 +1,29 @@
-from django.core.exceptions import ImproperlyConfigured
-
-from decouple import config
+from matchhire_backend.core.env import get_env, validate_production_env
 
 from .base import *  # noqa: F401,F403
 
 
 DEBUG = False
+_production_env = validate_production_env()
 
-SECRET_KEY = config("SECRET_KEY", default="")
-DB_PASSWORD = config("DB_PASSWORD", default="")
+SECRET_KEY = _production_env["SECRET_KEY"]
+DATABASES["default"] = {
+    "ENGINE": "django.db.backends.postgresql",
+    "NAME": _production_env["DB_NAME"],
+    "USER": _production_env["DB_USER"],
+    "PASSWORD": _production_env["DB_PASSWORD"],
+    "HOST": _production_env["DB_HOST"],
+    "PORT": _production_env["DB_PORT"],
+}
 
-if not SECRET_KEY:
-    raise ImproperlyConfigured("SECRET_KEY must be set for production settings.")
+REDIS_URL = _production_env["REDIS_URL"]
+CELERY_BROKER_URL = _production_env["CELERY_BROKER_URL"]
+CELERY_RESULT_BACKEND = get_env("CELERY_RESULT_BACKEND", default=REDIS_URL)
 
-if not DB_PASSWORD:
-    raise ImproperlyConfigured("DB_PASSWORD must be set for production settings.")
-
-DATABASES["default"]["PASSWORD"] = DB_PASSWORD
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+X_FRAME_OPTIONS = "DENY"

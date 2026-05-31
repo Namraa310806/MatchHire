@@ -1,14 +1,16 @@
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import Csv, config
+from decouple import Csv
+
+from matchhire_backend.core.env import get_env
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = config("SECRET_KEY", default="")
-DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+SECRET_KEY = get_env("SECRET_KEY", default="change-me")
+DEBUG = get_env("DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -19,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "matchhire_backend.core.apps.CoreConfig",
     "apps.users",
     "apps.jobs",
     "apps.matching",
@@ -58,11 +61,11 @@ ASGI_APPLICATION = "matchhire_backend.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default=""),
-        "USER": config("DB_USER", default=""),
-        "PASSWORD": config("DB_PASSWORD", default=""),
-        "HOST": config("DB_HOST", default=""),
-        "PORT": config("DB_PORT", default=""),
+        "NAME": get_env("DB_NAME", default="matchhire"),
+        "USER": get_env("DB_USER", default="matchhire"),
+        "PASSWORD": get_env("DB_PASSWORD", default="matchhire"),
+        "HOST": get_env("DB_HOST", default="db"),
+        "PORT": get_env("DB_PORT", default="5432"),
     }
 }
 
@@ -101,8 +104,14 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = get_env(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://localhost:5173",
+    cast=Csv(),
+)
 CORS_ALLOW_CREDENTIALS = True
+
+REDIS_URL = get_env("REDIS_URL", default="redis://redis:6379/0")
+CELERY_BROKER_URL = get_env("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = get_env("CELERY_RESULT_BACKEND", default=REDIS_URL)
+

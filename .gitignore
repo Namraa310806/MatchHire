@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+!.env.production.example
 __pycache__/
 *.pyc
 node_modules/
@@ -11,3 +14,4 @@ media/
 coverage/
 .pytest_cache/
 .vscode/
+
