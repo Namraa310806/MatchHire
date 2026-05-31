@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -7,7 +8,12 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import LoginSerializer, UserSerializer
+from .serializers import (
+	CandidateRegistrationSerializer,
+	LoginSerializer,
+	RecruiterRegistrationSerializer,
+	UserSerializer,
+)
 from .models import User
 
 
@@ -41,6 +47,16 @@ def _clear_auth_cookies(response):
 	response.delete_cookie(settings.JWT_REFRESH_COOKIE_NAME, path="/")
 
 
+def _build_authenticated_response(user, message, status_code=status.HTTP_200_OK):
+	refresh = RefreshToken.for_user(user)
+	response = Response(
+		{"message": message, "user": UserSerializer(user).data},
+		status=status_code,
+	)
+	_set_auth_cookies(response, str(refresh.access_token), str(refresh))
+	return response
+
+
 class LoginView(APIView):
 	permission_classes = (AllowAny,)
 
@@ -61,13 +77,29 @@ class LoginView(APIView):
 		if user is None:
 			return Response({"message": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
-		refresh = RefreshToken.for_user(user)
-		response = Response(
-			{"message": "Login successful", "user": UserSerializer(user).data},
-			status=status.HTTP_200_OK,
-		)
-		_set_auth_cookies(response, str(refresh.access_token), str(refresh))
-		return response
+		return _build_authenticated_response(user, "Login successful")
+
+
+class CandidateRegistrationView(APIView):
+	permission_classes = (AllowAny,)
+
+	def post(self, request):
+		serializer = CandidateRegistrationSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		with transaction.atomic():
+			user = serializer.save()
+		return _build_authenticated_response(user, "Registration successful", status.HTTP_201_CREATED)
+
+
+class RecruiterRegistrationView(APIView):
+	permission_classes = (AllowAny,)
+
+	def post(self, request):
+		serializer = RecruiterRegistrationSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		with transaction.atomic():
+			user = serializer.save()
+		return _build_authenticated_response(user, "Registration successful", status.HTTP_201_CREATED)
 
 
 class RefreshView(APIView):
