@@ -1,0 +1,8 @@
+services:
+  web:
+  frontend:
+  db:
+  redis:
+  celery_worker:
+  celery_beat:
+  nginx:
