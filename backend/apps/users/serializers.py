@@ -20,6 +20,21 @@ class UserSerializer(serializers.ModelSerializer):
 		read_only_fields = ("id", "is_active", "is_staff", "is_verified", "date_joined", "updated_at")
 
 
+class LoginSerializer(serializers.Serializer):
+	email = serializers.EmailField()
+	password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+	def validate_email(self, value):
+		if not value:
+			raise serializers.ValidationError("Email is required.")
+		return value
+
+	def validate_password(self, value):
+		if not value:
+			raise serializers.ValidationError("Password is required.")
+		return value
+
+
 class CandidateProfileSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = CandidateProfile
