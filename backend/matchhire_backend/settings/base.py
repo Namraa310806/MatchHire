@@ -22,10 +22,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "matchhire_backend.core.apps.CoreConfig",
-    "apps.users",
+    "apps.users.apps.UsersConfig",
     "apps.jobs",
     "apps.matching",
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
