@@ -5,6 +5,10 @@ from rest_framework import serializers
 from .models import CandidateProfile, RecruiterProfile, User
 
 
+class ProfileNotFound(Exception):
+	pass
+
+
 class UserSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = User
@@ -20,6 +24,20 @@ class UserSerializer(serializers.ModelSerializer):
 			"updated_at",
 		)
 		read_only_fields = ("id", "is_active", "is_staff", "is_verified", "date_joined", "updated_at")
+
+
+class MeUserSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = User
+		fields = (
+			"id",
+			"email",
+			"full_name",
+			"role",
+			"is_verified",
+			"date_joined",
+		)
+		read_only_fields = ("id", "is_verified", "date_joined")
 
 
 class LoginSerializer(serializers.Serializer):
@@ -131,3 +149,24 @@ class RecruiterProfileSerializer(serializers.ModelSerializer):
 			"updated_at",
 		)
 		read_only_fields = ("id", "created_at", "updated_at")
+
+
+class CurrentUserSerializer(serializers.Serializer):
+	user = serializers.SerializerMethodField()
+	profile = serializers.SerializerMethodField()
+
+	def get_user(self, obj):
+		return MeUserSerializer(obj).data
+
+	def get_profile(self, obj):
+		if obj.role == User.Roles.CANDIDATE:
+			try:
+				return CandidateProfileSerializer(obj.candidate_profile).data
+			except CandidateProfile.DoesNotExist:
+				raise ProfileNotFound("Profile not found")
+		elif obj.role == User.Roles.RECRUITER:
+			try:
+				return RecruiterProfileSerializer(obj.recruiter_profile).data
+			except RecruiterProfile.DoesNotExist:
+				raise ProfileNotFound("Profile not found")
+		return None

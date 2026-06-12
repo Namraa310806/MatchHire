@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db import transaction
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -10,7 +10,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
 	CandidateRegistrationSerializer,
+	CurrentUserSerializer,
 	LoginSerializer,
+	ProfileNotFound,
 	RecruiterRegistrationSerializer,
 	UserSerializer,
 )
@@ -136,3 +138,14 @@ class LogoutView(APIView):
 		response = Response({"message": "Logged out"}, status=status.HTTP_200_OK)
 		_clear_auth_cookies(response)
 		return response
+
+
+class CurrentUserView(APIView):
+	permission_classes = (IsAuthenticated,)
+
+	def get(self, request):
+		try:
+			serializer = CurrentUserSerializer(request.user)
+			return Response(serializer.data, status=status.HTTP_200_OK)
+		except ProfileNotFound:
+			return Response({"error": "Profile not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

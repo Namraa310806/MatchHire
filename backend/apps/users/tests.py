@@ -272,3 +272,128 @@ class RegistrationTests(TestCase):
 		self.assertIn("refresh_token", response.cookies)
 		self.assertEqual(response.cookies["access_token"]["httponly"], True)
 		self.assertEqual(response.cookies["refresh_token"]["httponly"], True)
+
+
+class CurrentUserViewTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.candidate = self.user_model.objects.create_user(
+			email="candidate@example.com",
+			password="pass12345",
+			full_name="Candidate User",
+		)
+		self.recruiter = self.user_model.objects.create_user(
+			email="recruiter@example.com",
+			password="pass12345",
+			full_name="Recruiter User",
+			role=self.user_model.Roles.RECRUITER,
+		)
+		self.recruiter.recruiter_profile.company_name = "Acme Inc"
+		self.recruiter.recruiter_profile.save()
+
+	def _authenticate_user(self, user):
+		refresh = RefreshToken.for_user(user)
+		self.client.cookies["access_token"] = str(refresh.access_token)
+		self.client.cookies["refresh_token"] = str(refresh)
+
+	def test_candidate_can_access_me_endpoint(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("user", response.json())
+		self.assertIn("profile", response.json())
+
+	def test_recruiter_can_access_me_endpoint(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("user", response.json())
+		self.assertIn("profile", response.json())
+
+	def test_anonymous_request_rejected(self):
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 401)
+
+	def test_candidate_profile_returned(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertIn("profile", data)
+		self.assertIn("headline", data["profile"])
+		self.assertIn("bio", data["profile"])
+
+	def test_recruiter_profile_returned(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertIn("profile", data)
+		self.assertIn("company_name", data["profile"])
+		self.assertEqual(data["profile"]["company_name"], "Acme Inc")
+
+	def test_correct_role_returned(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data["user"]["role"], self.user_model.Roles.CANDIDATE)
+
+		self.client.cookies.clear()
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data["user"]["role"], self.user_model.Roles.RECRUITER)
+
+	def test_no_sensitive_fields_exposed(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		user_data = data["user"]
+
+		self.assertNotIn("password", user_data)
+		self.assertNotIn("groups", user_data)
+		self.assertNotIn("permissions", user_data)
+		self.assertNotIn("is_superuser", user_data)
+		self.assertNotIn("is_active", user_data)
+		self.assertNotIn("is_staff", user_data)
+		self.assertNotIn("updated_at", user_data)
+
+	def test_required_user_fields_returned(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		user_data = data["user"]
+
+		self.assertIn("id", user_data)
+		self.assertIn("email", user_data)
+		self.assertIn("full_name", user_data)
+		self.assertIn("role", user_data)
+		self.assertIn("is_verified", user_data)
+		self.assertIn("date_joined", user_data)
+
+	def test_missing_candidate_profile_raises_error(self):
+		self.candidate.candidate_profile.delete()
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 500)
+
+	def test_missing_recruiter_profile_raises_error(self):
+		self.recruiter.recruiter_profile.delete()
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/auth/me/")
+
+		self.assertEqual(response.status_code, 500)

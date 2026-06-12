@@ -1,6 +1,13 @@
 from django.urls import path
 
-from .auth_views import CandidateRegistrationView, LoginView, LogoutView, RefreshView, RecruiterRegistrationView
+from .auth_views import (
+	CandidateRegistrationView,
+	CurrentUserView,
+	LoginView,
+	LogoutView,
+	RefreshView,
+	RecruiterRegistrationView,
+)
 
 
 urlpatterns = [
@@ -9,4 +16,5 @@ urlpatterns = [
 	path("login/", LoginView.as_view(), name="auth-login"),
 	path("refresh/", RefreshView.as_view(), name="auth-refresh"),
 	path("logout/", LogoutView.as_view(), name="auth-logout"),
+	path("me/", CurrentUserView.as_view(), name="auth-me"),
 ]
