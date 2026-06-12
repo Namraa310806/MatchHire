@@ -42,10 +42,10 @@ class ResumeUploadSerializer(serializers.Serializer):
         return resume
 
 
-class ResumeSerializer(serializers.ModelSerializer):
-    """Serializer for resume display"""
+class ResumeListSerializer(serializers.ModelSerializer):
+    """Serializer for listing resumes"""
     filename = serializers.CharField(source="original_filename", read_only=True)
-    
+
     class Meta:
         model = Resume
         fields = (
@@ -56,3 +56,37 @@ class ResumeSerializer(serializers.ModelSerializer):
             "is_active",
         )
         read_only_fields = ("id", "filename", "file_size", "uploaded_at", "is_active")
+
+
+class ResumeDetailSerializer(serializers.ModelSerializer):
+    """Serializer for resume detail view"""
+    filename = serializers.CharField(source="original_filename", read_only=True)
+
+    class Meta:
+        model = Resume
+        fields = (
+            "id",
+            "filename",
+            "file_size",
+            "mime_type",
+            "uploaded_at",
+            "is_active",
+        )
+        read_only_fields = ("id", "filename", "file_size", "mime_type", "uploaded_at", "is_active")
+
+
+class ResumeActivationSerializer(serializers.ModelSerializer):
+    """Serializer for resume activation response"""
+    filename = serializers.CharField(source="original_filename", read_only=True)
+
+    class Meta:
+        model = Resume
+        fields = (
+            "id",
+            "filename",
+            "file_size",
+            "mime_type",
+            "uploaded_at",
+            "is_active",
+        )
+        read_only_fields = ("id", "filename", "file_size", "mime_type", "uploaded_at", "is_active")

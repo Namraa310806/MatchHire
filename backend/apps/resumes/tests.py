@@ -325,8 +325,318 @@ class ResumeUploadViewTests(TestCase):
         """Test that request without file field is rejected"""
         # Authenticate as candidate
         self.client.force_authenticate(user=self.candidate)
-        
+
         # Try to upload without file
         response = self.client.post("/api/resumes/upload/", {}, format="multipart")
-        
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ResumeManagementTests(TestCase):
+    """Test resume management endpoints"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = APIClient()
+
+        # Create candidate users
+        self.candidate1 = User.objects.create_user(
+            email="candidate1@example.com",
+            password="testpass123",
+            full_name="Candidate One",
+            role=User.Roles.CANDIDATE,
+        )
+
+        self.candidate2 = User.objects.create_user(
+            email="candidate2@example.com",
+            password="testpass123",
+            full_name="Candidate Two",
+            role=User.Roles.CANDIDATE,
+        )
+
+        # Create recruiter user
+        self.recruiter = User.objects.create_user(
+            email="recruiter@example.com",
+            password="testpass123",
+            full_name="Recruiter User",
+            role=User.Roles.RECRUITER,
+        )
+
+        # Create resumes for candidate1
+        pdf_content1 = b"%PDF-1.4\n%first pdf"
+        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
+        self.resume1 = Resume.objects.create(
+            user=self.candidate1,
+            original_filename="resume1.pdf",
+            stored_filename="uuid1.pdf",
+            file=file1,
+            file_size=len(pdf_content1),
+            mime_type="application/pdf",
+            is_active=True,
+        )
+
+        pdf_content2 = b"%PDF-1.4\n%second pdf"
+        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
+        self.resume2 = Resume.objects.create(
+            user=self.candidate1,
+            original_filename="resume2.pdf",
+            stored_filename="uuid2.pdf",
+            file=file2,
+            file_size=len(pdf_content2),
+            mime_type="application/pdf",
+            is_active=False,
+        )
+
+        # Create resume for candidate2
+        pdf_content3 = b"%PDF-1.4\n%third pdf"
+        file3 = SimpleUploadedFile("resume3.pdf", pdf_content3, content_type="application/pdf")
+        self.resume3 = Resume.objects.create(
+            user=self.candidate2,
+            original_filename="resume3.pdf",
+            stored_filename="uuid3.pdf",
+            file=file3,
+            file_size=len(pdf_content3),
+            mime_type="application/pdf",
+            is_active=True,
+        )
+
+    def test_candidate_list_resumes(self):
+        """Test that candidate can list their own resumes"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get("/api/resumes/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        # Should be ordered newest first
+        self.assertEqual(response.data[0]["id"], str(self.resume2.id))
+        self.assertEqual(response.data[1]["id"], str(self.resume1.id))
+
+    def test_candidate_list_only_own_resumes(self):
+        """Test that candidate only sees their own resumes"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get("/api/resumes/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        # Should not include candidate2's resume
+        resume_ids = [r["id"] for r in response.data]
+        self.assertNotIn(str(self.resume3.id), resume_ids)
+
+    def test_candidate_retrieve_own_resume(self):
+        """Test that candidate can retrieve their own resume"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get(f"/api/resumes/{self.resume1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(self.resume1.id))
+        self.assertEqual(response.data["filename"], "resume1.pdf")
+        self.assertIn("mime_type", response.data)
+
+    def test_candidate_cannot_retrieve_other_user_resume(self):
+        """Test that candidate cannot retrieve another user's resume"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get(f"/api/resumes/{self.resume3.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_active_resume_endpoint(self):
+        """Test that active resume endpoint returns active resume"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get("/api/resumes/active/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(self.resume1.id))
+        self.assertTrue(response.data["is_active"])
+
+    def test_active_resume_not_found(self):
+        """Test that active resume returns 404 when none exists"""
+        # Deactivate all resumes for candidate2
+        Resume.objects.filter(user=self.candidate2).update(is_active=False)
+
+        self.client.force_authenticate(user=self.candidate2)
+
+        response = self.client.get("/api/resumes/active/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_activate_resume(self):
+        """Test that candidate can activate a resume"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.patch(f"/api/resumes/{self.resume2.id}/activate/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_active"])
+
+        # Verify in database
+        self.resume1.refresh_from_db()
+        self.resume2.refresh_from_db()
+        self.assertFalse(self.resume1.is_active)
+        self.assertTrue(self.resume2.is_active)
+
+    def test_activate_switches_active_flag(self):
+        """Test that activating a resume switches the active flag"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        # Initially resume1 is active
+        self.assertTrue(self.resume1.is_active)
+        self.assertFalse(self.resume2.is_active)
+
+        # Activate resume2
+        response = self.client.patch(f"/api/resumes/{self.resume2.id}/activate/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify flags switched
+        self.resume1.refresh_from_db()
+        self.resume2.refresh_from_db()
+        self.assertFalse(self.resume1.is_active)
+        self.assertTrue(self.resume2.is_active)
+
+    def test_delete_resume(self):
+        """Test that candidate can delete their resume"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.delete(f"/api/resumes/{self.resume2.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify resume is deleted from database
+        self.assertFalse(Resume.objects.filter(id=self.resume2.id).exists())
+
+    def test_delete_removes_file(self):
+        """Test that deleting resume removes file from storage"""
+        from django.core.files.storage import default_storage
+
+        self.client.force_authenticate(user=self.candidate1)
+
+        file_path = self.resume2.file.name
+
+        # Verify file exists before deletion
+        self.assertTrue(default_storage.exists(file_path))
+
+        response = self.client.delete(f"/api/resumes/{self.resume2.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify file is deleted from storage
+        self.assertFalse(default_storage.exists(file_path))
+
+    def test_recruiter_blocked_from_list(self):
+        """Test that recruiters cannot list resumes"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.get("/api/resumes/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_blocked_from_retrieve(self):
+        """Test that recruiters cannot retrieve resumes"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.get(f"/api/resumes/{self.resume1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_blocked_from_active(self):
+        """Test that recruiters cannot access active resume endpoint"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.get("/api/resumes/active/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_blocked_from_activate(self):
+        """Test that recruiters cannot activate resumes"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.patch(f"/api/resumes/{self.resume1.id}/activate/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_recruiter_blocked_from_delete(self):
+        """Test that recruiters cannot delete resumes"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.delete(f"/api/resumes/{self.resume1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_blocked_from_list(self):
+        """Test that anonymous users cannot list resumes"""
+        response = self.client.get("/api/resumes/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_anonymous_blocked_from_retrieve(self):
+        """Test that anonymous users cannot retrieve resumes"""
+        response = self.client.get(f"/api/resumes/{self.resume1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_anonymous_blocked_from_active(self):
+        """Test that anonymous users cannot access active resume endpoint"""
+        response = self.client.get("/api/resumes/active/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_anonymous_blocked_from_activate(self):
+        """Test that anonymous users cannot activate resumes"""
+        response = self.client.patch(f"/api/resumes/{self.resume1.id}/activate/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_anonymous_blocked_from_delete(self):
+        """Test that anonymous users cannot delete resumes"""
+        response = self.client.delete(f"/api/resumes/{self.resume1.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_ordering_newest_first(self):
+        """Test that resumes are ordered newest first"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        response = self.client.get("/api/resumes/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # resume2 was created after resume1 (based on test setup order)
+        self.assertEqual(response.data[0]["id"], str(self.resume2.id))
+        self.assertEqual(response.data[1]["id"], str(self.resume1.id))
+
+    def test_transaction_behavior_on_activate(self):
+        """Test that activation is transactional"""
+        from django.db import transaction
+
+        self.client.force_authenticate(user=self.candidate1)
+
+        # Manually test transaction behavior by checking database state
+        with transaction.atomic():
+            # Activate resume2
+            response = self.client.patch(f"/api/resumes/{self.resume2.id}/activate/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            # Verify only one active resume exists
+            active_count = Resume.objects.filter(user=self.candidate1, is_active=True).count()
+            self.assertEqual(active_count, 1)
+
+    def test_delete_nonexistent_resume(self):
+        """Test that deleting non-existent resume returns 404"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        fake_uuid = "00000000-0000-0000-0000-000000000000"
+        response = self.client.delete(f"/api/resumes/{fake_uuid}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_activate_nonexistent_resume(self):
+        """Test that activating non-existent resume returns 404"""
+        self.client.force_authenticate(user=self.candidate1)
+
+        fake_uuid = "00000000-0000-0000-0000-000000000000"
+        response = self.client.patch(f"/api/resumes/{fake_uuid}/activate/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
