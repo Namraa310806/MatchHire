@@ -1,4 +1,7 @@
-from django.urls import path
+from django.urls import include, path
 
 
-urlpatterns = []
+urlpatterns = [
+	path("auth/", include("apps.users.auth_urls")),
+	path("profile/", include("apps.users.profile_urls")),
+]

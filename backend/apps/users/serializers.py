@@ -1,6 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.validators import ValidationError
 
 from .models import CandidateProfile, RecruiterProfile, User
 
@@ -170,3 +171,47 @@ class CurrentUserSerializer(serializers.Serializer):
 			except RecruiterProfile.DoesNotExist:
 				raise ProfileNotFound("Profile not found")
 		return None
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = User
+		fields = ("full_name",)
+
+	def validate(self, attrs):
+		unknown_fields = set(self.initial_data.keys()) - set(self.fields.keys())
+		if unknown_fields:
+			raise ValidationError(f"Unknown field(s): {', '.join(unknown_fields)}")
+		return attrs
+
+
+class CandidateProfileUpdateSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = CandidateProfile
+		fields = (
+			"headline",
+			"bio",
+			"current_location",
+			"years_of_experience",
+			"skills_text",
+			"linkedin_url",
+			"github_url",
+			"portfolio_url",
+		)
+		read_only_fields = ("id", "user", "resume_uploaded", "created_at", "updated_at")
+
+	def validate_years_of_experience(self, value):
+		if value < 0:
+			raise ValidationError("years_of_experience must be >= 0")
+		return value
+
+
+class RecruiterProfileUpdateSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = RecruiterProfile
+		fields = (
+			"company_name",
+			"company_website",
+			"job_title",
+		)
+		read_only_fields = ("id", "user", "verified_company", "created_at", "updated_at")

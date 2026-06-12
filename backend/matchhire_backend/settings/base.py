@@ -69,6 +69,10 @@ DATABASES = {
         "PASSWORD": get_env("DB_PASSWORD", default="matchhire"),
         "HOST": get_env("DB_HOST", default="db"),
         "PORT": get_env("DB_PORT", default="5432"),
+        "TEST": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        },
     }
 }
 

@@ -397,3 +397,273 @@ class CurrentUserViewTests(TestCase):
 		response = self.client.get("/api/auth/me/")
 
 		self.assertEqual(response.status_code, 500)
+
+
+class ProfileManagementTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.candidate = self.user_model.objects.create_user(
+			email="candidate@example.com",
+			password="pass12345",
+			full_name="Candidate User",
+		)
+		self.recruiter = self.user_model.objects.create_user(
+			email="recruiter@example.com",
+			password="pass12345",
+			full_name="Recruiter User",
+			role=self.user_model.Roles.RECRUITER,
+		)
+		self.recruiter.recruiter_profile.company_name = "Acme Inc"
+		self.recruiter.recruiter_profile.save()
+
+	def _authenticate_user(self, user):
+		refresh = RefreshToken.for_user(user)
+		self.client.cookies["access_token"] = str(refresh.access_token)
+		self.client.cookies["refresh_token"] = str(refresh)
+
+	def test_candidate_get_profile(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/profile/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("user", response.json())
+		self.assertIn("profile", response.json())
+
+	def test_candidate_update_profile(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/",
+			{"full_name": "Updated Name"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["full_name"], "Updated Name")
+		self.candidate.refresh_from_db()
+		self.assertEqual(self.candidate.full_name, "Updated Name")
+
+	def test_recruiter_get_profile(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/profile/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("user", response.json())
+		self.assertIn("profile", response.json())
+
+	def test_recruiter_update_profile(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.patch(
+			"/api/profile/",
+			{"full_name": "Updated Recruiter Name"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["full_name"], "Updated Recruiter Name")
+		self.recruiter.refresh_from_db()
+		self.assertEqual(self.recruiter.full_name, "Updated Recruiter Name")
+
+	def test_candidate_blocked_from_recruiter_endpoints(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/profile/recruiter/")
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_recruiter_blocked_from_candidate_endpoints(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/profile/candidate/")
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_authentication_required(self):
+		response = self.client.get("/api/profile/")
+
+		self.assertEqual(response.status_code, 401)
+
+	def test_email_cannot_be_changed(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/",
+			{"email": "newemail@example.com"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.candidate.refresh_from_db()
+		self.assertEqual(self.candidate.email, "candidate@example.com")
+
+	def test_role_cannot_be_changed(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/",
+			{"role": self.user_model.Roles.RECRUITER},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.candidate.refresh_from_db()
+		self.assertEqual(self.candidate.role, self.user_model.Roles.CANDIDATE)
+
+
+class CandidateProfileTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.candidate = self.user_model.objects.create_user(
+			email="candidate@example.com",
+			password="pass12345",
+			full_name="Candidate User",
+		)
+
+	def _authenticate_user(self, user):
+		refresh = RefreshToken.for_user(user)
+		self.client.cookies["access_token"] = str(refresh.access_token)
+		self.client.cookies["refresh_token"] = str(refresh)
+
+	def test_candidate_get_candidate_profile(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/profile/candidate/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertIn("headline", data)
+		self.assertIn("bio", data)
+		self.assertIn("current_location", data)
+		self.assertIn("years_of_experience", data)
+		self.assertIn("skills_text", data)
+		self.assertIn("linkedin_url", data)
+		self.assertIn("github_url", data)
+		self.assertIn("portfolio_url", data)
+		self.assertIn("resume_uploaded", data)
+
+	def test_candidate_update_candidate_profile(self):
+		self._authenticate_user(self.candidate)
+		update_data = {
+			"headline": "Software Engineer",
+			"bio": "Experienced developer",
+			"current_location": "San Francisco",
+			"years_of_experience": 5,
+			"skills_text": "Python, Django, JavaScript",
+			"linkedin_url": "https://linkedin.com/in/test",
+			"github_url": "https://github.com/test",
+			"portfolio_url": "https://portfolio.com",
+		}
+		response = self.client.patch(
+			"/api/profile/candidate/",
+			update_data,
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data["headline"], "Software Engineer")
+		self.assertEqual(data["bio"], "Experienced developer")
+		self.assertEqual(data["current_location"], "San Francisco")
+		self.assertEqual(data["years_of_experience"], 5)
+		self.assertEqual(data["skills_text"], "Python, Django, JavaScript")
+		self.assertEqual(data["linkedin_url"], "https://linkedin.com/in/test")
+		self.assertEqual(data["github_url"], "https://github.com/test")
+		self.assertEqual(data["portfolio_url"], "https://portfolio.com")
+
+	def test_invalid_years_of_experience_rejected(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/candidate/",
+			{"years_of_experience": -1},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("years_of_experience", response.json())
+
+	def test_invalid_linkedin_url_rejected(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/candidate/",
+			{"linkedin_url": "not-a-valid-url"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("linkedin_url", response.json())
+
+	def test_invalid_github_url_rejected(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/candidate/",
+			{"github_url": "not-a-valid-url"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("github_url", response.json())
+
+	def test_invalid_portfolio_url_rejected(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.patch(
+			"/api/profile/candidate/",
+			{"portfolio_url": "not-a-valid-url"},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("portfolio_url", response.json())
+
+
+class RecruiterProfileTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.recruiter = self.user_model.objects.create_user(
+			email="recruiter@example.com",
+			password="pass12345",
+			full_name="Recruiter User",
+			role=self.user_model.Roles.RECRUITER,
+		)
+		self.recruiter.recruiter_profile.company_name = "Acme Inc"
+		self.recruiter.recruiter_profile.save()
+
+	def _authenticate_user(self, user):
+		refresh = RefreshToken.for_user(user)
+		self.client.cookies["access_token"] = str(refresh.access_token)
+		self.client.cookies["refresh_token"] = str(refresh)
+
+	def test_recruiter_get_recruiter_profile(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/profile/recruiter/")
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertIn("company_name", data)
+		self.assertIn("company_website", data)
+		self.assertIn("job_title", data)
+		self.assertIn("verified_company", data)
+
+	def test_recruiter_update_recruiter_profile(self):
+		self._authenticate_user(self.recruiter)
+		update_data = {
+			"company_name": "New Company Inc",
+			"company_website": "https://newcompany.com",
+			"job_title": "Senior Recruiter",
+		}
+		response = self.client.patch(
+			"/api/profile/recruiter/",
+			update_data,
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		data = response.json()
+		self.assertEqual(data["company_name"], "New Company Inc")
+		self.assertEqual(data["company_website"], "https://newcompany.com")
+		self.assertEqual(data["job_title"], "Senior Recruiter")
+
+	def test_verified_company_cannot_be_changed(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.patch(
+			"/api/profile/recruiter/",
+			{"verified_company": True},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.recruiter.recruiter_profile.refresh_from_db()
+		self.assertEqual(self.recruiter.recruiter_profile.verified_company, False)
