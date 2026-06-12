@@ -71,6 +71,38 @@ docker compose up --build
 
 ## Development Workflow
 
+MatchHire is a **Docker-first** project. All Django management commands must be executed through Docker Compose to ensure proper connectivity to the database and Redis services.
+
+### Django Management Commands
+
+Never run `python manage.py ...` directly from Windows. Always use:
+
+```bash
+docker compose exec web python manage.py <command>
+```
+
+### Common Commands
+
+```bash
+# Database migrations
+docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py migrate
+
+# Run tests
+docker compose exec web python manage.py test
+
+# Django shell
+docker compose exec web python manage.py shell
+
+# Create superuser
+docker compose exec web python manage.py createsuperuser
+
+# Check configuration
+docker compose exec web python manage.py check
+```
+
+### Development Guidelines
+
 1. Keep business logic in the appropriate Django app under `backend/apps/`.
 2. Use the environment files for all secrets and runtime configuration.
 3. Run Django through Docker during normal development so database, Redis, Celery, and Nginx stay aligned.
