@@ -4,6 +4,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
 from .models import CandidateProfile, RecruiterProfile
+from .permissions import (
+	CandidateAndVerified,
+	IsCandidate,
+	IsProfileOwner,
+	IsRecruiter,
+	IsVerifiedUser,
+	ReadOnly,
+	RecruiterAndVerified,
+)
 
 
 class UserModelTests(TestCase):
@@ -667,3 +676,120 @@ class RecruiterProfileTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.recruiter.recruiter_profile.refresh_from_db()
 		self.assertEqual(self.recruiter.recruiter_profile.verified_company, False)
+
+
+class RBACPermissionTests(TestCase):
+	def setUp(self):
+		self.user_model = get_user_model()
+		self.candidate = self.user_model.objects.create_user(
+			email="candidate@example.com",
+			password="pass12345",
+			full_name="Candidate User",
+		)
+		self.verified_candidate = self.user_model.objects.create_user(
+			email="verified_candidate@example.com",
+			password="pass12345",
+			full_name="Verified Candidate",
+		)
+		self.verified_candidate.is_verified = True
+		self.verified_candidate.save()
+		self.recruiter = self.user_model.objects.create_user(
+			email="recruiter@example.com",
+			password="pass12345",
+			full_name="Recruiter User",
+			role=self.user_model.Roles.RECRUITER,
+		)
+		self.verified_recruiter = self.user_model.objects.create_user(
+			email="verified_recruiter@example.com",
+			password="pass12345",
+			full_name="Verified Recruiter",
+			role=self.user_model.Roles.RECRUITER,
+		)
+		self.verified_recruiter.is_verified = True
+		self.verified_recruiter.save()
+
+	def _authenticate_user(self, user):
+		refresh = RefreshToken.for_user(user)
+		self.client.cookies["access_token"] = str(refresh.access_token)
+		self.client.cookies["refresh_token"] = str(refresh)
+
+	def _create_mock_request(self, user, method="GET"):
+		class MockRequest:
+			def __init__(self, user, method):
+				self.user = user
+				self.method = method
+
+		return MockRequest(user, method)
+
+	def test_candidate_accesses_candidate_only_endpoint(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/users/rbac/candidate-only/")
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["message"], "Access granted")
+
+	def test_recruiter_denied_candidate_only_endpoint(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/users/rbac/candidate-only/")
+		self.assertEqual(response.status_code, 403)
+
+	def test_recruiter_accesses_recruiter_only_endpoint(self):
+		self._authenticate_user(self.recruiter)
+		response = self.client.get("/api/users/rbac/recruiter-only/")
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["message"], "Access granted")
+
+	def test_candidate_denied_recruiter_only_endpoint(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/users/rbac/recruiter-only/")
+		self.assertEqual(response.status_code, 403)
+
+	def test_verified_user_accesses_verified_endpoint(self):
+		self._authenticate_user(self.verified_candidate)
+		response = self.client.get("/api/users/rbac/verified-only/")
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()["message"], "Access granted")
+
+	def test_unverified_user_denied_verified_endpoint(self):
+		self._authenticate_user(self.candidate)
+		response = self.client.get("/api/users/rbac/verified-only/")
+		self.assertEqual(response.status_code, 403)
+
+	def test_anonymous_user_denied_all_endpoints(self):
+		response = self.client.get("/api/users/rbac/candidate-only/")
+		self.assertEqual(response.status_code, 401)
+		response = self.client.get("/api/users/rbac/recruiter-only/")
+		self.assertEqual(response.status_code, 401)
+		response = self.client.get("/api/users/rbac/verified-only/")
+		self.assertEqual(response.status_code, 401)
+
+	def test_readonly_allows_get(self):
+		request = self._create_mock_request(self.candidate, "GET")
+		permission = ReadOnly()
+		self.assertTrue(permission.has_permission(request, None))
+
+	def test_readonly_blocks_patch(self):
+		request = self._create_mock_request(self.candidate, "PATCH")
+		permission = ReadOnly()
+		self.assertFalse(permission.has_permission(request, None))
+
+	def test_isprofileowner_allows_owner(self):
+		permission = IsProfileOwner()
+		profile = self.candidate.candidate_profile
+		request = self._create_mock_request(self.candidate)
+		self.assertTrue(permission.has_object_permission(request, None, profile))
+
+	def test_isprofileowner_denies_non_owner(self):
+		permission = IsProfileOwner()
+		profile = self.candidate.candidate_profile
+		request = self._create_mock_request(self.recruiter)
+		self.assertFalse(permission.has_object_permission(request, None, profile))
+
+	def test_candidate_and_verified_works(self):
+		request = self._create_mock_request(self.verified_candidate)
+		permission = CandidateAndVerified()
+		self.assertTrue(permission.has_permission(request, None))
+
+	def test_recruiter_and_verified_works(self):
+		request = self._create_mock_request(self.verified_recruiter)
+		permission = RecruiterAndVerified()
+		self.assertTrue(permission.has_permission(request, None))
