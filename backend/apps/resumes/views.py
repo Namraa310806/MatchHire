@@ -6,13 +6,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.permissions import IsCandidate
-from .models import Resume
+from .models import Resume, ParsedResume
+from .parsers import UnsupportedResumeType, CorruptedResumeError
 from .serializers import (
     ResumeListSerializer,
     ResumeDetailSerializer,
     ResumeUploadSerializer,
     ResumeActivationSerializer,
+    ParsedResumeSerializer,
+    ParseResumeResponseSerializer,
 )
+from .services.parser_service import ResumeParserService
 
 
 class ResumeUploadView(APIView):
@@ -159,4 +163,91 @@ class ResumeActivateView(APIView):
             resume.save()
 
         serializer = ResumeActivationSerializer(resume)
+        return Response(serializer.data)
+
+
+class ParseResumeView(APIView):
+    """
+    Parse a resume to extract raw text.
+    
+    POST /api/resumes/<id>/parse/
+    
+    Authentication required. Candidate only.
+    Only owner can parse their resumes.
+    """
+    permission_classes = (IsAuthenticated, IsCandidate)
+
+    def get_object(self, request, id):
+        """Get resume if owned by current user"""
+        try:
+            return Resume.objects.select_related("user").get(id=id, user=request.user)
+        except Resume.DoesNotExist:
+            raise Http404("Resume not found")
+
+    def post(self, request, id):
+        """Parse the specified resume"""
+        resume = self.get_object(request, id)
+
+        try:
+            # Parse the resume
+            parsed_resume = ResumeParserService.parse_resume(resume)
+
+            # Return response
+            response_data = {
+                "resume_id": str(parsed_resume.resume.id),
+                "status": parsed_resume.status,
+                "text_length": len(parsed_resume.raw_text) if parsed_resume.raw_text else 0,
+            }
+            serializer = ParseResumeResponseSerializer(response_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except UnsupportedResumeType as e:
+            # Mark as failed and return error
+            ResumeParserService.mark_as_failed(resume, str(e))
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except CorruptedResumeError as e:
+            # Mark as failed and return error
+            ResumeParserService.mark_as_failed(resume, str(e))
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            # Mark as failed and return error
+            ResumeParserService.mark_as_failed(resume, str(e))
+            return Response(
+                {"detail": "Failed to parse resume"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ParsedResumeDetailView(APIView):
+    """
+    Retrieve parsed resume information.
+    
+    GET /api/resumes/<id>/parsed/
+    
+    Authentication required. Candidate only.
+    Only owner can access their parsed resume data.
+    Does NOT return full raw text.
+    """
+    permission_classes = (IsAuthenticated, IsCandidate)
+
+    def get_object(self, request, id):
+        """Get parsed resume if owned by current user"""
+        try:
+            resume = Resume.objects.get(id=id, user=request.user)
+            return ParsedResume.objects.select_related("resume").get(resume=resume)
+        except Resume.DoesNotExist:
+            raise Http404("Resume not found")
+        except ParsedResume.DoesNotExist:
+            raise Http404("Parsed resume not found")
+
+    def get(self, request, id):
+        """Retrieve parsed resume details"""
+        parsed_resume = self.get_object(request, id)
+        serializer = ParsedResumeSerializer(parsed_resume)
         return Response(serializer.data)

@@ -1,7 +1,7 @@
 import mimetypes
 from rest_framework import serializers
 
-from .models import Resume
+from .models import Resume, ParsedResume
 from .services.storage import ResumeStorageService
 from .services.validators import validate_resume_file
 
@@ -90,3 +90,30 @@ class ResumeActivationSerializer(serializers.ModelSerializer):
             "is_active",
         )
         read_only_fields = ("id", "filename", "file_size", "mime_type", "uploaded_at", "is_active")
+
+
+class ParsedResumeSerializer(serializers.ModelSerializer):
+    """Serializer for parsed resume data (without full raw text)"""
+    resume_id = serializers.UUIDField(source="resume.id", read_only=True)
+    text_length = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ParsedResume
+        fields = (
+            "resume_id",
+            "status",
+            "text_length",
+            "parsed_at",
+        )
+        read_only_fields = ("resume_id", "status", "text_length", "parsed_at")
+
+    def get_text_length(self, obj):
+        """Get the length of the raw text"""
+        return len(obj.raw_text) if obj.raw_text else 0
+
+
+class ParseResumeResponseSerializer(serializers.Serializer):
+    """Serializer for parse resume endpoint response"""
+    resume_id = serializers.UUIDField()
+    status = serializers.CharField()
+    text_length = serializers.IntegerField()

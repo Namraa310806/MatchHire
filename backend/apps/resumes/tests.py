@@ -640,3 +640,379 @@ class ResumeManagementTests(TestCase):
         response = self.client.patch(f"/api/resumes/{fake_uuid}/activate/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class ResumeParsingTests(TestCase):
+    """Test resume parsing functionality"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = APIClient()
+
+        # Create candidate user
+        self.candidate = User.objects.create_user(
+            email="candidate@example.com",
+            password="testpass123",
+            full_name="Candidate User",
+            role=User.Roles.CANDIDATE,
+        )
+
+        # Create recruiter user
+        self.recruiter = User.objects.create_user(
+            email="recruiter@example.com",
+            password="testpass123",
+            full_name="Recruiter User",
+            role=User.Roles.RECRUITER,
+        )
+
+        # Create a PDF resume
+        pdf_content = b"%PDF-1.4\n%fake pdf content"
+        self.pdf_file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
+        self.pdf_resume = Resume.objects.create(
+            user=self.candidate,
+            original_filename="resume.pdf",
+            stored_filename="uuid1.pdf",
+            file=self.pdf_file,
+            file_size=len(pdf_content),
+            mime_type="application/pdf",
+            is_active=True,
+        )
+
+        # Create a DOCX resume
+        docx_content = b"PK\x03\x04" + b"\x00" * 100
+        self.docx_file = SimpleUploadedFile("resume.docx", docx_content, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        self.docx_resume = Resume.objects.create(
+            user=self.candidate,
+            original_filename="resume.docx",
+            stored_filename="uuid2.docx",
+            file=self.docx_file,
+            file_size=len(docx_content),
+            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            is_active=False,
+        )
+
+    def test_parse_pdf_resume_success(self):
+        """Test that PDF resume can be parsed successfully"""
+        from unittest.mock import patch
+        
+        self.client.force_authenticate(user=self.candidate)
+
+        # Mock the PDF parser to return valid text
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "John Doe\nSoftware Engineer\nExperience: 5 years"
+            
+            response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("resume_id", response.data)
+            self.assertIn("status", response.data)
+            self.assertIn("text_length", response.data)
+            self.assertEqual(response.data["status"], "SUCCESS")
+            self.assertGreater(response.data["text_length"], 0)
+
+            # Verify ParsedResume was created
+            from .models import ParsedResume
+            parsed_resume = ParsedResume.objects.get(resume=self.pdf_resume)
+            self.assertEqual(parsed_resume.status, ParsedResume.ParseStatus.SUCCESS)
+            self.assertIsNotNone(parsed_resume.raw_text)
+            self.assertIsNotNone(parsed_resume.parsed_at)
+
+    def test_parse_docx_resume_success(self):
+        """Test that DOCX resume can be parsed successfully"""
+        from unittest.mock import patch
+        
+        self.client.force_authenticate(user=self.candidate)
+
+        # Mock the DOCX parser to return valid text
+        with patch('apps.resumes.parsers.docx_parser.DOCXResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "Jane Smith\nData Scientist\nSkills: Python, SQL"
+            
+            response = self.client.post(f"/api/resumes/{self.docx_resume.id}/parse/")
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["status"], "SUCCESS")
+
+            # Verify ParsedResume was created
+            from .models import ParsedResume
+            parsed_resume = ParsedResume.objects.get(resume=self.docx_resume)
+            self.assertEqual(parsed_resume.status, ParsedResume.ParseStatus.SUCCESS)
+
+    def test_unsupported_mime_type_rejected(self):
+        """Test that unsupported MIME types are rejected"""
+        # Create a resume with unsupported MIME type
+        txt_content = b"some text"
+        txt_file = SimpleUploadedFile("resume.txt", txt_content, content_type="text/plain")
+        txt_resume = Resume.objects.create(
+            user=self.candidate,
+            original_filename="resume.txt",
+            stored_filename="uuid3.txt",
+            file=txt_file,
+            file_size=len(txt_content),
+            mime_type="text/plain",
+            is_active=False,
+        )
+
+        self.client.force_authenticate(user=self.candidate)
+
+        response = self.client.post(f"/api/resumes/{txt_resume.id}/parse/")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Unsupported resume MIME type", response.data["detail"])
+
+        # Verify ParsedResume was marked as failed
+        from .models import ParsedResume
+        parsed_resume = ParsedResume.objects.get(resume=txt_resume)
+        self.assertEqual(parsed_resume.status, ParsedResume.ParseStatus.FAILED)
+        self.assertIsNotNone(parsed_resume.error_message)
+
+    def test_corrupted_pdf_rejected(self):
+        """Test that corrupted PDF files are rejected"""
+        from unittest.mock import patch
+        from .parsers.exceptions import CorruptedResumeError
+        
+        # Create a corrupted PDF file
+        corrupted_pdf = b"NOT A PDF FILE"
+        corrupted_file = SimpleUploadedFile("corrupted.pdf", corrupted_pdf, content_type="application/pdf")
+        corrupted_resume = Resume.objects.create(
+            user=self.candidate,
+            original_filename="corrupted.pdf",
+            stored_filename="uuid4.pdf",
+            file=corrupted_file,
+            file_size=len(corrupted_pdf),
+            mime_type="application/pdf",
+            is_active=False,
+        )
+
+        self.client.force_authenticate(user=self.candidate)
+
+        # Mock the PDF parser to raise CorruptedResumeError
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.side_effect = CorruptedResumeError("Corrupted PDF file")
+            
+            response = self.client.post(f"/api/resumes/{corrupted_resume.id}/parse/")
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+            # Verify ParsedResume was marked as failed
+            from .models import ParsedResume
+            parsed_resume = ParsedResume.objects.get(resume=corrupted_resume)
+            self.assertEqual(parsed_resume.status, ParsedResume.ParseStatus.FAILED)
+
+    def test_corrupted_docx_rejected(self):
+        """Test that corrupted DOCX files are rejected"""
+        from unittest.mock import patch
+        from .parsers.exceptions import CorruptedResumeError
+        
+        # Create a corrupted DOCX file
+        corrupted_docx = b"NOT A DOCX FILE"
+        corrupted_file = SimpleUploadedFile("corrupted.docx", corrupted_docx, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        corrupted_resume = Resume.objects.create(
+            user=self.candidate,
+            original_filename="corrupted.docx",
+            stored_filename="uuid5.docx",
+            file=corrupted_file,
+            file_size=len(corrupted_docx),
+            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            is_active=False,
+        )
+
+        self.client.force_authenticate(user=self.candidate)
+
+        # Mock the DOCX parser to raise CorruptedResumeError
+        with patch('apps.resumes.parsers.docx_parser.DOCXResumeParser.extract_text') as mock_extract:
+            mock_extract.side_effect = CorruptedResumeError("Corrupted DOCX file")
+            
+            response = self.client.post(f"/api/resumes/{corrupted_resume.id}/parse/")
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+            # Verify ParsedResume was marked as failed
+            from .models import ParsedResume
+            parsed_resume = ParsedResume.objects.get(resume=corrupted_resume)
+            self.assertEqual(parsed_resume.status, ParsedResume.ParseStatus.FAILED)
+
+    def test_parsed_resume_created(self):
+        """Test that ParsedResume record is created"""
+        from unittest.mock import patch
+        
+        self.client.force_authenticate(user=self.candidate)
+
+        # Verify no ParsedResume exists initially
+        from .models import ParsedResume
+        self.assertFalse(ParsedResume.objects.filter(resume=self.pdf_resume).exists())
+
+        # Mock the parser
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "Sample resume text"
+            
+            # Parse the resume
+            response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            # Verify ParsedResume was created
+            self.assertTrue(ParsedResume.objects.filter(resume=self.pdf_resume).exists())
+
+    def test_parse_endpoint_works(self):
+        """Test that parse endpoint works end-to-end"""
+        from unittest.mock import patch
+        
+        self.client.force_authenticate(user=self.candidate)
+
+        # Mock the parser
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "Sample resume text"
+            
+            response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["status"], "SUCCESS")
+            self.assertIn("resume_id", response.data)
+            self.assertIn("text_length", response.data)
+            self.assertIsInstance(response.data["text_length"], int)
+
+    def test_parse_retrieval_endpoint_works(self):
+        """Test that parsed resume retrieval endpoint works"""
+        from unittest.mock import patch
+        
+        # First parse the resume
+        self.client.force_authenticate(user=self.candidate)
+        
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "Sample resume text"
+            self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+        # Retrieve parsed resume info
+        response = self.client.get(f"/api/resumes/{self.pdf_resume.id}/parsed/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("resume_id", response.data)
+        self.assertIn("status", response.data)
+        self.assertIn("text_length", response.data)
+        self.assertIn("parsed_at", response.data)
+        # Should NOT include raw_text
+        self.assertNotIn("raw_text", response.data)
+
+    def test_ownership_enforced_on_parse(self):
+        """Test that ownership is enforced on parse endpoint"""
+        # Create another candidate
+        other_candidate = User.objects.create_user(
+            email="other@example.com",
+            password="testpass123",
+            full_name="Other User",
+            role=User.Roles.CANDIDATE,
+        )
+
+        # Try to parse as other candidate
+        self.client.force_authenticate(user=other_candidate)
+        response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_recruiter_blocked_from_parse(self):
+        """Test that recruiters cannot parse resumes"""
+        self.client.force_authenticate(user=self.recruiter)
+
+        response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_blocked_from_parse(self):
+        """Test that anonymous users cannot parse resumes"""
+        response = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_text_normalization_works(self):
+        """Test that text normalization works correctly"""
+        from .parsers.utils import normalize_resume_text
+
+        # Test with multiple spaces and tabs
+        text = "Hello    World\t\tTest"
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Hello World Test")
+
+        # Test with multiple blank lines
+        text = "Line 1\n\n\n\nLine 2"
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Line 1\n\nLine 2")
+
+        # Test with leading/trailing whitespace
+        text = "  Text  "
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Text")
+
+    def test_re_parse_updates_existing_record(self):
+        """Test that re-parsing an existing resume updates the record"""
+        from unittest.mock import patch
+        import time
+        
+        self.client.force_authenticate(user=self.candidate)
+
+        # First parse
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "First parse text"
+            response1 = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+            self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        from .models import ParsedResume
+        parsed_resume = ParsedResume.objects.get(resume=self.pdf_resume)
+        first_parsed_at = parsed_resume.parsed_at
+
+        # Wait a bit to ensure timestamp difference
+        time.sleep(0.01)
+
+        # Second parse (should update existing record)
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = "Second parse text"
+            response2 = self.client.post(f"/api/resumes/{self.pdf_resume.id}/parse/")
+            self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        # Verify it's the same record
+        parsed_resume.refresh_from_db()
+        self.assertEqual(ParsedResume.objects.filter(resume=self.pdf_resume).count(), 1)
+        # Verify parsed_at was updated
+        self.assertGreater(parsed_resume.parsed_at, first_parsed_at)
+
+
+class TextNormalizationTests(TestCase):
+    """Test text normalization utility"""
+
+    def test_normalize_whitespace(self):
+        """Test that whitespace is normalized"""
+        from .parsers.utils import normalize_resume_text
+
+        text = "Multiple    spaces\t\tand\ttabs"
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Multiple spaces and tabs")
+
+    def test_collapse_blank_lines(self):
+        """Test that repeated blank lines are collapsed"""
+        from .parsers.utils import normalize_resume_text
+
+        text = "Line 1\n\n\n\n\nLine 2"
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Line 1\n\nLine 2")
+
+    def test_trim_whitespace(self):
+        """Test that leading/trailing whitespace is trimmed"""
+        from .parsers.utils import normalize_resume_text
+
+        text = "  \n  Text with spaces  \n  "
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "Text with spaces")
+
+    def test_empty_string(self):
+        """Test that empty string is handled"""
+        from .parsers.utils import normalize_resume_text
+
+        text = ""
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "")
+
+    def test_none_input(self):
+        """Test that None input is handled"""
+        from .parsers.utils import normalize_resume_text
+
+        text = None
+        normalized = normalize_resume_text(text)
+        self.assertEqual(normalized, "")
