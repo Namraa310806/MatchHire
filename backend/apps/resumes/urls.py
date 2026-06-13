@@ -8,6 +8,11 @@ from .views import (
     ResumeActivateView,
     ParseResumeView,
     ParsedResumeDetailView,
+    ResumeVersionHistoryView,
+    CurrentResumeVersionView,
+    RollbackResumeVersionView,
+    ParseResumeVersionView,
+    ParsedResumeVersionDetailView,
 )
 
 urlpatterns = [
@@ -18,4 +23,10 @@ urlpatterns = [
     path("<uuid:id>/parse/", ParseResumeView.as_view(), name="resume-parse"),
     path("<uuid:id>/parsed/", ParsedResumeDetailView.as_view(), name="resume-parsed"),
     path("active/", ActiveResumeView.as_view(), name="resume-active"),
+    path("<uuid:id>/versions/", ResumeVersionHistoryView.as_view(), name="resume-version-history"),
+    path("<uuid:id>/versions/current/", CurrentResumeVersionView.as_view(), name="resume-version-current"),
+    path("<uuid:id>/versions/<uuid:version_id>/rollback/", RollbackResumeVersionView.as_view(), name="resume-version-rollback"),
+    path("<uuid:id>/versions/<uuid:version_id>/activate/", ResumeActivateView.as_view(), name="resume-version-activate"),
+    path("versions/<uuid:version_id>/parse/", ParseResumeVersionView.as_view(), name="resume-version-parse"),
+    path("versions/<uuid:version_id>/parsed/", ParsedResumeVersionDetailView.as_view(), name="resume-version-parsed"),
 ]
