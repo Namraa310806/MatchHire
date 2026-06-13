@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import redis
 from django.db import connections
@@ -55,7 +56,18 @@ def get_dependency_status() -> dict[str, str]:
     }
 
 
+def is_running_management_command() -> bool:
+    """Check if currently running a Django management command."""
+    return len(sys.argv) > 1 and "manage.py" in sys.argv[0]
+
+
 def run_startup_checks() -> None:
+    # Skip connectivity checks during management commands
+    if is_running_management_command():
+        logger.info("Skipping connectivity checks during management command execution")
+        check_required_environment()
+        return
+
     check_required_environment()
     if get_env("DJANGO_SETTINGS_MODULE", default="").endswith(".prod"):
         try:
