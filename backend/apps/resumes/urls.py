@@ -13,6 +13,8 @@ from .views import (
     RollbackResumeVersionView,
     ParseResumeVersionView,
     ParsedResumeVersionDetailView,
+    ExtractResumeVersionView,
+    StructuredResumeVersionView,
 )
 
 urlpatterns = [
@@ -29,4 +31,6 @@ urlpatterns = [
     path("<uuid:id>/versions/<uuid:version_id>/activate/", ResumeActivateView.as_view(), name="resume-version-activate"),
     path("versions/<uuid:version_id>/parse/", ParseResumeVersionView.as_view(), name="resume-version-parse"),
     path("versions/<uuid:version_id>/parsed/", ParsedResumeVersionDetailView.as_view(), name="resume-version-parsed"),
+    path("versions/<uuid:version_id>/extract/", ExtractResumeVersionView.as_view(), name="resume-version-extract"),
+    path("versions/<uuid:version_id>/structured/", StructuredResumeVersionView.as_view(), name="resume-version-structured"),
 ]

@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.permissions import IsCandidate
-from .models import Resume, ParsedResume, ResumeVersion
+from .models import Resume, ParsedResume, ResumeVersion, StructuredResume
 from .parsers import UnsupportedResumeType, CorruptedResumeError
 from .serializers import (
     ResumeListSerializer,
@@ -17,9 +17,12 @@ from .serializers import (
     ParseResumeResponseSerializer,
     ResumeVersionSerializer,
     RollbackResponseSerializer,
+    StructuredResumeSerializer,
+    ExtractResumeResponseSerializer,
 )
 from .services.parser_service import ResumeParserService
 from .services.versioning import ResumeVersioningService
+from .services.extraction_service import ResumeExtractionService
 
 
 class ResumeUploadView(APIView):
@@ -472,4 +475,97 @@ class ParsedResumeVersionDetailView(APIView):
         """Retrieve parsed resume details"""
         parsed_resume = self.get_object(request, version_id)
         serializer = ParsedResumeSerializer(parsed_resume)
+        return Response(serializer.data)
+
+
+class ExtractResumeVersionView(APIView):
+    """
+    Extract structured resume data from a parsed resume version.
+
+    POST /api/resumes/versions/<version_id>/extract/
+
+    Authentication required. Candidate only.
+    Only owner can extract structured data from their resume versions.
+    """
+    permission_classes = (IsAuthenticated, IsCandidate)
+
+    def get_object(self, request, version_id):
+        """Get parsed resume if owned by current user"""
+        try:
+            resume_version = ResumeVersion.objects.select_related("resume").get(
+                id=version_id, resume__user=request.user
+            )
+            return ParsedResume.objects.select_related("resume_version").get(
+                resume_version=resume_version
+            )
+        except ResumeVersion.DoesNotExist:
+            raise Http404("Resume version not found")
+        except ParsedResume.DoesNotExist:
+            raise Http404("Parsed resume not found")
+
+    def post(self, request, version_id):
+        """Extract structured data from the parsed resume version"""
+        parsed_resume = self.get_object(request, version_id)
+
+        if parsed_resume.status != ParsedResume.ParseStatus.SUCCESS:
+            return Response(
+                {"detail": "Resume must be successfully parsed before extraction."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Extract structured data
+            structured_resume = ResumeExtractionService.extract(parsed_resume)
+
+            # Return response
+            response_data = {
+                "structured_resume_id": str(structured_resume.id),
+                "resume_version_id": str(structured_resume.resume_version.id),
+                "resume_id": str(structured_resume.resume_version.resume.id),
+                "status": "success",
+            }
+            serializer = ExtractResumeResponseSerializer(response_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {"detail": "Failed to extract structured resume data"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class StructuredResumeVersionView(APIView):
+    """
+    Retrieve structured resume data for a specific version.
+
+    GET /api/resumes/versions/<version_id>/structured/
+
+    Authentication required. Candidate only.
+    Only owner can access their structured resume data.
+    """
+    permission_classes = (IsAuthenticated, IsCandidate)
+
+    def get_object(self, request, version_id):
+        """Get structured resume if owned by current user"""
+        try:
+            resume_version = ResumeVersion.objects.select_related("resume").get(
+                id=version_id, resume__user=request.user
+            )
+            return StructuredResume.objects.select_related("resume_version").get(
+                resume_version=resume_version
+            )
+        except ResumeVersion.DoesNotExist:
+            raise Http404("Resume version not found")
+        except StructuredResume.DoesNotExist:
+            raise Http404("Structured resume not found")
+
+    def get(self, request, version_id):
+        """Retrieve structured resume details"""
+        structured_resume = self.get_object(request, version_id)
+        serializer = StructuredResumeSerializer(structured_resume)
         return Response(serializer.data)

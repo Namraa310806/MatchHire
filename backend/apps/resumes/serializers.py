@@ -2,7 +2,17 @@ import mimetypes
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Resume, ParsedResume, ResumeVersion
+from .models import (
+    Resume,
+    ParsedResume,
+    ResumeVersion,
+    StructuredResume,
+    ResumeSkill,
+    ResumeEducation,
+    ResumeExperience,
+    ResumeProject,
+    ResumeCertification,
+)
 from .services.storage import ResumeStorageService
 from .services.validators import validate_resume_file
 from .services.versioning import ResumeVersioningService
@@ -185,3 +195,124 @@ class RollbackResponseSerializer(serializers.Serializer):
     """Serializer for rollback endpoint response"""
     resume_id = serializers.UUIDField()
     current_version = serializers.IntegerField()
+
+
+class ResumeSkillSerializer(serializers.ModelSerializer):
+    """Serializer for resume skill"""
+    class Meta:
+        model = ResumeSkill
+        fields = (
+            "id",
+            "name",
+        )
+        read_only_fields = ("id",)
+
+
+class ResumeEducationSerializer(serializers.ModelSerializer):
+    """Serializer for resume education"""
+    class Meta:
+        model = ResumeEducation
+        fields = (
+            "id",
+            "institution",
+            "degree",
+            "field_of_study",
+            "start_year",
+            "end_year",
+            "description",
+        )
+        read_only_fields = ("id",)
+
+
+class ResumeExperienceSerializer(serializers.ModelSerializer):
+    """Serializer for resume experience"""
+    class Meta:
+        model = ResumeExperience
+        fields = (
+            "id",
+            "company",
+            "job_title",
+            "start_date",
+            "end_date",
+            "description",
+        )
+        read_only_fields = ("id",)
+
+
+class ResumeProjectSerializer(serializers.ModelSerializer):
+    """Serializer for resume project"""
+    class Meta:
+        model = ResumeProject
+        fields = (
+            "id",
+            "title",
+            "description",
+            "github_url",
+            "project_url",
+        )
+        read_only_fields = ("id",)
+
+
+class ResumeCertificationSerializer(serializers.ModelSerializer):
+    """Serializer for resume certification"""
+    class Meta:
+        model = ResumeCertification
+        fields = (
+            "id",
+            "name",
+            "issuer",
+            "issue_date",
+        )
+        read_only_fields = ("id",)
+
+
+class StructuredResumeSerializer(serializers.ModelSerializer):
+    """Serializer for structured resume"""
+    resume_version_id = serializers.UUIDField(source="resume_version.id", read_only=True)
+    resume_id = serializers.UUIDField(source="resume_version.resume.id", read_only=True)
+    version_number = serializers.IntegerField(source="resume_version.version_number", read_only=True)
+    skills = ResumeSkillSerializer(many=True, read_only=True)
+    education = ResumeEducationSerializer(many=True, read_only=True)
+    experience = ResumeExperienceSerializer(many=True, read_only=True)
+    projects = ResumeProjectSerializer(many=True, read_only=True)
+    certifications = ResumeCertificationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StructuredResume
+        fields = (
+            "id",
+            "resume_version_id",
+            "resume_id",
+            "version_number",
+            "full_name",
+            "email",
+            "phone",
+            "location",
+            "summary",
+            "linkedin_url",
+            "github_url",
+            "portfolio_url",
+            "skills",
+            "education",
+            "experience",
+            "projects",
+            "certifications",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "resume_version_id",
+            "resume_id",
+            "version_number",
+            "created_at",
+            "updated_at",
+        )
+
+
+class ExtractResumeResponseSerializer(serializers.Serializer):
+    """Serializer for extract resume endpoint response"""
+    structured_resume_id = serializers.UUIDField()
+    resume_version_id = serializers.UUIDField()
+    resume_id = serializers.UUIDField()
+    status = serializers.CharField()

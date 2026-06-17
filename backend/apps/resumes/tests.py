@@ -6,9 +6,10 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from apps.users.models import User
-from .models import Resume, ResumeVersion, ParsedResume
+from .models import Resume, ResumeVersion, ParsedResume, StructuredResume, ResumeSkill, ResumeEducation, ResumeExperience, ResumeProject, ResumeCertification
 from .services.validators import validate_resume_file
 from .services.storage import ResumeStorageService
+from .services.extraction_service import ResumeExtractionService
 
 
 class ResumeValidatorTests(TestCase):
@@ -608,3 +609,344 @@ class ResumeArchitectureTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("resume_version_id", response.data)
         self.assertEqual(response.data["resume_version_id"], version_id)
+
+
+class ResumeExtractionTests(TestCase):
+    """Test structured resume extraction functionality"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = APIClient()
+        self.candidate = User.objects.create_user(
+            email="candidate@example.com",
+            password="testpass123",
+            full_name="Candidate User",
+            role=User.Roles.CANDIDATE,
+        )
+        self.recruiter = User.objects.create_user(
+            email="recruiter@example.com",
+            password="testpass123",
+            full_name="Recruiter User",
+            role=User.Roles.RECRUITER,
+        )
+        self.other_candidate = User.objects.create_user(
+            email="other@example.com",
+            password="testpass123",
+            full_name="Other User",
+            role=User.Roles.CANDIDATE,
+        )
+
+    def _create_parsed_resume(self, raw_text):
+        """Helper to create a parsed resume with given text"""
+        self.client.force_authenticate(user=self.candidate)
+        
+        # Upload resume
+        pdf_content = b"%PDF-1.4\n%test pdf"
+        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
+        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        version_id = upload_response.data["id"]
+        
+        # Parse with mock
+        from unittest.mock import patch
+        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+            mock_extract.return_value = raw_text
+            self.client.post(f"/api/resumes/versions/{version_id}/parse/")
+        
+        return ParsedResume.objects.get(resume_version_id=version_id)
+
+    def test_email_extraction(self):
+        """Test that email is extracted from resume text"""
+        raw_text = """
+John Doe
+Email: john.doe@example.com
+Phone: (555) 123-4567
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        self.assertEqual(structured_resume.email, "john.doe@example.com")
+
+    def test_phone_extraction(self):
+        """Test that phone number is extracted from resume text"""
+        raw_text = """
+Jane Smith
+Email: jane@example.com
+Phone: +1 (555) 987-6543
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        self.assertIn("555", structured_resume.phone)
+        self.assertIn("987", structured_resume.phone)
+
+    def test_linkedin_extraction(self):
+        """Test that LinkedIn URL is extracted from resume text"""
+        raw_text = """
+John Doe
+Email: john@example.com
+LinkedIn: https://www.linkedin.com/in/johndoe
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        self.assertIn("linkedin.com", structured_resume.linkedin_url)
+        self.assertIn("johndoe", structured_resume.linkedin_url)
+
+    def test_github_extraction(self):
+        """Test that GitHub URL is extracted from resume text"""
+        raw_text = """
+Jane Developer
+Email: jane@example.com
+GitHub: https://github.com/janedeveloper
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        self.assertIn("github.com", structured_resume.github_url)
+        self.assertIn("janedeveloper", structured_resume.github_url)
+
+    def test_skills_extraction(self):
+        """Test that skills are extracted from resume text"""
+        raw_text = """
+Skills
+Python, Django, AWS, PostgreSQL, JavaScript, React
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        skills = list(structured_resume.skills.values_list('name', flat=True))
+        self.assertIn("Python", skills)
+        self.assertIn("Django", skills)
+        self.assertIn("AWS", skills)
+
+    def test_education_extraction(self):
+        """Test that education is extracted from resume text"""
+        raw_text = """
+Education
+Bachelor of Science in Computer Science
+Stanford University
+2018 - 2022
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        education = structured_resume.education.first()
+        self.assertIsNotNone(education)
+        # First line is treated as institution
+        self.assertIn("Bachelor", education.institution)
+        self.assertIn("Bachelor", education.degree)
+
+    def test_experience_extraction(self):
+        """Test that experience is extracted from resume text"""
+        raw_text = """
+Experience
+Software Engineer at Google
+June 2020 - Present
+Developed scalable web applications
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        experience = structured_resume.experience.first()
+        self.assertIsNotNone(experience)
+        self.assertIn("Google", experience.company)
+        self.assertIn("Software Engineer", experience.job_title)
+
+    def test_project_extraction(self):
+        """Test that projects are extracted from resume text"""
+        raw_text = """
+Projects
+E-commerce Platform
+Built a full-stack e-commerce platform using Django and React
+GitHub: https://github.com/user/ecommerce
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        project = structured_resume.projects.first()
+        self.assertIsNotNone(project)
+        self.assertIn("E-commerce", project.title)
+        self.assertIn("github.com", project.github_url)
+
+    def test_certification_extraction(self):
+        """Test that certifications are extracted from resume text"""
+        raw_text = """
+Certifications
+AWS Certified Solutions Architect
+Issued by Amazon Web Services
+January 2023
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        
+        certification = structured_resume.certifications.first()
+        self.assertIsNotNone(certification)
+        self.assertIn("AWS", certification.name)
+        self.assertIn("amazon", certification.issuer.lower())
+
+    def test_re_extraction_updates_records(self):
+        """Test that re-extraction replaces old records"""
+        raw_text1 = """
+Skills
+Python, Django
+"""
+        parsed_resume = self._create_parsed_resume(raw_text1)
+        
+        # First extraction
+        structured_resume1 = ResumeExtractionService.extract(parsed_resume)
+        skills_count_1 = structured_resume1.skills.count()
+        
+        # Update raw text and re-extract
+        raw_text2 = """
+Skills
+Python, Django, JavaScript, React
+"""
+        parsed_resume.raw_text = raw_text2
+        parsed_resume.save()
+        
+        structured_resume2 = ResumeExtractionService.extract(parsed_resume)
+        skills_count_2 = structured_resume2.skills.count()
+        
+        # Verify re-extraction replaced old records
+        self.assertGreater(skills_count_2, skills_count_1)
+        self.assertEqual(StructuredResume.objects.filter(resume_version=parsed_resume.resume_version).count(), 1)
+
+    def test_extraction_endpoint_ownership_enforced(self):
+        """Test that extraction endpoint enforces ownership"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to extract as other candidate
+        self.client.force_authenticate(user=self.other_candidate)
+        response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_extraction_endpoint_recruiter_blocked(self):
+        """Test that recruiters are blocked from extraction endpoint"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to extract as recruiter
+        self.client.force_authenticate(user=self.recruiter)
+        response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_extraction_endpoint_anonymous_blocked(self):
+        """Test that anonymous users are blocked from extraction endpoint"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to extract as anonymous
+        self.client.force_authenticate(user=None)
+        response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_structured_endpoint_works(self):
+        """Test that structured resume endpoint works"""
+        raw_text = """
+John Doe
+Email: john@example.com
+Skills
+Python, Django
+"""
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        version_id = parsed_resume.resume_version.id
+        
+        # Get structured data via API
+        self.client.force_authenticate(user=self.candidate)
+        response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("full_name", response.data)
+        self.assertIn("email", response.data)
+        self.assertIn("skills", response.data)
+        self.assertEqual(len(response.data["skills"]), 2)
+
+    def test_extraction_requires_successful_parse(self):
+        """Test that extraction requires successful parsing"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Mark as failed
+        parsed_resume.status = ParsedResume.ParseStatus.FAILED
+        parsed_resume.save()
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to extract
+        self.client.force_authenticate(user=self.candidate)
+        response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("successfully parsed", response.data["detail"])
+
+    def test_structured_endpoint_ownership_enforced(self):
+        """Test that structured endpoint enforces ownership"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to access as other candidate
+        self.client.force_authenticate(user=self.other_candidate)
+        response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_structured_endpoint_recruiter_blocked(self):
+        """Test that recruiters are blocked from structured endpoint"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to access as recruiter
+        self.client.force_authenticate(user=self.recruiter)
+        response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_structured_endpoint_anonymous_blocked(self):
+        """Test that anonymous users are blocked from structured endpoint"""
+        raw_text = "John Doe\nEmail: john@example.com"
+        parsed_resume = self._create_parsed_resume(raw_text)
+        
+        # Extract
+        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        version_id = parsed_resume.resume_version.id
+        
+        # Try to access as anonymous
+        self.client.force_authenticate(user=None)
+        response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
