@@ -950,3 +950,444 @@ Python, Django
         response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ResumeSearchTests(TestCase):
+    """Test resume search functionality"""
+
+    def setUp(self):
+        """Set up test data"""
+        self.client = APIClient()
+        self.recruiter = User.objects.create_user(
+            email="recruiter@example.com",
+            password="testpass123",
+            full_name="Recruiter User",
+            role=User.Roles.RECRUITER,
+        )
+        self.candidate1 = User.objects.create_user(
+            email="candidate1@example.com",
+            password="testpass123",
+            full_name="John Doe",
+            role=User.Roles.CANDIDATE,
+        )
+        self.candidate2 = User.objects.create_user(
+            email="candidate2@example.com",
+            password="testpass123",
+            full_name="Jane Smith",
+            role=User.Roles.CANDIDATE,
+        )
+        self.candidate3 = User.objects.create_user(
+            email="candidate3@example.com",
+            password="testpass123",
+            full_name="Bob Johnson",
+            role=User.Roles.CANDIDATE,
+        )
+
+        # Create resumes and structured data for each candidate
+        self._create_structured_resume(self.candidate1, "Python Developer", "San Francisco", ["Python", "Django"], "Google", "Bachelor", "AWS")
+        self._create_structured_resume(self.candidate2, "JavaScript Developer", "New York", ["JavaScript", "React"], "Microsoft", "Masters", "Azure")
+        self._create_structured_resume(self.candidate3, "Full Stack Developer", "Ahmedabad", ["Python", "React", "AWS"], "Amazon", "Bachelor", "GCP")
+
+    def _create_structured_resume(self, user, full_name, location, skills, company, degree, certification):
+        """Helper to create a structured resume with test data"""
+        # Create resume container
+        resume = Resume.objects.create(user=user)
+        
+        # Create resume version
+        version = ResumeVersion.objects.create(
+            resume=resume,
+            original_filename="resume.pdf",
+            stored_filename=f"resume_{user.id}.pdf",
+            file_size=1000,
+            mime_type="application/pdf",
+            version_number=1,
+            is_current=True,
+        )
+        
+        # Create parsed resume
+        parsed_resume = ParsedResume.objects.create(
+            resume_version=version,
+            raw_text="Sample resume text",
+            status=ParsedResume.ParseStatus.SUCCESS,
+        )
+        
+        # Create structured resume
+        structured_resume = StructuredResume.objects.create(
+            resume_version=version,
+            full_name=full_name,
+            email=f"{user.email}",
+            location=location,
+        )
+        
+        # Add skills
+        for skill_name in skills:
+            ResumeSkill.objects.create(
+                structured_resume=structured_resume,
+                name=skill_name,
+            )
+        
+        # Add experience
+        ResumeExperience.objects.create(
+            structured_resume=structured_resume,
+            company=company,
+            job_title="Software Engineer",
+        )
+        
+        # Add education
+        ResumeEducation.objects.create(
+            structured_resume=structured_resume,
+            institution="University",
+            degree=degree,
+        )
+        
+        # Add project
+        ResumeProject.objects.create(
+            structured_resume=structured_resume,
+            title="Sample Project",
+        )
+        
+        # Add certification
+        ResumeCertification.objects.create(
+            structured_resume=structured_resume,
+            name=certification,
+            issuer="Certification Authority",
+        )
+        
+        return structured_resume
+
+    def test_search_by_skill(self):
+        """Test searching resumes by skill"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?skill=Python")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should find 2 resumes with Python (candidate1 and candidate3)
+        self.assertEqual(len(response.data["results"]), 2)
+        
+        # Verify the results contain the expected candidates
+        names = [result["candidate_name"] for result in response.data["results"]]
+        self.assertIn("Python Developer", names)
+        self.assertIn("Full Stack Developer", names)
+
+    def test_search_by_location(self):
+        """Test searching resumes by location"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?location=Ahmedabad")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["location"], "Ahmedabad")
+
+    def test_search_by_company(self):
+        """Test searching resumes by company"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?company=Google")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        # candidate1 has Google in their experience
+        self.assertEqual(response.data["results"][0]["candidate_name"], "Python Developer")
+
+    def test_search_by_education(self):
+        """Test searching resumes by education"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?education=Bachelor")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should find 2 resumes with Bachelor degree
+        self.assertEqual(len(response.data["results"]), 2)
+
+    def test_search_by_certification(self):
+        """Test searching resumes by certification"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?certification=AWS")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should find 1 resume with AWS certification (candidate1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["candidate_name"], "Python Developer")
+
+    def test_combined_filters(self):
+        """Test searching with multiple filters"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?skill=Python&location=Ahmedabad")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["location"], "Ahmedabad")
+
+    def test_multiple_skills(self):
+        """Test searching with multiple skill filters (OR logic)"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?skill=Python&skill=Django")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should find resumes with Python OR Django
+        self.assertGreaterEqual(len(response.data["results"]), 1)
+
+    def test_recruiter_access_works(self):
+        """Test that recruiters can access search endpoint"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+
+    def test_candidate_blocked(self):
+        """Test that candidates are blocked from search endpoint"""
+        self.client.force_authenticate(user=self.candidate1)
+        
+        response = self.client.get("/api/resumes/search/")
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_blocked(self):
+        """Test that anonymous users are blocked from search endpoint"""
+        self.client.force_authenticate(user=None)
+        
+        response = self.client.get("/api/resumes/search/")
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_pagination_works(self):
+        """Test that pagination works"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        # Default page size is 20, we have 3 resumes so they should all fit
+        response = self.client.get("/api/resumes/search/")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(len(response.data["results"]), 3)
+
+    def test_pagination_with_page_size(self):
+        """Test pagination with custom page size"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?page_size=2")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertEqual(response.data["count"], 3)
+
+    def test_ordering_by_name(self):
+        """Test ordering by name ascending"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?ordering=name")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [result["candidate_name"] for result in response.data["results"]]
+        # Verify ascending order
+        self.assertEqual(names, sorted(names))
+
+    def test_ordering_by_name_desc(self):
+        """Test ordering by name descending"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?ordering=-name")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [result["candidate_name"] for result in response.data["results"]]
+        # Verify descending order
+        self.assertEqual(names, sorted(names, reverse=True))
+
+    def test_ordering_by_created_at(self):
+        """Test ordering by created_at"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?ordering=created_at")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+
+    def test_invalid_ordering_rejected(self):
+        """Test that invalid ordering field is rejected"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?ordering=invalid_field")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Invalid ordering field", response.data["detail"])
+
+    def test_empty_result_set(self):
+        """Test search with no matching results"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?skill=NonExistentSkill")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(len(response.data["results"]), 0)
+
+    def test_search_result_structure(self):
+        """Test that search result has correct structure"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        response = self.client.get("/api/resumes/search/?skill=Python")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        if len(response.data["results"]) > 0:
+            result = response.data["results"][0]
+            self.assertIn("resume_id", result)
+            self.assertIn("resume_version_id", result)
+            self.assertIn("candidate_name", result)
+            self.assertIn("location", result)
+            self.assertIn("skills", result)
+            self.assertIn("experience_count", result)
+            self.assertIn("education_count", result)
+            self.assertIn("project_count", result)
+            self.assertIn("certification_count", result)
+            self.assertIsInstance(result["skills"], list)
+
+    def test_query_optimization(self):
+        """Test that query optimization is applied (no N+1 queries)"""
+        self.client.force_authenticate(user=self.recruiter)
+        
+        # Use Django's connection queries to count queries
+        from django.db import connection
+        from django.test.utils import override_settings
+        
+        # Reset query count
+        connection.queries_log.clear()
+        
+        with override_settings(DEBUG=True):
+            response = self.client.get("/api/resumes/search/?skill=Python")
+            
+            # Count queries
+            query_count = len(connection.queries)
+            
+            # With proper optimization (select_related and prefetch_related),
+            # we should have a reasonable number of queries (typically < 10 for this case)
+            # Without optimization, it would be much higher due to N+1 queries
+            self.assertLess(query_count, 10, 
+                f"Query optimization failed: {query_count} queries executed. "
+                "Expected < 10 queries with proper select_related/prefetch_related.")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_search_only_returns_current_versions(self):
+        """Test that search only returns current resume versions, not old versions"""
+        # Create a candidate with a unique skill to avoid conflicts with setUp data
+        candidate = User.objects.create_user(
+            email="test_candidate_unique@example.com",
+            password="testpass123",
+            full_name="Test Candidate",
+            role=User.Roles.CANDIDATE,
+        )
+        
+        # Create resume container
+        resume = Resume.objects.create(user=candidate)
+        
+        # Create version 1 (old, not current)
+        version1 = ResumeVersion.objects.create(
+            resume=resume,
+            original_filename="resume_v1.pdf",
+            stored_filename="resume_v1.pdf",
+            file_size=1000,
+            mime_type="application/pdf",
+            version_number=1,
+            is_current=False,
+        )
+        
+        # Create parsed resume for version 1
+        parsed1 = ParsedResume.objects.create(
+            resume_version=version1,
+            raw_text="Old resume text",
+            status=ParsedResume.ParseStatus.SUCCESS,
+        )
+        
+        # Create structured resume for version 1 with unique skill
+        structured1 = StructuredResume.objects.create(
+            resume_version=version1,
+            full_name="Test Candidate V1",
+            email="test@example.com",
+            location="San Francisco",
+        )
+        ResumeSkill.objects.create(
+            structured_resume=structured1,
+            name="UniqueSkillXYZ",
+        )
+        
+        # Create version 2 (old, not current)
+        version2 = ResumeVersion.objects.create(
+            resume=resume,
+            original_filename="resume_v2.pdf",
+            stored_filename="resume_v2.pdf",
+            file_size=1000,
+            mime_type="application/pdf",
+            version_number=2,
+            is_current=False,
+        )
+        
+        # Create parsed resume for version 2
+        parsed2 = ParsedResume.objects.create(
+            resume_version=version2,
+            raw_text="Old resume text v2",
+            status=ParsedResume.ParseStatus.SUCCESS,
+        )
+        
+        # Create structured resume for version 2 with unique skill
+        structured2 = StructuredResume.objects.create(
+            resume_version=version2,
+            full_name="Test Candidate V2",
+            email="test@example.com",
+            location="San Francisco",
+        )
+        ResumeSkill.objects.create(
+            structured_resume=structured2,
+            name="UniqueSkillXYZ",
+        )
+        
+        # Create version 3 (current)
+        version3 = ResumeVersion.objects.create(
+            resume=resume,
+            original_filename="resume_v3.pdf",
+            stored_filename="resume_v3.pdf",
+            file_size=1000,
+            mime_type="application/pdf",
+            version_number=3,
+            is_current=True,
+        )
+        
+        # Create parsed resume for version 3
+        parsed3 = ParsedResume.objects.create(
+            resume_version=version3,
+            raw_text="Current resume text",
+            status=ParsedResume.ParseStatus.SUCCESS,
+        )
+        
+        # Create structured resume for version 3 with unique skill
+        structured3 = StructuredResume.objects.create(
+            resume_version=version3,
+            full_name="Test Candidate V3",
+            email="test@example.com",
+            location="San Francisco",
+        )
+        ResumeSkill.objects.create(
+            structured_resume=structured3,
+            name="UniqueSkillXYZ",
+        )
+        
+        # Search as recruiter for the unique skill
+        self.client.force_authenticate(user=self.recruiter)
+        response = self.client.get("/api/resumes/search/?skill=UniqueSkillXYZ")
+        
+        # Should only return version 3 (current), not versions 1 and 2
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        
+        # Verify the returned version is the current one
+        self.assertEqual(response.data["results"][0]["resume_version_id"], str(version3.id))
+        self.assertEqual(response.data["results"][0]["candidate_name"], "Test Candidate V3")

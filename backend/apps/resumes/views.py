@@ -4,8 +4,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 
-from apps.users.permissions import IsCandidate
+from apps.users.permissions import IsCandidate, IsRecruiter
 from .models import Resume, ParsedResume, ResumeVersion, StructuredResume
 from .parsers import UnsupportedResumeType, CorruptedResumeError
 from .serializers import (
@@ -19,10 +20,83 @@ from .serializers import (
     RollbackResponseSerializer,
     StructuredResumeSerializer,
     ExtractResumeResponseSerializer,
+    ResumeSearchResultSerializer,
 )
 from .services.parser_service import ResumeParserService
 from .services.versioning import ResumeVersioningService
 from .services.extraction_service import ResumeExtractionService
+from .services.search_service import ResumeSearchService
+
+
+class ResumeSearchPagination(PageNumberPagination):
+    """Pagination for resume search results"""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class ResumeSearchView(APIView):
+    """
+    Search and filter structured resume data.
+    
+    GET /api/resumes/search/
+    
+    Authentication required. Recruiter only.
+    
+    Query parameters:
+    - skill: Filter by skill name (can be multiple)
+    - location: Filter by location
+    - company: Filter by company name
+    - education: Filter by education degree or institution
+    - certification: Filter by certification name or issuer
+    - ordering: Order results (name, -name, created_at, -created_at)
+    - page: Page number
+    - page_size: Results per page (default: 20, max: 100)
+    
+    Example:
+    /api/resumes/search/?skill=Python&skill=Django&location=Ahmedabad&ordering=name
+    """
+    permission_classes = (IsAuthenticated, IsRecruiter)
+    pagination_class = ResumeSearchPagination
+
+    def get(self, request):
+        """Search resumes with filters"""
+        # Extract query parameters
+        skills = request.query_params.getlist('skill', None)
+        location = request.query_params.get('location', None)
+        company = request.query_params.get('company', None)
+        education = request.query_params.get('education', None)
+        certification = request.query_params.get('certification', None)
+        ordering = request.query_params.get('ordering', None)
+
+        # Validate ordering
+        if ordering and not ResumeSearchService.validate_ordering(ordering):
+            return Response(
+                {"detail": f"Invalid ordering field: {ordering}. Valid fields: name, -name, created_at, -created_at"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Perform search
+        queryset = ResumeSearchService.search(
+            skills=skills if skills else None,
+            location=location,
+            company=company,
+            education=education,
+            certification=certification,
+            ordering=ordering,
+        )
+
+        # Paginate results
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request)
+        
+        if page is not None:
+            serializer = ResumeSearchResultSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        # Fallback if pagination is not applied
+        serializer = ResumeSearchResultSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class ResumeUploadView(APIView):

@@ -316,3 +316,36 @@ class ExtractResumeResponseSerializer(serializers.Serializer):
     resume_version_id = serializers.UUIDField()
     resume_id = serializers.UUIDField()
     status = serializers.CharField()
+
+
+class ResumeSearchResultSerializer(serializers.Serializer):
+    """Serializer for resume search results"""
+    resume_id = serializers.UUIDField(source="resume_version.resume.id", read_only=True)
+    resume_version_id = serializers.UUIDField(source="resume_version.id", read_only=True)
+    candidate_name = serializers.CharField(source="full_name", read_only=True)
+    location = serializers.CharField(read_only=True)
+    skills = serializers.SerializerMethodField()
+    experience_count = serializers.SerializerMethodField()
+    education_count = serializers.SerializerMethodField()
+    project_count = serializers.SerializerMethodField()
+    certification_count = serializers.SerializerMethodField()
+
+    def get_skills(self, obj):
+        """Get list of skill names"""
+        return [skill.name for skill in obj.skills.all()]
+
+    def get_experience_count(self, obj):
+        """Get count of experience entries"""
+        return obj.experience.count()
+
+    def get_education_count(self, obj):
+        """Get count of education entries"""
+        return obj.education.count()
+
+    def get_project_count(self, obj):
+        """Get count of project entries"""
+        return obj.projects.count()
+
+    def get_certification_count(self, obj):
+        """Get count of certification entries"""
+        return obj.certifications.count()
