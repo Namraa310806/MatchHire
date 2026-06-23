@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "apps.jobs",
     "apps.matching",
     "apps.resumes.apps.ResumesConfig",
+    "apps.applications.apps.ApplicationsConfig",
 ]
 
 AUTH_USER_MODEL = "users.User"

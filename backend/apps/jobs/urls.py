@@ -7,6 +7,7 @@ from .views import (
     JobCloseView,
     PublicJobListView,
 )
+from apps.applications.views import JobApplyView, JobApplicationsListView
 
 
 urlpatterns = [
@@ -15,4 +16,6 @@ urlpatterns = [
     path("my/", MyJobsListView.as_view(), name="job-my-list"),
     path("<uuid:id>/", JobDetailView.as_view(), name="job-detail"),
     path("<uuid:id>/close/", JobCloseView.as_view(), name="job-close"),
+    path("<uuid:job_id>/apply/", JobApplyView.as_view(), name="job-apply"),
+    path("<uuid:job_id>/applications/", JobApplicationsListView.as_view(), name="job-applications"),
 ]
