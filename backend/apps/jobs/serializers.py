@@ -1,7 +1,15 @@
 from rest_framework import serializers
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.validators import ValidationError
 
 from .models import Job
+
+
+class JobSearchPagination(PageNumberPagination):
+    """Pagination for job search endpoint"""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class JobCreateSerializer(serializers.ModelSerializer):
@@ -144,4 +152,27 @@ class JobListSerializer(serializers.ModelSerializer):
             "recruiter_email",
             "created_at",
             "updated_at",
+        )
+
+
+class JobSearchSerializer(serializers.ModelSerializer):
+    """Serializer for job search and filtering"""
+    class Meta:
+        model = Job
+        fields = (
+            "id",
+            "title",
+            "company_name",
+            "location",
+            "employment_type",
+            "experience_level",
+            "salary_min",
+            "salary_max",
+            "currency",
+            "is_remote",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "created_at",
         )

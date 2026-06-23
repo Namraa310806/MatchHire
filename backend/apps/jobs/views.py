@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.http import Http404
 from django.utils import timezone
 from rest_framework import status
@@ -14,6 +15,8 @@ from .serializers import (
     JobUpdateSerializer,
     JobDetailSerializer,
     JobListSerializer,
+    JobSearchSerializer,
+    JobSearchPagination,
 )
 
 User = get_user_model()
@@ -165,19 +168,122 @@ class JobCloseView(APIView):
 
 class PublicJobListView(APIView):
     """
-    List active jobs for candidates.
+    List active jobs for candidates with search, filtering, and pagination.
     
     GET /api/jobs/
     
     Authentication required.
     Returns only ACTIVE jobs (no draft or closed jobs).
+    
+    Query parameters:
+    - q: Search across title, company_name, description
+    - location: Case-insensitive partial match
+    - employment_type: full_time, part_time, contract, internship
+    - experience_level: entry, junior, mid, senior, lead
+    - is_remote: true/false
+    - salary_min: Return jobs where salary_max >= requested_salary_min
+    - salary_max: Return jobs where salary_min <= requested_salary_max
+    - ordering: created_at, -created_at, salary_min, -salary_min, salary_max, -salary_max
+    - page: Page number
+    - page_size: Page size (max 100)
     """
     permission_classes = (IsAuthenticated,)
+    pagination_class = JobSearchPagination
 
     def get(self, request):
-        """List all active jobs"""
-        jobs = Job.objects.filter(
-            status=Job.JobStatus.ACTIVE
-        ).select_related("recruiter").order_by("-created_at")
-        serializer = JobListSerializer(jobs, many=True)
+        """List all active jobs with search, filtering, and pagination"""
+        # Start with active jobs only
+        queryset = Job.objects.filter(status=Job.JobStatus.ACTIVE)
+        
+        # Search across title, company_name, description
+        q = request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(title__icontains=q) |
+                Q(company_name__icontains=q) |
+                Q(description__icontains=q)
+            )
+        
+        # Filter by location (case-insensitive partial match)
+        location = request.query_params.get('location')
+        if location:
+            queryset = queryset.filter(location__icontains=location)
+        
+        # Filter by employment_type
+        employment_type = request.query_params.get('employment_type')
+        if employment_type:
+            valid_employment_types = [choice[0] for choice in Job.EmploymentType.choices]
+            if employment_type not in valid_employment_types:
+                return Response(
+                    {"detail": f"Invalid employment_type. Valid values: {', '.join(valid_employment_types)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            queryset = queryset.filter(employment_type=employment_type)
+        
+        # Filter by experience_level
+        experience_level = request.query_params.get('experience_level')
+        if experience_level:
+            valid_experience_levels = [choice[0] for choice in Job.ExperienceLevel.choices]
+            if experience_level not in valid_experience_levels:
+                return Response(
+                    {"detail": f"Invalid experience_level. Valid values: {', '.join(valid_experience_levels)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            queryset = queryset.filter(experience_level=experience_level)
+        
+        # Filter by is_remote
+        is_remote = request.query_params.get('is_remote')
+        if is_remote:
+            if is_remote.lower() not in ['true', 'false']:
+                return Response(
+                    {"detail": "Invalid is_remote value. Must be 'true' or 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            queryset = queryset.filter(is_remote=(is_remote.lower() == 'true'))
+        
+        # Filter by salary_min (jobs where salary_max >= requested_salary_min)
+        salary_min = request.query_params.get('salary_min')
+        if salary_min:
+            try:
+                salary_min_value = float(salary_min)
+                queryset = queryset.filter(salary_max__gte=salary_min_value)
+            except (ValueError, TypeError):
+                return Response(
+                    {"detail": "Invalid salary_min value. Must be a number."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Filter by salary_max (jobs where salary_min <= requested_salary_max)
+        salary_max = request.query_params.get('salary_max')
+        if salary_max:
+            try:
+                salary_max_value = float(salary_max)
+                queryset = queryset.filter(salary_min__lte=salary_max_value)
+            except (ValueError, TypeError):
+                return Response(
+                    {"detail": "Invalid salary_max value. Must be a number."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Ordering
+        ordering = request.query_params.get('ordering', '-created_at')
+        valid_ordering_fields = ['created_at', '-created_at', 'salary_min', '-salary_min', 'salary_max', '-salary_max']
+        if ordering not in valid_ordering_fields:
+            return Response(
+                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        queryset = queryset.order_by(ordering)
+        
+        # Query optimization
+        queryset = queryset.select_related("recruiter")
+        
+        # Pagination
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request)
+        if page is not None:
+            serializer = JobSearchSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = JobSearchSerializer(queryset, many=True)
         return Response(serializer.data)
