@@ -12,4 +12,5 @@ urlpatterns = [
     path("matching/", include("apps.matching.urls")),
     path("resumes/", include("apps.resumes.urls")),
     path("applications/", include("apps.applications.urls")),
+    path("", include("apps.interviews.urls")),
 ]
