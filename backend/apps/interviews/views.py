@@ -16,6 +16,7 @@ from .serializers import (
     InterviewStatusHistorySerializer,
 )
 from .services.workflow import InterviewWorkflowService
+from apps.notifications.services.notification_service import NotificationService
 
 User = get_user_model()
 
@@ -106,6 +107,13 @@ class ApplicationInterviewsListView(APIView):
             application=application,
             created_by=request.user,
             **serializer.validated_data,
+        )
+
+        # Notify candidate about scheduled interview
+        NotificationService.notify_interview_scheduled(
+            candidate=application.candidate,
+            interview_id=str(interview.id),
+            application_id=str(application.id),
         )
 
         response_serializer = InterviewDetailSerializer(interview)

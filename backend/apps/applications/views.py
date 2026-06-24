@@ -17,6 +17,7 @@ from .serializers import (
     ApplicationStatusHistorySerializer,
 )
 from .services.workflow import ApplicationWorkflowService
+from apps.notifications.services.notification_service import NotificationService
 
 User = get_user_model()
 
@@ -84,6 +85,14 @@ class JobApplyView(APIView):
             job=job,
             candidate=request.user,
             resume_version=resume_version,
+        )
+
+        # Notify recruiter about new application
+        NotificationService.notify_application_submitted(
+            recruiter=job.recruiter,
+            application_id=str(application.id),
+            job_id=str(job.id),
+            candidate_id=str(request.user.id),
         )
 
         response_serializer = ApplicationDetailSerializer(application)

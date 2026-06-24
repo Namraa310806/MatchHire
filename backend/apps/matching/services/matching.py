@@ -5,6 +5,7 @@ from django.utils import timezone
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
 from apps.resumes.models import Resume, ResumeVersion, StructuredResume, ResumeSkill
+from apps.notifications.services.notification_service import NotificationService
 
 
 class MatchingService:
@@ -75,7 +76,15 @@ class MatchingService:
                 'explanation': explanation,
             }
         )
-        
+
+        # Notify candidate about new match (only on creation, not update)
+        if created:
+            NotificationService.notify_match_created(
+                candidate=candidate,
+                job_id=str(job.id),
+                match_score=float(final_score),
+            )
+
         return job_match
 
     @classmethod
