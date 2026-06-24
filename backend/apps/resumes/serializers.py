@@ -349,3 +349,34 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_certification_count(self, obj):
         """Get count of certification entries"""
         return obj.certifications.count()
+
+
+class CandidateProfileSerializer(serializers.ModelSerializer):
+    """Serializer for candidate profile with current resume data"""
+    candidate_id = serializers.UUIDField(source="user.id", read_only=True)
+    candidate_email = serializers.EmailField(source="user.email", read_only=True)
+    candidate_name = serializers.CharField(source="user.full_name", read_only=True)
+    structured_resume = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Resume
+        fields = (
+            "id",
+            "candidate_id",
+            "candidate_email",
+            "candidate_name",
+            "structured_resume",
+        )
+
+    def get_structured_resume(self, obj):
+        """Get the current version's structured resume"""
+        try:
+            current_version = obj.versions.get(is_current=True)
+            try:
+                structured_resume = current_version.structured_resume
+                return StructuredResumeSerializer(structured_resume).data
+            except StructuredResume.DoesNotExist:
+                return None
+        except ResumeVersion.DoesNotExist:
+            return None
+

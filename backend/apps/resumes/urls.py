@@ -16,6 +16,8 @@ from .views import (
     ExtractResumeVersionView,
     StructuredResumeVersionView,
     ResumeSearchView,
+    CandidateProfileView,
+    CandidateSearchView,
 )
 
 urlpatterns = [
@@ -35,4 +37,6 @@ urlpatterns = [
     path("versions/<uuid:version_id>/extract/", ExtractResumeVersionView.as_view(), name="resume-version-extract"),
     path("versions/<uuid:version_id>/structured/", StructuredResumeVersionView.as_view(), name="resume-version-structured"),
     path("search/", ResumeSearchView.as_view(), name="resume-search"),
+    path("candidates/<uuid:candidate_id>/", CandidateProfileView.as_view(), name="candidate-profile"),
+    path("candidates/search/", CandidateSearchView.as_view(), name="candidate-search"),
 ]

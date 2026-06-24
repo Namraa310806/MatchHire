@@ -8,6 +8,7 @@ from .views import (
     PublicJobListView,
 )
 from apps.applications.views import JobApplyView, JobApplicationsListView
+from apps.matching.views import CandidateMatchView
 
 
 urlpatterns = [
@@ -18,4 +19,5 @@ urlpatterns = [
     path("<uuid:id>/close/", JobCloseView.as_view(), name="job-close"),
     path("<uuid:job_id>/apply/", JobApplyView.as_view(), name="job-apply"),
     path("<uuid:job_id>/applications/", JobApplicationsListView.as_view(), name="job-applications"),
+    path("<uuid:job_id>/match/", CandidateMatchView.as_view(), name="job-match"),
 ]

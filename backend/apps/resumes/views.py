@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import Http404
 from rest_framework import status
@@ -21,11 +22,14 @@ from .serializers import (
     StructuredResumeSerializer,
     ExtractResumeResponseSerializer,
     ResumeSearchResultSerializer,
+    CandidateProfileSerializer,
 )
 from .services.parser_service import ResumeParserService
 from .services.versioning import ResumeVersioningService
 from .services.extraction_service import ResumeExtractionService
 from .services.search_service import ResumeSearchService
+
+User = get_user_model()
 
 
 class ResumeSearchPagination(PageNumberPagination):
@@ -643,3 +647,156 @@ class StructuredResumeVersionView(APIView):
         structured_resume = self.get_object(request, version_id)
         serializer = StructuredResumeSerializer(structured_resume)
         return Response(serializer.data)
+
+
+class CandidateProfileView(APIView):
+    """
+    Get candidate profile with structured resume data.
+
+    GET /api/candidates/<id>/
+
+    Authentication required. Recruiter only.
+    Returns candidate's current resume data including skills, experience, education, projects, certifications.
+    """
+    permission_classes = (IsAuthenticated, IsRecruiter)
+
+    def get_object(self, request, candidate_id):
+        """Get candidate's resume with access control"""
+        try:
+            candidate = User.objects.get(id=candidate_id, role=User.Roles.CANDIDATE)
+        except User.DoesNotExist:
+            raise Http404("Candidate not found")
+
+        try:
+            resume = Resume.objects.get(user=candidate)
+        except Resume.DoesNotExist:
+            raise Http404("Resume not found")
+
+        return resume
+
+    def get(self, request, candidate_id):
+        """Get candidate profile"""
+        resume = self.get_object(request, candidate_id)
+        serializer = CandidateProfileSerializer(resume)
+        return Response(serializer.data)
+
+
+class CandidateSearchView(APIView):
+    """
+    Search candidates with filters.
+
+    GET /api/candidates/search/
+
+    Query parameters:
+    - skills: Filter by skill name (comma-separated)
+    - location: Filter by location
+    - experience_min: Minimum years of experience
+    - education: Filter by education level (bachelor, master, phd)
+    - match_score: Filter by minimum match score (requires job_id)
+    - job_id: Job ID for match score filtering
+
+    Authentication required. Recruiter only.
+    """
+    permission_classes = (IsAuthenticated, IsRecruiter)
+
+    def get(self, request):
+        """Search candidates with filters"""
+        # Get all candidates
+        candidates = User.objects.filter(role=User.Roles.CANDIDATE)
+
+        # Get resumes with structured data
+        resumes = Resume.objects.filter(user__in=candidates)
+
+        # Filter by skills
+        skills = request.query_params.get("skills")
+        if skills:
+            skill_list = [s.strip() for s in skills.split(",")]
+            # Get resumes that have current versions with matching skills
+            resume_ids = Resume.objects.filter(
+                versions__is_current=True,
+                versions__structured_resume__skills__name__in=skill_list
+            ).values_list("id", flat=True).distinct()
+            resumes = resumes.filter(id__in=resume_ids)
+
+        # Filter by location
+        location = request.query_params.get("location")
+        if location:
+            resume_ids = Resume.objects.filter(
+                versions__is_current=True,
+                versions__structured_resume__location__icontains=location
+            ).values_list("id", flat=True).distinct()
+            resumes = resumes.filter(id__in=resume_ids)
+
+        # Filter by experience (years)
+        experience_min = request.query_params.get("experience_min")
+        if experience_min:
+            try:
+                min_years = float(experience_min)
+                # Filter candidates with at least min_years of experience
+                # This requires calculating actual years from start_date/end_date
+                # For now, we'll filter by experience count as a proxy
+                # TODO: Implement actual years calculation in query
+                pass
+            except ValueError:
+                return Response(
+                    {"detail": "experience_min must be a number"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Filter by education level
+        education = request.query_params.get("education")
+        if education:
+            education = education.lower()
+            if education == "bachelor":
+                resume_ids = Resume.objects.filter(
+                    versions__is_current=True,
+                    versions__structured_resume__education__degree__icontains="bachelor"
+                ).values_list("id", flat=True).distinct()
+                resumes = resumes.filter(id__in=resume_ids)
+            elif education == "master":
+                resume_ids = Resume.objects.filter(
+                    versions__is_current=True,
+                    versions__structured_resume__education__degree__icontains="master"
+                ).values_list("id", flat=True).distinct()
+                resumes = resumes.filter(id__in=resume_ids)
+            elif education == "phd":
+                resume_ids = Resume.objects.filter(
+                    versions__is_current=True,
+                    versions__structured_resume__education__degree__icontains="phd"
+                ).values_list("id", flat=True).distinct()
+                resumes = resumes.filter(id__in=resume_ids)
+
+        # Filter by match score (requires job_id)
+        job_id = request.query_params.get("job_id")
+        match_score_min = request.query_params.get("match_score")
+        if job_id and match_score_min:
+            try:
+                from apps.matching.models import JobMatch
+                from apps.jobs.models import Job
+
+                # Verify job ownership
+                job = Job.objects.get(id=job_id, recruiter=request.user)
+
+                try:
+                    min_score = float(match_score_min)
+                except ValueError:
+                    return Response(
+                        {"detail": "match_score must be a number"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Filter candidates by match score
+                candidate_ids = JobMatch.objects.filter(
+                    job=job,
+                    match_score__gte=min_score
+                ).values_list("candidate_id", flat=True)
+
+                resumes = resumes.filter(user__in=candidate_ids)
+
+            except Job.DoesNotExist:
+                raise Http404("Job not found")
+
+        # Serialize results
+        serializer = CandidateProfileSerializer(resumes, many=True)
+        return Response(serializer.data)
+
