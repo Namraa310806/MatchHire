@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.applications.apps.ApplicationsConfig",
     "apps.interviews.apps.InterviewsConfig",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.analytics.apps.AnalyticsConfig",
 ]
 
 AUTH_USER_MODEL = "users.User"
