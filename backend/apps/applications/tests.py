@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 
 from apps.jobs.models import Job
 from apps.resumes.models import Resume, ResumeVersion
-from .models import Application
+from .models import Application, ApplicationStatusHistory
 
 User = get_user_model()
 
@@ -371,3 +371,463 @@ class ApplicationAPITests(TestCase):
         self.authenticate(self.candidate1)
         response = self.client.get(f"/api/jobs/{self.active_job.id}/applications/")
         self.assertEqual(response.status_code, 403)
+
+
+class ApplicationWorkflowTests(TestCase):
+    """Tests for recruiter review workflow - status updates, history, and filtering"""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.recruiter1 = User.objects.create_user(
+            email="recruiter1@example.com",
+            password="pass12345",
+            full_name="Recruiter One",
+            role=User.Roles.RECRUITER,
+        )
+        self.recruiter2 = User.objects.create_user(
+            email="recruiter2@example.com",
+            password="pass12345",
+            full_name="Recruiter Two",
+            role=User.Roles.RECRUITER,
+        )
+        self.candidate1 = User.objects.create_user(
+            email="candidate1@example.com",
+            password="pass12345",
+            full_name="Candidate One",
+            role=User.Roles.CANDIDATE,
+        )
+        self.candidate2 = User.objects.create_user(
+            email="candidate2@example.com",
+            password="pass12345",
+            full_name="Candidate Two",
+            role=User.Roles.CANDIDATE,
+        )
+
+        # Create jobs
+        self.job1 = Job.objects.create(
+            recruiter=self.recruiter1,
+            title="Job One",
+            company_name="Tech Corp",
+            location="SF",
+            description="Desc",
+            status=Job.JobStatus.ACTIVE,
+        )
+        self.job2 = Job.objects.create(
+            recruiter=self.recruiter2,
+            title="Job Two",
+            company_name="Other Corp",
+            location="NY",
+            description="Desc",
+            status=Job.JobStatus.ACTIVE,
+        )
+
+        # Create resumes
+        self.resume1 = Resume.objects.create(user=self.candidate1)
+        self.resume_version1 = ResumeVersion.objects.create(
+            resume=self.resume1,
+            original_filename="resume1.pdf",
+            stored_filename="unique_resume1.pdf",
+            file_size=1024,
+            mime_type="application/pdf",
+            version_number=1,
+            is_current=True,
+        )
+        self.resume2 = Resume.objects.create(user=self.candidate2)
+        self.resume_version2 = ResumeVersion.objects.create(
+            resume=self.resume2,
+            original_filename="resume2.pdf",
+            stored_filename="unique_resume2.pdf",
+            file_size=1024,
+            mime_type="application/pdf",
+            version_number=1,
+            is_current=True,
+        )
+
+        # Create applications
+        self.application1 = Application.objects.create(
+            job=self.job1,
+            candidate=self.candidate1,
+            resume_version=self.resume_version1,
+            status=Application.ApplicationStatus.SUBMITTED,
+        )
+        self.application2 = Application.objects.create(
+            job=self.job1,
+            candidate=self.candidate2,
+            resume_version=self.resume_version2,
+            status=Application.ApplicationStatus.SUBMITTED,
+        )
+        self.application3 = Application.objects.create(
+            job=self.job2,
+            candidate=self.candidate1,
+            resume_version=self.resume_version1,
+            status=Application.ApplicationStatus.SUBMITTED,
+        )
+
+    def authenticate(self, user):
+        self.client.force_authenticate(user=user)
+
+    # Status Update Tests
+
+    def test_status_update_submitted_to_under_review(self):
+        """Test: Recruiter moves SUBMITTED → UNDER_REVIEW"""
+        self.authenticate(self.recruiter1)
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "under_review")
+        self.application1.refresh_from_db()
+        self.assertEqual(self.application1.status, Application.ApplicationStatus.UNDER_REVIEW)
+
+    def test_status_update_under_review_to_shortlisted(self):
+        """Test: Recruiter moves UNDER_REVIEW → SHORTLISTED"""
+        self.application1.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "shortlisted"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "shortlisted")
+        self.application1.refresh_from_db()
+        self.assertEqual(self.application1.status, Application.ApplicationStatus.SHORTLISTED)
+
+    def test_status_update_under_review_to_rejected(self):
+        """Test: Recruiter moves UNDER_REVIEW → REJECTED"""
+        self.application1.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "rejected"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "rejected")
+        self.application1.refresh_from_db()
+        self.assertEqual(self.application1.status, Application.ApplicationStatus.REJECTED)
+
+    def test_status_update_shortlisted_to_hired(self):
+        """Test: Recruiter moves SHORTLISTED → HIRED"""
+        self.application1.status = Application.ApplicationStatus.SHORTLISTED
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "hired"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "hired")
+        self.application1.refresh_from_db()
+        self.assertEqual(self.application1.status, Application.ApplicationStatus.HIRED)
+
+    def test_status_update_shortlisted_to_rejected(self):
+        """Test: Recruiter moves SHORTLISTED → REJECTED"""
+        self.application1.status = Application.ApplicationStatus.SHORTLISTED
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "rejected"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "rejected")
+        self.application1.refresh_from_db()
+        self.assertEqual(self.application1.status, Application.ApplicationStatus.REJECTED)
+
+    def test_status_update_invalid_transition(self):
+        """Test: Invalid transition rejected (SUBMITTED → HIRED)"""
+        self.authenticate(self.recruiter1)
+        data = {"status": "hired"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status transition", str(response.data))
+
+    def test_status_update_submitted_to_rejected_invalid(self):
+        """Test: Invalid transition SUBMITTED → REJECTED"""
+        self.authenticate(self.recruiter1)
+        data = {"status": "rejected"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status transition", str(response.data))
+
+    def test_status_update_hired_cannot_change(self):
+        """Test: HIRED status cannot be changed"""
+        self.application1.status = Application.ApplicationStatus.HIRED
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "rejected"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status transition", str(response.data))
+
+    def test_status_update_rejected_cannot_change(self):
+        """Test: REJECTED status cannot be changed"""
+        self.application1.status = Application.ApplicationStatus.REJECTED
+        self.application1.save()
+        
+        self.authenticate(self.recruiter1)
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status transition", str(response.data))
+
+    # Permission Tests
+
+    def test_candidate_cannot_update_status(self):
+        """Test: Candidate cannot update status"""
+        self.authenticate(self.candidate1)
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_cannot_update_status(self):
+        """Test: Anonymous blocked from status update"""
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_recruiter_cannot_update_another_recruiter_application(self):
+        """Test: Recruiter cannot update another recruiter's application"""
+        self.authenticate(self.recruiter2)
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # History Tests
+
+    def test_history_row_created_on_status_change(self):
+        """Test: History row created when status changes"""
+        self.authenticate(self.recruiter1)
+        data = {"status": "under_review"}
+        response = self.client.patch(
+            f"/api/applications/{self.application1.id}/status/",
+            data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Check history was created
+        history_count = ApplicationStatusHistory.objects.filter(application=self.application1).count()
+        self.assertEqual(history_count, 1)
+        
+        history = ApplicationStatusHistory.objects.get(application=self.application1)
+        self.assertEqual(history.old_status, "submitted")
+        self.assertEqual(history.new_status, "under_review")
+        self.assertEqual(history.changed_by, self.recruiter1)
+
+    def test_candidate_can_view_own_history(self):
+        """Test: Candidate can view own application history"""
+        # Create some history
+        ApplicationStatusHistory.objects.create(
+            application=self.application1,
+            old_status="submitted",
+            new_status="under_review",
+            changed_by=self.recruiter1,
+        )
+        
+        self.authenticate(self.candidate1)
+        response = self.client.get(f"/api/applications/{self.application1.id}/history/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["old_status"], "submitted")
+        self.assertEqual(response.data[0]["new_status"], "under_review")
+        self.assertEqual(response.data[0]["changed_by"], "recruiter1@example.com")
+
+    def test_candidate_cannot_view_another_candidate_history(self):
+        """Test: Candidate cannot view another candidate's history"""
+        self.authenticate(self.candidate1)
+        response = self.client.get(f"/api/applications/{self.application2.id}/history/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_recruiter_can_view_owned_application_history(self):
+        """Test: Recruiter can view history of applications for their jobs"""
+        # Create some history
+        ApplicationStatusHistory.objects.create(
+            application=self.application1,
+            old_status="submitted",
+            new_status="under_review",
+            changed_by=self.recruiter1,
+        )
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/applications/{self.application1.id}/history/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+
+    def test_recruiter_cannot_view_another_recruiter_history(self):
+        """Test: Recruiter cannot view history of another recruiter's application"""
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/applications/{self.application3.id}/history/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_anonymous_cannot_view_history(self):
+        """Test: Anonymous cannot view history"""
+        response = self.client.get(f"/api/applications/{self.application1.id}/history/")
+        self.assertEqual(response.status_code, 401)
+
+    # Filtering Tests
+
+    def test_filter_submitted_applications(self):
+        """Test: Filter submitted applications"""
+        self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application2.save()
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=submitted")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], str(self.application1.id))
+
+    def test_filter_under_review_applications(self):
+        """Test: Filter under_review applications"""
+        self.application1.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application1.save()
+        self.application2.status = Application.ApplicationStatus.SHORTLISTED
+        self.application2.save()
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=under_review")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], str(self.application1.id))
+
+    def test_filter_shortlisted_applications(self):
+        """Test: Filter shortlisted applications"""
+        self.application1.status = Application.ApplicationStatus.SHORTLISTED
+        self.application1.save()
+        self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application2.save()
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=shortlisted")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], str(self.application1.id))
+
+    def test_filter_rejected_applications(self):
+        """Test: Filter rejected applications"""
+        self.application1.status = Application.ApplicationStatus.REJECTED
+        self.application1.save()
+        self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
+        self.application2.save()
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=rejected")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], str(self.application1.id))
+
+    def test_filter_hired_applications(self):
+        """Test: Filter hired applications"""
+        self.application1.status = Application.ApplicationStatus.HIRED
+        self.application1.save()
+        self.application2.status = Application.ApplicationStatus.SHORTLISTED
+        self.application2.save()
+        
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=hired")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], str(self.application1.id))
+
+    def test_invalid_status_filter_returns_400(self):
+        """Test: Invalid status filter returns 400"""
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=invalid_status")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status", response.data["detail"])
+
+    def test_no_filter_returns_all_applications(self):
+        """Test: No status filter returns all applications"""
+        self.authenticate(self.recruiter1)
+        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+
+    # Query Optimization Tests
+
+    def test_applications_list_query_optimization(self):
+        """Test: Applications list query count optimized with select_related"""
+        self.authenticate(self.recruiter1)
+        # Should be 2 queries: 1 for job ownership check, 1 for applications with select_related
+        with self.assertNumQueries(2):
+            self.client.get(f"/api/jobs/{self.job1.id}/applications/")
+
+    def test_applications_list_with_filter_query_optimization(self):
+        """Test: Applications list with filter query count optimized"""
+        self.authenticate(self.recruiter1)
+        # Should be 2 queries: 1 for job ownership check, 1 for filtered applications
+        with self.assertNumQueries(2):
+            self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=submitted")
+
+    def test_history_endpoint_query_optimization(self):
+        """Test: History endpoint query count optimized"""
+        # Create some history
+        ApplicationStatusHistory.objects.create(
+            application=self.application1,
+            old_status="submitted",
+            new_status="under_review",
+            changed_by=self.recruiter1,
+        )
+        
+        self.authenticate(self.recruiter1)
+        # Should be 3 queries: 1 for application with select_related, 1 for history with select_related, 1 for auth
+        with self.assertNumQueries(3):
+            self.client.get(f"/api/applications/{self.application1.id}/history/")
+
+    def test_status_update_query_optimization(self):
+        """Test: Status update query count optimized"""
+        self.authenticate(self.recruiter1)
+        data = {"status": "under_review"}
+        # Should be optimized queries
+        with self.assertNumQueries(4):  # get application, validate, update, create history
+            self.client.patch(
+                f"/api/applications/{self.application1.id}/status/",
+                data,
+                format="json"
+            )

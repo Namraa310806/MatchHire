@@ -13,7 +13,10 @@ from .serializers import (
     ApplicationCreateSerializer,
     ApplicationListSerializer,
     ApplicationDetailSerializer,
+    ApplicationStatusUpdateSerializer,
+    ApplicationStatusHistorySerializer,
 )
+from .services.workflow import ApplicationWorkflowService
 
 User = get_user_model()
 
@@ -165,6 +168,7 @@ class JobApplicationsListView(APIView):
     
     Authentication required. Recruiter owner only.
     Returns all applications for that job.
+    Supports ?status= filtering.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
 
@@ -177,14 +181,139 @@ class JobApplicationsListView(APIView):
         return job
 
     def get(self, request, job_id):
-        """List all applications for the job"""
+        """List all applications for the job with optional status filtering"""
         job = self.get_object(request, job_id)
-        applications = Application.objects.filter(
-            job=job
-        ).select_related(
+        
+        # Get status filter from query params
+        status_filter = request.query_params.get("status")
+        
+        # Validate status filter
+        if status_filter:
+            valid_statuses = [choice[0] for choice in Application.ApplicationStatus.choices]
+            if status_filter not in valid_statuses:
+                return Response(
+                    {"detail": "Invalid status."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        
+        # Build queryset
+        applications = Application.objects.filter(job=job)
+        
+        # Apply status filter if provided
+        if status_filter:
+            applications = applications.filter(status=status_filter)
+        
+        applications = applications.select_related(
             "job",
             "candidate",
             "resume_version"
         ).order_by("-created_at")
+        
         serializer = ApplicationListSerializer(applications, many=True)
+        return Response(serializer.data)
+
+
+class ApplicationStatusUpdateView(APIView):
+    """
+    Update application status.
+    
+    PATCH /api/applications/<id>/status/
+    
+    Authentication required. Recruiter only.
+    Recruiter must own the job attached to the application.
+    """
+    permission_classes = (IsAuthenticated, IsRecruiter)
+
+    def get_object(self, request, id):
+        """Get application if job is owned by current recruiter"""
+        try:
+            application = Application.objects.select_related(
+                "job",
+                "candidate",
+                "resume_version"
+            ).get(id=id)
+        except Application.DoesNotExist:
+            raise Http404("Application not found")
+
+        # Recruiter can only update applications for their own jobs
+        if application.job.recruiter != request.user:
+            raise Http404("Application not found")
+
+        return application
+
+    def patch(self, request, id):
+        """Update application status"""
+        application = self.get_object(request, id)
+        
+        serializer = ApplicationStatusUpdateSerializer(
+            application,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        # Use service layer to change status
+        try:
+            updated_application = ApplicationWorkflowService.change_status(
+                application,
+                serializer.validated_data["status"],
+                request.user
+            )
+        except ValueError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        response_serializer = ApplicationDetailSerializer(updated_application)
+        return Response(response_serializer.data)
+
+
+class ApplicationHistoryView(APIView):
+    """
+    Retrieve application status history.
+    
+    GET /api/applications/<id>/history/
+    
+    Authentication required.
+    - Candidate: can view history of own application only.
+    - Recruiter: can view history only if they own the job.
+    """
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, request, id):
+        """Get application with access control"""
+        try:
+            application = Application.objects.select_related(
+                "job",
+                "candidate",
+                "resume_version"
+            ).get(id=id)
+        except Application.DoesNotExist:
+            raise Http404("Application not found")
+
+        # Candidate: can view own application history
+        if request.user.role == User.Roles.CANDIDATE:
+            if application.candidate != request.user:
+                raise Http404("Application not found")
+            return application
+
+        # Recruiter: can view history only if job belongs to them
+        if request.user.role == User.Roles.RECRUITER:
+            if application.job.recruiter != request.user:
+                raise Http404("Application not found")
+            return application
+
+        # Everyone else: denied
+        raise Http404("Application not found")
+
+    def get(self, request, id):
+        """Retrieve application status history"""
+        application = self.get_object(request, id)
+        
+        history = application.status_history.select_related(
+            "changed_by"
+        ).order_by("-changed_at")
+        
+        serializer = ApplicationStatusHistorySerializer(history, many=True)
         return Response(serializer.data)

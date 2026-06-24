@@ -60,3 +60,33 @@ class Application(models.Model):
 
     def __str__(self) -> str:
         return f"Application<{self.candidate.email} -> {self.job.title}>"
+
+
+class ApplicationStatusHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    application = models.ForeignKey(
+        Application,
+        on_delete=models.CASCADE,
+        related_name="status_history",
+    )
+    old_status = models.CharField(max_length=32, blank=True)
+    new_status = models.CharField(max_length=32)
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="application_status_changes",
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "application_status_history"
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["application"]),
+            models.Index(fields=["changed_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ApplicationStatusHistory<{self.application.id}: {self.old_status} -> {self.new_status}>"
