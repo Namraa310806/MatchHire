@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from apps.notifications.models import Notification
 
 
@@ -36,6 +38,39 @@ class NotificationService:
             notification_type=notification_type,
             metadata=metadata,
         )
+
+    @classmethod
+    def create_notification_once(
+        cls,
+        recipient,
+        title: str,
+        message: str,
+        notification_type: str,
+        metadata: dict = None,
+    ) -> Notification:
+        """Create a notification idempotently for async task replay.
+
+        Idempotency key: recipient, notification_type, and exact metadata. This
+        keeps repeated delivery of the same domain event from creating duplicate
+        notifications without changing the notification table schema.
+        """
+        if metadata is None:
+            metadata = {}
+
+        with transaction.atomic():
+            locked_recipient = recipient.__class__.objects.select_for_update().get(
+                pk=recipient.pk
+            )
+            notification, _ = Notification.objects.get_or_create(
+                recipient=locked_recipient,
+                notification_type=notification_type,
+                metadata=metadata,
+                defaults={
+                    "title": title,
+                    "message": message,
+                },
+            )
+        return notification
 
     @classmethod
     def mark_as_read(cls, notification_id: str, user) -> Notification:
@@ -89,7 +124,7 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        return cls.create_notification_once(
             recipient=recruiter,
             title="New Application Received",
             message="A candidate has submitted an application for your job.",
@@ -121,7 +156,7 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        return cls.create_notification_once(
             recipient=candidate,
             title="Application Status Updated",
             message=f"Your application status has changed from {old_status} to {new_status}.",
@@ -148,7 +183,7 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        return cls.create_notification_once(
             recipient=candidate,
             title="Interview Scheduled",
             message="An interview has been scheduled for your application.",
@@ -174,7 +209,7 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        return cls.create_notification_once(
             recipient=candidate,
             title="Interview Completed",
             message="Your interview has been completed.",
@@ -200,7 +235,7 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        return cls.create_notification_once(
             recipient=candidate,
             title="Interview Cancelled",
             message="Your scheduled interview has been cancelled.",
@@ -212,7 +247,13 @@ class NotificationService:
         )
 
     @classmethod
-    def notify_match_created(cls, candidate, job_id: str, match_score: float) -> Notification:
+    def notify_match_created(
+        cls,
+        candidate,
+        job_id: str,
+        match_score: float,
+        job_match_id: str = None,
+    ) -> Notification:
         """
         Notify candidate when a new job match is created.
 
@@ -224,13 +265,14 @@ class NotificationService:
         Returns:
             Created Notification instance
         """
-        return cls.create_notification(
+        metadata = {"job_id": job_id, "match_score": match_score}
+        if job_match_id:
+            metadata = {"job_match_id": job_match_id, "job_id": job_id}
+
+        return cls.create_notification_once(
             recipient=candidate,
             title="New Job Match",
             message=f"A new job matching your profile has been found with a match score of {match_score}%.",
             notification_type=Notification.NotificationType.MATCH_CREATED,
-            metadata={
-                "job_id": job_id,
-                "match_score": match_score,
-            },
+            metadata=metadata,
         )

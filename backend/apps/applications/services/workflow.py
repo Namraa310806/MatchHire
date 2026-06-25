@@ -1,5 +1,4 @@
 from apps.applications.models import Application, ApplicationStatusHistory
-from apps.notifications.services.notification_service import NotificationService
 
 
 class ApplicationWorkflowService:
@@ -68,14 +67,6 @@ class ApplicationWorkflowService:
 
         # Create history record
         cls.create_history(application, old_status, new_status, changed_by)
-
-        # Notify candidate about status change
-        NotificationService.notify_application_status_changed(
-            candidate=application.candidate,
-            application_id=str(application.id),
-            old_status=old_status,
-            new_status=new_status,
-        )
 
         return application
 

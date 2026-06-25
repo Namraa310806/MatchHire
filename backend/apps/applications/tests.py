@@ -825,7 +825,7 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter1)
         data = {"status": "under_review"}
         # Should be optimized queries
-        with self.assertNumQueries(5):  # get application, validate, update, create history, notify candidate
+        with self.assertNumQueries(4):  # get application, validate, update, create history; notification is async
             self.client.patch(
                 f"/api/applications/{self.application1.id}/status/",
                 data,

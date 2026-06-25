@@ -5,7 +5,6 @@ from django.utils import timezone
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
 from apps.resumes.models import Resume, ResumeVersion, StructuredResume, ResumeSkill
-from apps.notifications.services.notification_service import NotificationService
 
 
 class MatchingService:
@@ -77,15 +76,60 @@ class MatchingService:
             }
         )
 
-        # Notify candidate about new match (only on creation, not update)
-        if created:
-            NotificationService.notify_match_created(
-                candidate=candidate,
-                job_id=str(job.id),
-                match_score=float(final_score),
-            )
-
         return job_match
+
+    @classmethod
+    def recalculate_for_candidate(cls, candidate_id: str) -> int:
+        """Recalculate active job matches for one candidate.
+
+        Idempotency: calculate_match uses update_or_create on the unique
+        candidate/job pair, so replaying this task updates existing rows.
+        """
+        from apps.users.models import User
+
+        try:
+            candidate = User.objects.only("id", "email").get(id=candidate_id)
+        except User.DoesNotExist:
+            return 0
+
+        jobs = Job.objects.filter(status=Job.JobStatus.ACTIVE).select_related("recruiter").iterator()
+        count = 0
+        for job in jobs:
+            cls.calculate_match(candidate, job)
+            count += 1
+        return count
+
+    @classmethod
+    def recalculate_for_job(cls, job_id: str) -> int:
+        """Recalculate matches for every candidate with structured current resume."""
+        try:
+            job = Job.objects.select_related("recruiter").get(id=job_id)
+        except Job.DoesNotExist:
+            return 0
+
+        candidates = (
+            StructuredResume.objects.filter(resume_version__is_current=True)
+            .select_related("resume_version__resume__user")
+            .only("resume_version__resume__user__id", "resume_version__resume__user__email")
+            .iterator()
+        )
+        count = 0
+        for structured_resume in candidates:
+            cls.calculate_match(structured_resume.resume_version.resume.user, job)
+            count += 1
+        return count
+
+    @classmethod
+    def refresh_candidate_recommendations(cls, candidate_id: str) -> int:
+        """Refresh cached recommendation rows for a candidate.
+
+        Recommendations are backed by JobMatch rows ordered by match score, so
+        no separate persistent recommendation state is stored.
+        """
+        return JobMatch.objects.filter(
+            candidate_id=candidate_id,
+            job__status=Job.JobStatus.ACTIVE,
+        ).count()
 
     @classmethod
     def calculate_skill_score(cls, candidate, job):

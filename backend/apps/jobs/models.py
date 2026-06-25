@@ -7,6 +7,16 @@ from apps.users.models import User
 
 
 class Job(models.Model):
+    ASYNC_MATCHING_FIELDS = {
+        "requirements",
+        "experience_level",
+        "employment_type",
+        "location",
+        "salary_min",
+        "salary_max",
+        "status",
+    }
+
     class EmploymentType(models.TextChoices):
         FULL_TIME = "full_time", "Full Time"
         PART_TIME = "part_time", "Part Time"
@@ -65,6 +75,12 @@ class Job(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._async_original_values = {
+            field: getattr(self, field) for field in self.ASYNC_MATCHING_FIELDS
+        }
+
     class Meta:
         db_table = "jobs"
         ordering = ["-created_at"]
@@ -84,3 +100,14 @@ class Job(models.Model):
             raise ValidationError(
                 {"salary_min": "salary_min must be less than or equal to salary_max"}
             )
+
+    def async_matching_fields_changed(self) -> bool:
+        return any(
+            self._async_original_values.get(field) != getattr(self, field)
+            for field in self.ASYNC_MATCHING_FIELDS
+        )
+
+    def reset_async_original_values(self) -> None:
+        self._async_original_values = {
+            field: getattr(self, field) for field in self.ASYNC_MATCHING_FIELDS
+        }

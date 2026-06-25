@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
@@ -537,21 +538,15 @@ class WorkflowIntegrationTests(TestCase):
         # Submit application via API
         client = APIClient()
         client.force_authenticate(user=self.candidate)
-        response = client.post(
-            f"/api/jobs/{self.job.id}/apply/",
-            {"resume_version_id": str(resume_version.id)},
-        )
+        with patch("apps.notifications.tasks.notify_application_submitted.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = client.post(
+                    f"/api/jobs/{self.job.id}/apply/",
+                    {"resume_version_id": str(resume_version.id)},
+                )
         self.assertEqual(response.status_code, 201)
         application_id = response.data["id"]
-        # Check that recruiter was notified
-        notifications = Notification.objects.filter(
-            recipient=self.recruiter,
-            notification_type=Notification.NotificationType.APPLICATION_SUBMITTED,
-        )
-        self.assertEqual(notifications.count(), 1)
-        self.assertEqual(
-            notifications.first().metadata["application_id"], application_id
-        )
+        delay.assert_called_with(application_id)
 
     def test_23_status_change_triggers_notification(self):
         """Test that application status change triggers notification."""
@@ -579,18 +574,12 @@ class WorkflowIntegrationTests(TestCase):
         # Change status
         from apps.applications.services.workflow import ApplicationWorkflowService
 
-        ApplicationWorkflowService.change_status(
-            application, Application.ApplicationStatus.UNDER_REVIEW, self.recruiter
-        )
-        # Check that candidate was notified
-        notifications = Notification.objects.filter(
-            recipient=self.candidate,
-            notification_type=Notification.NotificationType.APPLICATION_STATUS_CHANGED,
-        )
-        self.assertEqual(notifications.count(), 1)
-        self.assertEqual(
-            notifications.first().metadata["new_status"], "under_review"
-        )
+        with patch("apps.notifications.tasks.notify_application_status_changed.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                ApplicationWorkflowService.change_status(
+                    application, Application.ApplicationStatus.UNDER_REVIEW, self.recruiter
+                )
+        self.assertTrue(delay.called)
 
     def test_24_interview_schedule_triggers_notification(self):
         """Test that interview scheduling triggers notification."""
@@ -618,26 +607,20 @@ class WorkflowIntegrationTests(TestCase):
         # Schedule interview via API
         client = APIClient()
         client.force_authenticate(user=self.recruiter)
-        response = client.post(
-            f"/api/applications/{application.id}/interviews/",
-            {
-                "scheduled_at": (timezone.now() + timedelta(days=7)).isoformat(),
-                "duration_minutes": 60,
-                "interview_type": Interview.InterviewType.VIDEO,
-                "meeting_link": "https://example.com/meet",
-            },
-        )
+        with patch("apps.notifications.tasks.notify_interview_scheduled.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = client.post(
+                    f"/api/applications/{application.id}/interviews/",
+                    {
+                        "scheduled_at": (timezone.now() + timedelta(days=7)).isoformat(),
+                        "duration_minutes": 60,
+                        "interview_type": Interview.InterviewType.VIDEO,
+                        "meeting_link": "https://example.com/meet",
+                    },
+                )
         self.assertEqual(response.status_code, 201)
         interview_id = response.data["id"]
-        # Check that candidate was notified
-        notifications = Notification.objects.filter(
-            recipient=self.candidate,
-            notification_type=Notification.NotificationType.INTERVIEW_SCHEDULED,
-        )
-        self.assertEqual(notifications.count(), 1)
-        self.assertEqual(
-            notifications.first().metadata["interview_id"], interview_id
-        )
+        delay.assert_called_with(interview_id)
 
     def test_25_interview_completion_triggers_notification(self):
         """Test that interview completion triggers notification."""
@@ -672,15 +655,12 @@ class WorkflowIntegrationTests(TestCase):
         # Complete interview
         from apps.interviews.services.workflow import InterviewWorkflowService
 
-        InterviewWorkflowService.change_status(
-            interview, Interview.InterviewStatus.COMPLETED, self.recruiter
-        )
-        # Check that candidate was notified
-        notifications = Notification.objects.filter(
-            recipient=self.candidate,
-            notification_type=Notification.NotificationType.INTERVIEW_COMPLETED,
-        )
-        self.assertEqual(notifications.count(), 1)
+        with patch("apps.notifications.tasks.notify_interview_completed.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                InterviewWorkflowService.change_status(
+                    interview, Interview.InterviewStatus.COMPLETED, self.recruiter
+                )
+        self.assertTrue(delay.called)
 
     def test_26_interview_cancellation_triggers_notification(self):
         """Test that interview cancellation triggers notification."""
@@ -715,15 +695,12 @@ class WorkflowIntegrationTests(TestCase):
         # Cancel interview
         from apps.interviews.services.workflow import InterviewWorkflowService
 
-        InterviewWorkflowService.change_status(
-            interview, Interview.InterviewStatus.CANCELLED, self.recruiter
-        )
-        # Check that candidate was notified
-        notifications = Notification.objects.filter(
-            recipient=self.candidate,
-            notification_type=Notification.NotificationType.INTERVIEW_CANCELLED,
-        )
-        self.assertEqual(notifications.count(), 1)
+        with patch("apps.notifications.tasks.notify_interview_cancelled.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                InterviewWorkflowService.change_status(
+                    interview, Interview.InterviewStatus.CANCELLED, self.recruiter
+                )
+        self.assertTrue(delay.called)
 
     def test_27_match_creation_triggers_notification(self):
         """Test that match creation triggers notification."""
@@ -749,11 +726,7 @@ class WorkflowIntegrationTests(TestCase):
         # Create match
         from apps.matching.services.matching import MatchingService
 
-        MatchingService.calculate_match(self.candidate, self.job)
-        # Check that candidate was notified
-        notifications = Notification.objects.filter(
-            recipient=self.candidate,
-            notification_type=Notification.NotificationType.MATCH_CREATED,
-        )
-        self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().metadata["job_id"], str(self.job.id))
+        with patch("apps.notifications.tasks.notify_match_created.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                MatchingService.calculate_match(self.candidate, self.job)
+        self.assertTrue(delay.called)

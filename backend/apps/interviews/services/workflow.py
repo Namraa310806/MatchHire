@@ -1,5 +1,4 @@
 from apps.interviews.models import Interview, InterviewStatusHistory
-from apps.notifications.services.notification_service import NotificationService
 
 
 class InterviewWorkflowService:
@@ -61,20 +60,6 @@ class InterviewWorkflowService:
 
         # Create history record
         cls.create_history(interview, old_status, new_status, changed_by)
-
-        # Notify candidate about interview status change
-        if new_status == Interview.InterviewStatus.COMPLETED:
-            NotificationService.notify_interview_completed(
-                candidate=interview.application.candidate,
-                interview_id=str(interview.id),
-                application_id=str(interview.application.id),
-            )
-        elif new_status == Interview.InterviewStatus.CANCELLED:
-            NotificationService.notify_interview_cancelled(
-                candidate=interview.application.candidate,
-                interview_id=str(interview.id),
-                application_id=str(interview.application.id),
-            )
 
         return interview
 
