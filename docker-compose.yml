@@ -28,6 +28,8 @@ services:
       dockerfile: docker/Dockerfile.backend
     env_file:
       - ${ENV_FILE:-.env.development}
+    environment:
+      - PYTHONPATH=/app/backend
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker
@@ -49,6 +51,8 @@ services:
       dockerfile: docker/Dockerfile.backend
     env_file:
       - ${ENV_FILE:-.env.development}
+    environment:
+      - PYTHONPATH=/app/backend
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker
@@ -68,6 +72,8 @@ services:
       dockerfile: docker/Dockerfile.backend
     env_file:
       - ${ENV_FILE:-.env.development}
+    environment:
+      - PYTHONPATH=/app/backend
     volumes:
       - ./backend:/app/backend
       - ./docker:/app/docker

@@ -246,7 +246,7 @@ class JobAPITests(TestCase):
         self.authenticate(self.candidate)
         response = self.client.get("/api/jobs/")
         self.assertEqual(response.status_code, 200)
-        job_ids = [job["id"] for job in response.data]
+        job_ids = [job["id"] for job in response.data["results"]]
         self.assertIn(str(active_job.id), job_ids)
         self.assertNotIn(str(closed_job.id), job_ids)
 
@@ -272,7 +272,7 @@ class JobAPITests(TestCase):
         self.authenticate(self.candidate)
         response = self.client.get("/api/jobs/")
         self.assertEqual(response.status_code, 200)
-        job_ids = [job["id"] for job in response.data]
+        job_ids = [job["id"] for job in response.data["results"]]
         self.assertNotIn(str(draft_job.id), job_ids)
         self.assertIn(str(active_job.id), job_ids)
 
@@ -290,7 +290,7 @@ class JobAPITests(TestCase):
         self.authenticate(self.candidate)
         response = self.client.get("/api/jobs/")
         self.assertEqual(response.status_code, 200)
-        job_ids = [job["id"] for job in response.data]
+        job_ids = [job["id"] for job in response.data["results"]]
         self.assertIn(str(active_job.id), job_ids)
 
     def test_12_salary_validation(self):
@@ -324,7 +324,7 @@ class JobAPITests(TestCase):
             self.client.get("/api/jobs/my/")
 
         self.authenticate(self.candidate)
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             self.client.get("/api/jobs/")
 
     def test_title_required_validation(self):
