@@ -11,6 +11,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 	class Roles(models.TextChoices):
 		CANDIDATE = "candidate", "Candidate"
 		RECRUITER = "recruiter", "Recruiter"
+		ADMIN = "admin", "Admin"
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	email = models.EmailField(unique=True)
