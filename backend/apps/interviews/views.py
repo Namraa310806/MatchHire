@@ -16,6 +16,7 @@ from .serializers import (
     InterviewStatusHistorySerializer,
 )
 from .services.workflow import InterviewWorkflowService
+from matchhire_backend.core.validators import validate_uuid
 
 User = get_user_model()
 
@@ -33,9 +34,11 @@ class ApplicationInterviewsListView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'interview_schedule'
 
     def get_object(self, request, application_id):
         """Get application with access control"""
+        validate_uuid(application_id, "application_id")
         try:
             application = Application.objects.select_related(
                 "job",
@@ -124,9 +127,11 @@ class InterviewDetailView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, interview_id):
         """Get interview with access control"""
+        validate_uuid(interview_id, "interview_id")
         try:
             interview = Interview.objects.select_related(
                 "application",
@@ -170,9 +175,11 @@ class InterviewStatusUpdateView(APIView):
     """
 
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, interview_id):
         """Get interview if job is owned by current recruiter"""
+        validate_uuid(interview_id, "interview_id")
         try:
             interview = Interview.objects.select_related(
                 "application",
@@ -229,9 +236,11 @@ class InterviewHistoryView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, interview_id):
         """Get interview with access control"""
+        validate_uuid(interview_id, "interview_id")
         try:
             interview = Interview.objects.select_related(
                 "application",

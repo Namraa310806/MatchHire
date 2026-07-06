@@ -33,6 +33,7 @@ class RecruiterDashboardView(APIView):
     Returns aggregated metrics for the recruiter's jobs, applications, and interviews.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'analytics'
 
     def get(self, request):
         """Get recruiter dashboard analytics with query optimization"""
@@ -89,6 +90,7 @@ class CandidateDashboardView(APIView):
     Returns aggregated metrics for the candidate's applications, interviews, and matches.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'analytics'
 
     def get(self, request):
         """Get candidate dashboard analytics with query optimization"""
@@ -148,6 +150,7 @@ class JobAnalyticsView(APIView):
     Returns application metrics and conversion rate for a specific job.
     """
     permission_classes = (IsAuthenticated, IsRecruiter, IsJobOwner)
+    throttle_scope = 'analytics'
 
     def get_object(self, request, job_id):
         """Get job if owned by current recruiter"""
@@ -197,6 +200,7 @@ class TopCandidatesView(APIView):
     Returns top 20 candidates ordered by match_score DESC.
     """
     permission_classes = (IsAuthenticated, IsRecruiter, IsJobOwner)
+    throttle_scope = 'analytics'
 
     def get_object(self, request, job_id):
         """Get job if owned by current recruiter"""

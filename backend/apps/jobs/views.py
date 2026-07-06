@@ -18,6 +18,7 @@ from .serializers import (
     JobSearchSerializer,
     JobSearchPagination,
 )
+from matchhire_backend.core.validators import validate_uuid, validate_ordering, validate_search_length
 
 User = get_user_model()
 
@@ -31,6 +32,7 @@ class JobCreateView(APIView):
     Authentication required. Recruiter only.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'authenticated'
 
     def post(self, request):
         """Create a new job"""
@@ -54,6 +56,7 @@ class MyJobsListView(APIView):
     Returns all jobs (draft, active, closed) owned by the recruiter.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """List all jobs for the current recruiter"""
@@ -77,9 +80,11 @@ class JobDetailView(APIView):
     PATCH: Authentication required. Recruiter owner only.
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get job with access control based on user role and ownership"""
+        validate_uuid(id, "id")
         try:
             job = Job.objects.select_related("recruiter").get(id=id)
         except Job.DoesNotExist:
@@ -140,9 +145,11 @@ class JobCloseView(APIView):
     Only owner can close their jobs.
     """
     permission_classes = (IsAuthenticated, IsRecruiter, IsJobOwner)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get job if owned by current recruiter"""
+        validate_uuid(id, "id")
         try:
             return Job.objects.select_related("recruiter").get(id=id, recruiter=request.user)
         except Job.DoesNotExist:
@@ -189,6 +196,7 @@ class PublicJobListView(APIView):
     """
     permission_classes = (IsAuthenticated,)
     pagination_class = JobSearchPagination
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """List all active jobs with search, filtering, and pagination"""
@@ -198,6 +206,7 @@ class PublicJobListView(APIView):
         # Search across title, company_name, description
         q = request.query_params.get('q')
         if q:
+            validate_search_length(q, max_length=200)
             queryset = queryset.filter(
                 Q(title__icontains=q) |
                 Q(company_name__icontains=q) |
@@ -268,11 +277,7 @@ class PublicJobListView(APIView):
         # Ordering
         ordering = request.query_params.get('ordering', '-created_at')
         valid_ordering_fields = ['created_at', '-created_at', 'salary_min', '-salary_min', 'salary_max', '-salary_max']
-        if ordering not in valid_ordering_fields:
-            return Response(
-                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        validate_ordering(ordering, valid_ordering_fields)
         queryset = queryset.order_by(ordering)
         
         # Query optimization

@@ -28,6 +28,7 @@ from .services.parser_service import ResumeParserService
 from .services.versioning import ResumeVersioningService
 from .services.extraction_service import ResumeExtractionService
 from .services.search_service import ResumeSearchService
+from matchhire_backend.core.validators import validate_uuid, validate_ordering, validate_search_length
 
 User = get_user_model()
 
@@ -62,6 +63,7 @@ class ResumeSearchView(APIView):
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
     pagination_class = ResumeSearchPagination
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """Search resumes with filters"""
@@ -72,13 +74,15 @@ class ResumeSearchView(APIView):
         education = request.query_params.get('education', None)
         certification = request.query_params.get('certification', None)
         ordering = request.query_params.get('ordering', None)
-
+        
         # Validate ordering
-        if ordering and not ResumeSearchService.validate_ordering(ordering):
-            return Response(
-                {"detail": f"Invalid ordering field: {ordering}. Valid fields: name, -name, created_at, -created_at"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        valid_ordering_fields = ['name', '-name', 'created_at', '-created_at']
+        validate_ordering(ordering, valid_ordering_fields)
+        
+        # Validate search length
+        for field in [location, company, education, certification]:
+            if field:
+                validate_search_length(field, max_length=200)
 
         # Perform search
         queryset = ResumeSearchService.search(
@@ -116,6 +120,7 @@ class ResumeUploadView(APIView):
     Maximum file size: 10 MB
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'resume_upload'
 
     def post(self, request):
         serializer = ResumeUploadSerializer(
@@ -142,6 +147,7 @@ class ResumeListView(APIView):
     Returns resumes ordered newest first.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """List all resumes for the current user"""
@@ -161,9 +167,11 @@ class ResumeDetailView(APIView):
     Only owner can access their resumes.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get resume if owned by current user"""
+        validate_uuid(id, "id")
         try:
             return Resume.objects.get(id=id, user=request.user)
         except Resume.DoesNotExist:
@@ -201,6 +209,7 @@ class ActiveResumeView(APIView):
     Returns 404 if no resume or current version exists.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """Get the resume with current version for the current user"""
@@ -225,9 +234,11 @@ class ResumeActivateView(APIView):
     Transactional - deactivates current version and activates selected one.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'authenticated'
 
     def get_resume(self, request, id):
         """Get resume if owned by current user"""
+        validate_uuid(id, "id")
         try:
             return Resume.objects.get(id=id, user=request.user)
         except Resume.DoesNotExist:
@@ -263,9 +274,11 @@ class ParseResumeView(APIView):
     Only owner can parse their resumes.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'resume_parsing'
 
     def get_object(self, request, id):
         """Get resume if owned by current user"""
+        validate_uuid(id, "id")
         try:
             return Resume.objects.select_related("user").get(id=id, user=request.user)
         except Resume.DoesNotExist:
@@ -472,9 +485,11 @@ class ParseResumeVersionView(APIView):
     Only owner can parse their resume versions.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'resume_parsing'
 
     def get_object(self, request, version_id):
         """Get resume version if owned by current user"""
+        validate_uuid(version_id, "version_id")
         try:
             return ResumeVersion.objects.select_related("resume").get(
                 id=version_id, resume__user=request.user
@@ -566,9 +581,11 @@ class ExtractResumeVersionView(APIView):
     Only owner can extract structured data from their resume versions.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'structured_extraction'
 
     def get_object(self, request, version_id):
         """Get parsed resume if owned by current user"""
+        validate_uuid(version_id, "version_id")
         try:
             resume_version = ResumeVersion.objects.select_related("resume").get(
                 id=version_id, resume__user=request.user

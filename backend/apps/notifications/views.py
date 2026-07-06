@@ -28,6 +28,7 @@ class NotificationListView(APIView):
     """
     permission_classes = (IsAuthenticated,)
     pagination_class = NotificationPagination
+    throttle_scope = 'notification'
 
     def get(self, request):
         """List all notifications for the current user"""
@@ -50,6 +51,7 @@ class MarkAsReadView(APIView):
     Authentication required. Owner only.
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'notification'
 
     def get_object(self, request, id):
         """Get notification if owned by current user"""
@@ -76,6 +78,7 @@ class MarkAllAsReadView(APIView):
     Authentication required.
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'notification'
 
     def post(self, request):
         """Mark all unread notifications as read"""
@@ -92,6 +95,7 @@ class UnreadCountView(APIView):
     Authentication required.
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'notification'
 
     def get(self, request):
         """Get unread notification count"""

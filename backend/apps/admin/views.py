@@ -42,6 +42,7 @@ class AdminUserListView(APIView):
     """
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
+    throttle_scope = 'admin'
 
     def get(self, request):
         """List all users with filtering and ordering"""
@@ -108,6 +109,7 @@ class AdminUserDetailView(APIView):
     PATCH: Update is_active and role fields
     """
     permission_classes = (IsAdmin,)
+    throttle_scope = 'admin'
 
     def get_object(self, id):
         """Get user by id"""
@@ -155,6 +157,7 @@ class AdminJobListView(APIView):
     """
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
+    throttle_scope = 'admin'
 
     def get(self, request):
         """List all jobs with filtering and ordering"""
@@ -219,6 +222,7 @@ class AdminJobDetailView(APIView):
     Update job status with moderation logging.
     """
     permission_classes = (IsAdmin,)
+    throttle_scope = 'admin'
 
     def get_object(self, id):
         """Get job by id"""
@@ -258,6 +262,7 @@ class AdminResumeListView(APIView):
     """
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
+    throttle_scope = 'admin'
 
     def get(self, request):
         """List all resumes with filtering and ordering"""
@@ -329,6 +334,7 @@ class AdminResumeDetailView(APIView):
     Update user is_active status with moderation logging.
     """
     permission_classes = (IsAdmin,)
+    throttle_scope = 'admin'
 
     def get_object(self, id):
         """Get resume by id"""
@@ -369,6 +375,7 @@ class AdminApplicationListView(APIView):
     """
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
+    throttle_scope = 'admin'
 
     def get(self, request):
         """List all applications with filtering and ordering"""
@@ -433,6 +440,7 @@ class AdminDashboardView(APIView):
     Returns aggregated platform statistics.
     """
     permission_classes = (IsAdmin,)
+    throttle_scope = 'admin'
 
     def get(self, request):
         """Get platform statistics"""

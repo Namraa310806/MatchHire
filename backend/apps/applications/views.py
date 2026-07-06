@@ -17,6 +17,7 @@ from .serializers import (
     ApplicationStatusHistorySerializer,
 )
 from .services.workflow import ApplicationWorkflowService
+from matchhire_backend.core.validators import validate_uuid
 
 User = get_user_model()
 
@@ -30,9 +31,11 @@ class JobApplyView(APIView):
     Authentication required. Candidate only.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'job_apply'
 
     def post(self, request, job_id):
         """Apply to a job with a specific resume version"""
+        validate_uuid(job_id, "job_id")
         # Get job
         try:
             job = Job.objects.get(id=job_id)
@@ -100,6 +103,7 @@ class MyApplicationsListView(APIView):
     Returns only applications belonging to request.user.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'authenticated'
 
     def get(self, request):
         """List all applications for the current candidate"""
@@ -126,9 +130,11 @@ class ApplicationDetailView(APIView):
     - Everyone else: denied
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get application with access control"""
+        validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
                 "job",
@@ -171,9 +177,11 @@ class JobApplicationsListView(APIView):
     Supports ?status= filtering.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, job_id):
         """Get job if owned by current recruiter"""
+        validate_uuid(job_id, "job_id")
         try:
             job = Job.objects.get(id=job_id, recruiter=request.user)
         except Job.DoesNotExist:
@@ -223,9 +231,11 @@ class ApplicationStatusUpdateView(APIView):
     Recruiter must own the job attached to the application.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get application if job is owned by current recruiter"""
+        validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
                 "job",
@@ -280,9 +290,11 @@ class ApplicationHistoryView(APIView):
     - Recruiter: can view history only if they own the job.
     """
     permission_classes = (IsAuthenticated,)
+    throttle_scope = 'authenticated'
 
     def get_object(self, request, id):
         """Get application with access control"""
+        validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
                 "job",

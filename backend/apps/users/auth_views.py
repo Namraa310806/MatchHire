@@ -17,6 +17,7 @@ from .serializers import (
 	UserSerializer,
 )
 from .models import User
+from matchhire_backend.core.security_audit import SecurityAuditService
 
 
 def _cookie_max_age(token_lifetime):
@@ -61,6 +62,7 @@ def _build_authenticated_response(user, message, status_code=status.HTTP_200_OK)
 
 class LoginView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_scope = 'login'
 
 	def post(self, request):
 		serializer = LoginSerializer(data=request.data)
@@ -69,6 +71,7 @@ class LoginView(APIView):
 		password = serializer.validated_data["password"]
 		user = User.objects.filter(email=email).first()
 		if user is not None and not user.is_active:
+			SecurityAuditService.log_failed_login(email, self.get_client_ip(request))
 			return Response({"message": "User account is inactive"}, status=status.HTTP_401_UNAUTHORIZED)
 
 		user = authenticate(
@@ -77,13 +80,24 @@ class LoginView(APIView):
 			password=password,
 		)
 		if user is None:
+			SecurityAuditService.log_failed_login(email, self.get_client_ip(request))
 			return Response({"message": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
 		return _build_authenticated_response(user, "Login successful")
 
+	def get_client_ip(self, request):
+		"""Get client IP address from request"""
+		x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+		if x_forwarded_for:
+			ip = x_forwarded_for.split(',')[0]
+		else:
+			ip = request.META.get('REMOTE_ADDR')
+		return ip
+
 
 class CandidateRegistrationView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_scope = 'registration'
 
 	def post(self, request):
 		serializer = CandidateRegistrationSerializer(data=request.data)
@@ -95,6 +109,7 @@ class CandidateRegistrationView(APIView):
 
 class RecruiterRegistrationView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_scope = 'registration'
 
 	def post(self, request):
 		serializer = RecruiterRegistrationSerializer(data=request.data)

@@ -110,6 +110,29 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": (
+        "matchhire_backend.core.throttling.AuthenticatedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anonymous": "100/day",
+        "authenticated": "1000/day",
+        "login": "10/hour",
+        "registration": "5/hour",
+        "resume_upload": "30/hour",
+        "resume_parsing": "30/hour",
+        "structured_extraction": "30/hour",
+        "job_apply": "100/hour",
+        "matching": "100/hour",
+        "interview_schedule": "50/hour",
+        "notification": "500/hour",
+        "admin": "200/hour",
+        "analytics": "100/hour",
+    },
+    "EXCEPTION_HANDLER": "matchhire_backend.core.exceptions.custom_exception_handler",
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1"],
+    "VERSION_PARAM": "version",
 }
 
 SIMPLE_JWT = {

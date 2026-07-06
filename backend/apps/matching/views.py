@@ -29,6 +29,7 @@ class CandidateMatchView(APIView):
     Authentication required. Candidate only.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'matching'
 
     def get_object(self, request, job_id):
         """Get job with access control"""
@@ -79,6 +80,7 @@ class JobRecommendationsView(APIView):
     Returns top 20 ACTIVE jobs ordered by match score DESC.
     """
     permission_classes = (IsAuthenticated, IsCandidate)
+    throttle_scope = 'matching'
 
     def get(self, request):
         """Get job recommendations for candidate"""
@@ -109,6 +111,7 @@ class RecruiterCandidatesView(APIView):
     Returns top matching candidates for the job ordered by match score DESC.
     """
     permission_classes = (IsAuthenticated, IsRecruiter)
+    throttle_scope = 'matching'
 
     def get(self, request):
         """Get matching candidates for recruiter's job"""
