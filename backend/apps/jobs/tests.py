@@ -746,7 +746,8 @@ class JobSearchAndFilteringTests(TestCase):
         self.authenticate(self.candidate)
         response = self.client.get("/api/jobs/?ordering=invalid_field")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("detail", response.data)
+        # Validation errors are in field-specific format
+        self.assertIn("ordering", response.data)
     
     def test_draft_jobs_hidden(self):
         """Test 15: Draft jobs hidden"""

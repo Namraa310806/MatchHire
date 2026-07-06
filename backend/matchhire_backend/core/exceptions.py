@@ -31,6 +31,7 @@ def custom_exception_handler(exc, context):
     Custom exception handler for DRF.
     
     Returns consistent error response format for all exceptions.
+    Maintains backward compatibility for validation errors.
     """
     # Call REST framework's default exception handler first
     response = exception_handler(exc, context)
@@ -40,7 +41,14 @@ def custom_exception_handler(exc, context):
         view = context.get('view')
         request = context.get('request')
         
-        # Build error response
+        # For validation errors, keep the original DRF format for backward compatibility
+        if isinstance(exc, ValidationError):
+            # Log the exception
+            log_exception(exc, view, request)
+            # Return original response format
+            return response
+        
+        # For other exceptions, use the new error format
         error_data = {
             "error": {
                 "code": get_error_code(exc),

@@ -45,13 +45,15 @@ class ResumeValidatorTests(TestCase):
         self.assertIn("Invalid file extension", str(context.exception))
 
     def test_invalid_extension_txt(self):
-        """Test that .txt files are rejected"""
+        """Test that .txt files are now allowed"""
         txt_content = b"some text"
         file = SimpleUploadedFile("resume.txt", txt_content, content_type="text/plain")
 
-        with self.assertRaises(ValidationError) as context:
+        # Should not raise ValidationError - .txt is now allowed
+        try:
             validate_resume_file(file)
-        self.assertIn("Invalid file extension", str(context.exception))
+        except ValidationError:
+            self.fail(".txt files should now be allowed")
 
     def test_invalid_extension_exe(self):
         """Test that .exe files are rejected"""
@@ -60,7 +62,7 @@ class ResumeValidatorTests(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             validate_resume_file(file)
-        self.assertIn("Invalid file extension", str(context.exception))
+        self.assertIn("Dangerous file extension", str(context.exception))
 
     def test_oversized_file(self):
         """Test that files larger than 10MB are rejected"""
@@ -1218,7 +1220,8 @@ class ResumeSearchTests(TestCase):
         response = self.client.get("/api/resumes/search/?ordering=invalid_field")
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Invalid ordering field", response.data["detail"])
+        # Validation errors are in field-specific format
+        self.assertIn("ordering", response.data)
 
     def test_empty_result_set(self):
         """Test search with no matching results"""

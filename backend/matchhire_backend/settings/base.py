@@ -12,6 +12,29 @@ SECRET_KEY = get_env("SECRET_KEY", default="change-me")
 DEBUG = get_env("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
+# Use SQLite for tests
+import sys
+TESTING = 'test' in sys.argv
+
+if TESTING:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": get_env("DB_NAME", default="matchhire"),
+            "USER": get_env("DB_USER", default="matchhire"),
+            "PASSWORD": get_env("DB_PASSWORD", default="matchhire"),
+            "HOST": get_env("DB_HOST", default="db"),
+            "PORT": get_env("DB_PORT", default="5432"),
+        }
+    }
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -67,21 +90,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "matchhire_backend.wsgi.application"
 ASGI_APPLICATION = "matchhire_backend.asgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": get_env("DB_NAME", default="matchhire"),
-        "USER": get_env("DB_USER", default="matchhire"),
-        "PASSWORD": get_env("DB_PASSWORD", default="matchhire"),
-        "HOST": get_env("DB_HOST", default="db"),
-        "PORT": get_env("DB_PORT", default="5432"),
-        "TEST": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
-        },
-    }
-}
-
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -112,7 +120,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_THROTTLE_CLASSES": (
         "matchhire_backend.core.throttling.AuthenticatedRateThrottle",
-    ),
+    ) if not TESTING else (),
     "DEFAULT_THROTTLE_RATES": {
         "anonymous": "100/day",
         "authenticated": "1000/day",
