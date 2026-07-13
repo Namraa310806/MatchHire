@@ -215,6 +215,7 @@ class RecruiterRegistrationView(APIView):
 	tags=["Authentication"],
 	summary="Refresh access token",
 	description="Refresh JWT access token using refresh token from HTTP-only cookie.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Token refreshed successfully. New access token set in cookie."),
 		401: OpenApiResponse(description="Refresh token missing or invalid")
@@ -244,6 +245,7 @@ class RefreshView(APIView):
 	tags=["Authentication"],
 	summary="User logout",
 	description="Logout user by blacklisting refresh token and clearing HTTP-only cookies.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Logout successful. Cookies cleared.")
 	}

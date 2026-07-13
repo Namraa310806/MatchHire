@@ -25,7 +25,7 @@ User = get_user_model()
 	summary="Calculate candidate-job match",
 	description="Calculate or retrieve match between candidate and job. Authentication required. Candidate only.",
 	responses={
-		200: OpenApiResponse(description="Match calculated or retrieved successfully."),
+		200: JobMatchSerializer,
 		404: OpenApiResponse(description="Job not found or match not calculated."),
 		403: OpenApiResponse(description="Only candidates can calculate matches.")
 	}
@@ -41,6 +41,7 @@ class CandidateMatchView(APIView):
     """
     permission_classes = (IsAuthenticated, IsCandidate)
     throttle_scope = 'matching'
+    serializer_class = JobMatchSerializer
 
     def get_object(self, request, job_id):
         """Get job with access control"""

@@ -314,7 +314,7 @@ class ActiveResumeView(APIView):
 	summary="Activate resume version",
 	description="Activate a specific resume version. Authentication required. Candidate only.",
 	responses={
-		200: OpenApiResponse(description="Resume version activated successfully."),
+		200: ResumeActivationSerializer,
 		404: OpenApiResponse(description="Resume or version not found."),
 		403: OpenApiResponse(description="Only candidates can activate their resume versions.")
 	}
@@ -330,6 +330,7 @@ class ResumeActivateView(APIView):
     """
     permission_classes = (IsAuthenticated, IsCandidate)
     throttle_scope = 'authenticated'
+    serializer_class = ResumeActivationSerializer
 
     def get_resume(self, request, id):
         """Get resume if owned by current user"""
@@ -363,6 +364,7 @@ class ResumeActivateView(APIView):
 	tags=["Resumes"],
 	summary="Parse resume",
 	description="Parse a resume to extract raw text. Authentication required. Candidate only.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Resume parsed successfully."),
 		400: OpenApiResponse(description="Unsupported file type or corrupted file."),
@@ -572,6 +574,7 @@ class CurrentResumeVersionView(APIView):
 	tags=["Resumes"],
 	summary="Rollback resume version",
 	description="Rollback to a specific version of a resume. Authentication required. Candidate only.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Rollback successful."),
 		404: OpenApiResponse(description="Resume or version not found."),
@@ -625,6 +628,7 @@ class RollbackResumeVersionView(APIView):
 	tags=["Resumes"],
 	summary="Parse resume version",
 	description="Parse a specific resume version to extract raw text. Authentication required. Candidate only.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Resume version parsed successfully."),
 		400: OpenApiResponse(description="Unsupported file type or corrupted file."),
@@ -742,6 +746,7 @@ class ParsedResumeVersionDetailView(APIView):
 	tags=["Resumes"],
 	summary="Extract structured resume data",
 	description="Extract structured resume data from a parsed resume version. Authentication required. Candidate only.",
+	request=None,
 	responses={
 		200: OpenApiResponse(description="Structured data extracted successfully."),
 		400: OpenApiResponse(description="Resume must be successfully parsed before extraction."),

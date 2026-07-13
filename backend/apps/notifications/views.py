@@ -56,7 +56,7 @@ class NotificationListView(APIView):
 	summary="Mark notification as read",
 	description="Mark a specific notification as read. Owner only.",
 	responses={
-		200: OpenApiResponse(description="Notification marked as read successfully."),
+		200: NotificationSerializer,
 		404: OpenApiResponse(description="Notification not found.")
 	}
 )
@@ -70,6 +70,7 @@ class MarkAsReadView(APIView):
     """
     permission_classes = (IsAuthenticated,)
     throttle_scope = 'notification'
+    serializer_class = NotificationSerializer
 
     def get_object(self, request, id):
         """Get notification if owned by current user"""
@@ -92,7 +93,7 @@ class MarkAsReadView(APIView):
 	summary="Mark all notifications as read",
 	description="Mark all unread notifications as read for the authenticated user.",
 	responses={
-		200: OpenApiResponse(description="All notifications marked as read successfully.")
+		200: OpenApiResponse(description="All notifications marked as read successfully.", response={'updated_count': 0})
 	}
 )
 class MarkAllAsReadView(APIView):
@@ -105,6 +106,7 @@ class MarkAllAsReadView(APIView):
     """
     permission_classes = (IsAuthenticated,)
     throttle_scope = 'notification'
+    serializer_class = NotificationSerializer
 
     def post(self, request):
         """Mark all unread notifications as read"""

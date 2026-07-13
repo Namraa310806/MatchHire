@@ -113,9 +113,8 @@ class ResumeActivationSerializer(serializers.ModelSerializer):
             "updated_at",
             "current_version",
         )
-        read_only_fields = ("id", "created_at", "updated_at", "current_version")
 
-    def get_current_version(self, obj):
+    def get_current_version(self, obj: Resume) -> dict:
         """Get the current version data"""
         try:
             current_version = obj.versions.get(is_current=True)

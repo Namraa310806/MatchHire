@@ -28,8 +28,9 @@ User = get_user_model()
 	tags=["Jobs"],
 	summary="Create a new job",
 	description="Create a new job posting. Authentication required. Recruiter only.",
+	request=JobCreateSerializer,
 	responses={
-		201: OpenApiResponse(description="Job created successfully."),
+		201: JobDetailSerializer,
 		400: OpenApiResponse(description="Invalid input data."),
 		403: OpenApiResponse(description="Only recruiters can create jobs.")
 	}
@@ -180,7 +181,7 @@ class JobDetailView(APIView):
 	summary="Close a job",
 	description="Close a job posting. Recruiter owner only.",
 	responses={
-		200: OpenApiResponse(description="Job closed successfully."),
+		200: JobDetailSerializer,
 		400: OpenApiResponse(description="Job is already closed."),
 		403: OpenApiResponse(description="Only recruiters can close jobs."),
 		404: OpenApiResponse(description="Job not found.")
@@ -197,6 +198,7 @@ class JobCloseView(APIView):
     """
     permission_classes = (IsAuthenticated, IsRecruiter, IsJobOwner)
     throttle_scope = 'authenticated'
+    serializer_class = JobDetailSerializer
 
     def get_object(self, request, id):
         """Get job if owned by current recruiter"""

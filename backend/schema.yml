@@ -49,6 +49,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -67,6 +68,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -121,6 +123,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -150,6 +153,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -202,6 +206,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -232,6 +237,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -284,6 +290,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -309,6 +316,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -337,6 +345,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -356,6 +365,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -373,6 +383,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -397,6 +408,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -423,6 +435,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -449,6 +462,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -483,6 +497,7 @@ paths:
                   location: Zoom
                 summary: Schedule interview
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -507,6 +522,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -531,6 +547,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -564,6 +581,7 @@ paths:
                   status: shortlisted
                 summary: Update application status
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -585,6 +603,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -623,6 +642,7 @@ paths:
                   password: securepassword123
                 summary: Successful login
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -663,6 +683,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -678,6 +699,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -694,6 +716,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -737,6 +760,7 @@ paths:
                   full_name: John Doe
                 summary: Candidate registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -784,6 +808,7 @@ paths:
                   company_name: Tech Corp
                 summary: Recruiter registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -796,16 +821,19 @@ paths:
   /api/health/:
     get:
       operationId: health_retrieve
+      description: Check system health and dependency status.
+      summary: Health check
       tags:
-      - health
+      - System
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       - {}
       responses:
         '200':
-          description: No response body
+          description: Health status retrieved successfully.
   /api/interviews/{interview_id}/:
     get:
       operationId: interviews_retrieve
@@ -822,6 +850,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -846,6 +875,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -874,6 +904,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -949,6 +980,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -973,6 +1005,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1000,6 +1033,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1022,13 +1056,30 @@ paths:
         required: true
       tags:
       - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+        required: true
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Job closed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetail'
+          description: ''
         '400':
           description: Job is already closed.
         '403':
@@ -1056,6 +1107,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1100,6 +1152,7 @@ paths:
                   resume_version_id: 123e4567-e89b-12d3-a456-426614174000
                 summary: Apply to job
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1126,12 +1179,17 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Match calculated or retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobMatch'
+          description: ''
         '404':
           description: Job not found or match not calculated.
         '403':
@@ -1151,12 +1209,17 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Match calculated or retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobMatch'
+          description: ''
         '404':
           description: Job not found or match not calculated.
         '403':
@@ -1168,13 +1231,30 @@ paths:
       summary: Create a new job
       tags:
       - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+        required: true
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '201':
-          description: Job created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetail'
+          description: ''
         '400':
           description: Invalid input data.
         '403':
@@ -1188,6 +1268,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1205,6 +1286,7 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1229,6 +1311,7 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1250,6 +1333,7 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1271,12 +1355,17 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Notification marked as read successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
         '404':
           description: Notification not found.
   /api/notifications/read-all/:
@@ -1287,11 +1376,16 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                updated_count: 0
           description: All notifications marked as read successfully.
   /api/notifications/unread-count/:
     get:
@@ -1301,6 +1395,7 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1316,6 +1411,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1336,6 +1432,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1353,6 +1450,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1373,6 +1471,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1390,6 +1489,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1410,6 +1510,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1427,6 +1528,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1451,6 +1553,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1476,6 +1579,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1501,13 +1605,29 @@ paths:
         required: true
       tags:
       - Resumes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Resume version activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeActivation'
+          description: ''
         '404':
           description: Resume or version not found.
         '403':
@@ -1528,6 +1648,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1556,6 +1677,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1582,6 +1704,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1613,13 +1736,29 @@ paths:
         required: true
       tags:
       - Resumes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Resume version activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeActivation'
+          description: ''
         '404':
           description: Resume or version not found.
         '403':
@@ -1646,6 +1785,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1672,6 +1812,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1691,6 +1832,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1717,6 +1859,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1769,6 +1912,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1827,6 +1971,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1855,6 +2000,7 @@ paths:
               required:
               - file
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1881,6 +2027,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1909,6 +2056,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1937,6 +2085,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -1963,6 +2112,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2003,6 +2153,7 @@ paths:
                   password: securepassword123
                 summary: Successful login
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2043,6 +2194,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2058,6 +2210,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2074,6 +2227,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2117,6 +2271,7 @@ paths:
                   full_name: John Doe
                 summary: Candidate registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2164,6 +2319,7 @@ paths:
                   company_name: Tech Corp
                 summary: Recruiter registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2182,6 +2338,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2202,6 +2359,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2219,6 +2377,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2239,6 +2398,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2256,6 +2416,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2276,6 +2437,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2293,6 +2455,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2310,6 +2473,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2327,6 +2491,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2380,6 +2545,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2398,6 +2564,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2452,6 +2619,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2481,6 +2649,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2533,6 +2702,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2563,6 +2733,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2615,6 +2786,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2640,6 +2812,7 @@ paths:
       tags:
       - Admin
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2668,6 +2841,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2687,6 +2861,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2704,6 +2879,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2728,6 +2904,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2754,6 +2931,7 @@ paths:
       tags:
       - Analytics
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2780,6 +2958,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2814,6 +2993,7 @@ paths:
                   location: Zoom
                 summary: Schedule interview
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2838,6 +3018,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2862,6 +3043,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2895,6 +3077,7 @@ paths:
                   status: shortlisted
                 summary: Update application status
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2916,6 +3099,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2954,6 +3138,7 @@ paths:
                   password: securepassword123
                 summary: Successful login
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -2994,6 +3179,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3009,6 +3195,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3025,6 +3212,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3068,6 +3256,7 @@ paths:
                   full_name: John Doe
                 summary: Candidate registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3115,6 +3304,7 @@ paths:
                   company_name: Tech Corp
                 summary: Recruiter registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3127,16 +3317,19 @@ paths:
   /api/v1/health/:
     get:
       operationId: v1_health_retrieve
+      description: Check system health and dependency status.
+      summary: Health check
       tags:
-      - v1
+      - System
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       - {}
       responses:
         '200':
-          description: No response body
+          description: Health status retrieved successfully.
   /api/v1/interviews/{interview_id}/:
     get:
       operationId: v1_interviews_retrieve
@@ -3153,6 +3346,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3177,6 +3371,7 @@ paths:
       tags:
       - Interviews
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3205,6 +3400,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3280,6 +3476,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3304,6 +3501,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3331,6 +3529,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3353,13 +3552,30 @@ paths:
         required: true
       tags:
       - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JobDetailRequest'
+        required: true
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Job closed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetail'
+          description: ''
         '400':
           description: Job is already closed.
         '403':
@@ -3387,6 +3603,7 @@ paths:
       tags:
       - Applications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3431,6 +3648,7 @@ paths:
                   resume_version_id: 123e4567-e89b-12d3-a456-426614174000
                 summary: Apply to job
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3457,12 +3675,17 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Match calculated or retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobMatch'
+          description: ''
         '404':
           description: Job not found or match not calculated.
         '403':
@@ -3482,12 +3705,17 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Match calculated or retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobMatch'
+          description: ''
         '404':
           description: Job not found or match not calculated.
         '403':
@@ -3499,13 +3727,30 @@ paths:
       summary: Create a new job
       tags:
       - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+        required: true
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '201':
-          description: Job created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetail'
+          description: ''
         '400':
           description: Invalid input data.
         '403':
@@ -3519,6 +3764,7 @@ paths:
       tags:
       - Jobs
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3536,6 +3782,7 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3560,6 +3807,7 @@ paths:
       tags:
       - Matching
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3581,6 +3829,7 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3602,12 +3851,17 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Notification marked as read successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
         '404':
           description: Notification not found.
   /api/v1/notifications/read-all/:
@@ -3618,11 +3872,16 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                updated_count: 0
           description: All notifications marked as read successfully.
   /api/v1/notifications/unread-count/:
     get:
@@ -3632,6 +3891,7 @@ paths:
       tags:
       - Notifications
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3647,6 +3907,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3667,6 +3928,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3684,6 +3946,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3704,6 +3967,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3721,6 +3985,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3741,6 +4006,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3758,6 +4024,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3782,6 +4049,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3807,6 +4075,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3832,13 +4101,29 @@ paths:
         required: true
       tags:
       - Resumes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Resume version activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeActivation'
+          description: ''
         '404':
           description: Resume or version not found.
         '403':
@@ -3859,6 +4144,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3887,6 +4173,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3913,6 +4200,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -3944,13 +4232,29 @@ paths:
         required: true
       tags:
       - Resumes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResumeActivationRequest'
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
       responses:
         '200':
-          description: Resume version activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeActivation'
+          description: ''
         '404':
           description: Resume or version not found.
         '403':
@@ -3977,6 +4281,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4003,6 +4308,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4022,6 +4328,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4048,6 +4355,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4100,6 +4408,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4158,6 +4467,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4186,6 +4496,7 @@ paths:
               required:
               - file
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4212,6 +4523,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4240,6 +4552,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4268,6 +4581,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4294,6 +4608,7 @@ paths:
       tags:
       - Resumes
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4334,6 +4649,7 @@ paths:
                   password: securepassword123
                 summary: Successful login
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4374,6 +4690,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4389,6 +4706,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4405,6 +4723,7 @@ paths:
       tags:
       - Authentication
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4448,6 +4767,7 @@ paths:
                   full_name: John Doe
                 summary: Candidate registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4495,6 +4815,7 @@ paths:
                   company_name: Tech Corp
                 summary: Recruiter registration
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4513,6 +4834,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4533,6 +4855,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4550,6 +4873,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4570,6 +4894,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4587,6 +4912,7 @@ paths:
       tags:
       - Profiles
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4607,6 +4933,7 @@ paths:
           application/json:
             schema: {}
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4624,6 +4951,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4641,6 +4969,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4658,6 +4987,7 @@ paths:
       tags:
       - Users
       security:
+      - CookieJWTAuthentication: []
       - type: http
         scheme: bearer
         bearerFormat: JWT
@@ -4666,7 +4996,338 @@ paths:
           description: Access granted.
         '403':
           description: Only verified users can access this endpoint.
-components: {}
+components:
+  schemas:
+    EmploymentType:
+      enum:
+      - full_time
+      - part_time
+      - contract
+      - internship
+      type: string
+      description: |-
+        * `full_time` - Full Time
+        * `part_time` - Part Time
+        * `contract` - Contract
+        * `internship` - Internship
+    ExperienceLevel:
+      enum:
+      - entry
+      - junior
+      - mid
+      - senior
+      - lead
+      type: string
+      description: |-
+        * `entry` - Entry Level
+        * `junior` - Junior
+        * `mid` - Mid Level
+        * `senior` - Senior
+        * `lead` - Lead
+    JobCreateRequest:
+      type: object
+      description: Serializer for creating a job (recruiter only)
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        company_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        location:
+          type: string
+          minLength: 1
+          maxLength: 255
+        employment_type:
+          $ref: '#/components/schemas/EmploymentType'
+        experience_level:
+          $ref: '#/components/schemas/ExperienceLevel'
+        description:
+          type: string
+          minLength: 1
+        requirements:
+          type: string
+        responsibilities:
+          type: string
+        salary_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          minLength: 1
+          maxLength: 3
+        is_remote:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/JobStatus'
+      required:
+      - company_name
+      - description
+      - location
+      - title
+    JobDetail:
+      type: object
+      description: Serializer for job detail view
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        recruiter_id:
+          type: string
+          format: uuid
+          readOnly: true
+        recruiter_email:
+          type: string
+          format: email
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        company_name:
+          type: string
+          maxLength: 255
+        location:
+          type: string
+          maxLength: 255
+        employment_type:
+          $ref: '#/components/schemas/EmploymentType'
+        experience_level:
+          $ref: '#/components/schemas/ExperienceLevel'
+        description:
+          type: string
+        requirements:
+          type: string
+        responsibilities:
+          type: string
+        salary_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          maxLength: 3
+        is_remote:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - company_name
+      - description
+      - location
+      - title
+    JobDetailRequest:
+      type: object
+      description: Serializer for job detail view
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        company_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        location:
+          type: string
+          minLength: 1
+          maxLength: 255
+        employment_type:
+          $ref: '#/components/schemas/EmploymentType'
+        experience_level:
+          $ref: '#/components/schemas/ExperienceLevel'
+        description:
+          type: string
+          minLength: 1
+        requirements:
+          type: string
+        responsibilities:
+          type: string
+        salary_min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_max:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          minLength: 1
+          maxLength: 3
+        is_remote:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/JobStatus'
+      required:
+      - company_name
+      - description
+      - location
+      - title
+    JobMatch:
+      type: object
+      description: Serializer for job match details
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        job_id:
+          type: string
+          format: uuid
+          readOnly: true
+        candidate_id:
+          type: string
+          format: uuid
+          readOnly: true
+        match_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        skills_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        experience_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        education_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+        matched_skills_count:
+          type: integer
+          readOnly: true
+        total_required_skills:
+          type: integer
+          readOnly: true
+        explanation:
+          readOnly: true
+        calculated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    JobStatus:
+      enum:
+      - draft
+      - active
+      - closed
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `active` - Active
+        * `closed` - Closed
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        notification_type:
+          allOf:
+          - $ref: '#/components/schemas/NotificationType'
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+        metadata:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    NotificationType:
+      enum:
+      - application_submitted
+      - application_status_changed
+      - interview_scheduled
+      - interview_completed
+      - interview_cancelled
+      - match_created
+      type: string
+      description: |-
+        * `application_submitted` - Application Submitted
+        * `application_status_changed` - Application Status Changed
+        * `interview_scheduled` - Interview Scheduled
+        * `interview_completed` - Interview Completed
+        * `interview_cancelled` - Interview Cancelled
+        * `match_created` - Match Created
+    PatchedResumeActivationRequest:
+      type: object
+      description: Serializer for resume activation response (shows current version
+        data)
+      properties:
+        created_at:
+          type: string
+          format: date-time
+    ResumeActivation:
+      type: object
+      description: Serializer for resume activation response (shows current version
+        data)
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        current_version:
+          type: object
+          additionalProperties: {}
+          description: Get the current version data
+          readOnly: true
+  securitySchemes:
+    CookieJWTAuthentication:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 tags:
 - name: Authentication
   description: User authentication and authorization endpoints

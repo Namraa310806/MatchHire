@@ -3,6 +3,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
+from drf_spectacular.plumbing import build_bearer_security_scheme_object
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -19,3 +21,15 @@ class CookieJWTAuthentication(JWTAuthentication):
             return self.get_user(validated_token), validated_token
         except (InvalidToken, TokenError) as exc:
             raise AuthenticationFailed("Invalid or expired access token.") from exc
+
+
+class CookieJWTAuthenticationExtension(OpenApiAuthenticationExtension):
+    target_class = 'apps.users.authentication.CookieJWTAuthentication'
+    name = 'CookieJWTAuthentication'
+
+    def get_security_definition(self, auto_schema):
+        return build_bearer_security_scheme_object(
+            header_name='Authorization',
+            token_prefix='Bearer',
+            bearer_format='JWT',
+        )
