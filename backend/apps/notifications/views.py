@@ -4,6 +4,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from .models import Notification
 from .serializers import NotificationSerializer
@@ -15,6 +16,14 @@ class NotificationPagination(PageNumberPagination):
     max_page_size = 100
 
 
+@extend_schema(
+	tags=["Notifications"],
+	summary="List notifications",
+	description="List notifications for the authenticated user. Paginated (20 per page, max 100). Ordered newest first.",
+	responses={
+		200: OpenApiResponse(description="Notifications retrieved successfully with pagination.")
+	}
+)
 class NotificationListView(APIView):
     """
     List notifications for the authenticated user.
@@ -42,6 +51,15 @@ class NotificationListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(
+	tags=["Notifications"],
+	summary="Mark notification as read",
+	description="Mark a specific notification as read. Owner only.",
+	responses={
+		200: OpenApiResponse(description="Notification marked as read successfully."),
+		404: OpenApiResponse(description="Notification not found.")
+	}
+)
 class MarkAsReadView(APIView):
     """
     Mark a notification as read.
@@ -69,6 +87,14 @@ class MarkAsReadView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Notifications"],
+	summary="Mark all notifications as read",
+	description="Mark all unread notifications as read for the authenticated user.",
+	responses={
+		200: OpenApiResponse(description="All notifications marked as read successfully.")
+	}
+)
 class MarkAllAsReadView(APIView):
     """
     Mark all notifications as read for the authenticated user.
@@ -86,6 +112,14 @@ class MarkAllAsReadView(APIView):
         return Response({"updated_count": updated_count})
 
 
+@extend_schema(
+	tags=["Notifications"],
+	summary="Get unread count",
+	description="Get unread notification count for the authenticated user.",
+	responses={
+		200: OpenApiResponse(description="Unread count retrieved successfully.")
+	}
+)
 class UnreadCountView(APIView):
     """
     Get unread notification count for the authenticated user.

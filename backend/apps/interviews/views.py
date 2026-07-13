@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
 
 from apps.applications.models import Application
 from apps.users.permissions import IsCandidate, IsRecruiter
@@ -21,6 +22,34 @@ from matchhire_backend.core.validators import validate_uuid
 User = get_user_model()
 
 
+@extend_schema(
+	tags=["Interviews"],
+	summary="List application interviews",
+	description="List interviews for a specific application. Candidates can view own application interviews. Recruiters can view interviews for their jobs.",
+	responses={
+		200: OpenApiResponse(description="Interviews retrieved successfully."),
+		404: OpenApiResponse(description="Application not found.")
+	}
+)
+@extend_schema(
+	tags=["Interviews"],
+	summary="Schedule interview",
+	description="Schedule an interview for an application. Recruiter only. Application must be under review or shortlisted.",
+	request={"application/json": {}},
+	responses={
+		201: OpenApiResponse(description="Interview scheduled successfully."),
+		400: OpenApiResponse(description="Invalid application status or input."),
+		403: OpenApiResponse(description="Only recruiters can schedule interviews."),
+		404: OpenApiResponse(description="Application not found.")
+	},
+	examples=[
+		OpenApiExample(
+			"Schedule interview",
+			value={"scheduled_at": "2024-01-15T10:00:00Z", "interview_type": "video", "location": "Zoom"},
+			response_only=False,
+		),
+	]
+)
 class ApplicationInterviewsListView(APIView):
     """
     List or create interviews for a specific application.
@@ -115,6 +144,15 @@ class ApplicationInterviewsListView(APIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+	tags=["Interviews"],
+	summary="Get interview details",
+	description="Retrieve a specific interview. Candidates can view own interviews. Recruiters can view interviews for their jobs.",
+	responses={
+		200: OpenApiResponse(description="Interview details retrieved successfully."),
+		404: OpenApiResponse(description="Interview not found.")
+	}
+)
 class InterviewDetailView(APIView):
     """
     Retrieve a specific interview.
@@ -164,6 +202,18 @@ class InterviewDetailView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Interviews"],
+	summary="Update interview status",
+	description="Update interview status. Recruiter only. Recruiter must own the job.",
+	request={"application/json": {}},
+	responses={
+		200: OpenApiResponse(description="Interview status updated successfully."),
+		400: OpenApiResponse(description="Invalid status transition."),
+		403: OpenApiResponse(description="Only recruiters can update interview status."),
+		404: OpenApiResponse(description="Interview not found.")
+	}
+)
 class InterviewStatusUpdateView(APIView):
     """
     Update interview status.
@@ -224,6 +274,15 @@ class InterviewStatusUpdateView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Interviews"],
+	summary="Get interview history",
+	description="Retrieve interview status history. Candidates can view own interview history. Recruiters can view history for their jobs.",
+	responses={
+		200: OpenApiResponse(description="Interview history retrieved successfully."),
+		404: OpenApiResponse(description="Interview not found.")
+	}
+)
 class InterviewHistoryView(APIView):
     """
     Retrieve interview status history.

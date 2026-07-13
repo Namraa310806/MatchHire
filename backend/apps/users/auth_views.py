@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
 
 from .serializers import (
 	CandidateRegistrationSerializer,
@@ -60,6 +62,41 @@ def _build_authenticated_response(user, message, status_code=status.HTTP_200_OK)
 	return response
 
 
+@extend_schema(
+	tags=["Authentication"],
+	summary="User login",
+	description="Authenticate user with email and password. Returns JWT tokens in HTTP-only cookies.",
+	request={
+		"application/json": {
+			"type": "object",
+			"properties": {
+				"email": {"type": "string", "format": "email"},
+				"password": {"type": "string", "format": "password"}
+			},
+			"required": ["email", "password"]
+		}
+	},
+	responses={
+		200: OpenApiResponse(
+			description="Login successful. JWT tokens set in HTTP-only cookies.",
+			response={
+				"type": "object",
+				"properties": {
+					"message": {"type": "string"},
+					"user": {"type": "object", "properties": {"id": {"type": "string"}, "email": {"type": "string"}, "role": {"type": "string"}}}
+				}
+			}
+		),
+		401: OpenApiResponse(description="Invalid credentials or inactive account")
+	},
+	examples=[
+		OpenApiExample(
+			"Successful login",
+			value={"email": "candidate@example.com", "password": "securepassword123"},
+			response_only=False,
+		),
+	]
+)
 class LoginView(APIView):
 	permission_classes = (AllowAny,)
 	throttle_scope = 'login'
@@ -95,6 +132,33 @@ class LoginView(APIView):
 		return ip
 
 
+@extend_schema(
+	tags=["Authentication"],
+	summary="Candidate registration",
+	description="Register a new candidate account. Creates user and candidate profile. Returns JWT tokens in HTTP-only cookies.",
+	request={
+		"application/json": {
+			"type": "object",
+			"properties": {
+				"email": {"type": "string", "format": "email"},
+				"password": {"type": "string", "minLength": 8},
+				"full_name": {"type": "string"}
+			},
+			"required": ["email", "password", "full_name"]
+		}
+	},
+	responses={
+		201: OpenApiResponse(description="Registration successful. JWT tokens set in HTTP-only cookies."),
+		400: OpenApiResponse(description="Invalid input data")
+	},
+	examples=[
+		OpenApiExample(
+			"Candidate registration",
+			value={"email": "candidate@example.com", "password": "securepassword123", "full_name": "John Doe"},
+			response_only=False,
+		),
+	]
+)
 class CandidateRegistrationView(APIView):
 	permission_classes = (AllowAny,)
 	throttle_scope = 'registration'
@@ -107,6 +171,34 @@ class CandidateRegistrationView(APIView):
 		return _build_authenticated_response(user, "Registration successful", status.HTTP_201_CREATED)
 
 
+@extend_schema(
+	tags=["Authentication"],
+	summary="Recruiter registration",
+	description="Register a new recruiter account. Creates user and recruiter profile. Returns JWT tokens in HTTP-only cookies.",
+	request={
+		"application/json": {
+			"type": "object",
+			"properties": {
+				"email": {"type": "string", "format": "email"},
+				"password": {"type": "string", "minLength": 8},
+				"full_name": {"type": "string"},
+				"company_name": {"type": "string"}
+			},
+			"required": ["email", "password", "full_name", "company_name"]
+		}
+	},
+	responses={
+		201: OpenApiResponse(description="Registration successful. JWT tokens set in HTTP-only cookies."),
+		400: OpenApiResponse(description="Invalid input data")
+	},
+	examples=[
+		OpenApiExample(
+			"Recruiter registration",
+			value={"email": "recruiter@company.com", "password": "securepassword123", "full_name": "Jane Smith", "company_name": "Tech Corp"},
+			response_only=False,
+		),
+	]
+)
 class RecruiterRegistrationView(APIView):
 	permission_classes = (AllowAny,)
 	throttle_scope = 'registration'
@@ -119,6 +211,15 @@ class RecruiterRegistrationView(APIView):
 		return _build_authenticated_response(user, "Registration successful", status.HTTP_201_CREATED)
 
 
+@extend_schema(
+	tags=["Authentication"],
+	summary="Refresh access token",
+	description="Refresh JWT access token using refresh token from HTTP-only cookie.",
+	responses={
+		200: OpenApiResponse(description="Token refreshed successfully. New access token set in cookie."),
+		401: OpenApiResponse(description="Refresh token missing or invalid")
+	}
+)
 class RefreshView(APIView):
 	permission_classes = (AllowAny,)
 
@@ -139,6 +240,14 @@ class RefreshView(APIView):
 		return response
 
 
+@extend_schema(
+	tags=["Authentication"],
+	summary="User logout",
+	description="Logout user by blacklisting refresh token and clearing HTTP-only cookies.",
+	responses={
+		200: OpenApiResponse(description="Logout successful. Cookies cleared.")
+	}
+)
 class LogoutView(APIView):
 	permission_classes = (AllowAny,)
 
@@ -155,6 +264,15 @@ class LogoutView(APIView):
 		return response
 
 
+@extend_schema(
+	tags=["Users"],
+	summary="Get current user",
+	description="Retrieve information about the currently authenticated user.",
+	responses={
+		200: OpenApiResponse(description="User information retrieved successfully."),
+		500: OpenApiResponse(description="Profile not found")
+	}
+)
 class CurrentUserView(APIView):
 	permission_classes = (IsAuthenticated,)
 

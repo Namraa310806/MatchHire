@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 from apps.jobs.models import Job
 from apps.jobs.permissions import IsJobOwner
@@ -19,6 +20,16 @@ from apps.users.permissions import IsCandidate, IsRecruiter
 User = get_user_model()
 
 
+@extend_schema(
+	tags=["Matching"],
+	summary="Calculate candidate-job match",
+	description="Calculate or retrieve match between candidate and job. Authentication required. Candidate only.",
+	responses={
+		200: OpenApiResponse(description="Match calculated or retrieved successfully."),
+		404: OpenApiResponse(description="Job not found or match not calculated."),
+		403: OpenApiResponse(description="Only candidates can calculate matches.")
+	}
+)
 class CandidateMatchView(APIView):
     """
     Calculate or retrieve match between candidate and job.
@@ -70,6 +81,15 @@ class CandidateMatchView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Matching"],
+	summary="Get job recommendations",
+	description="Get job recommendations for candidate. Returns top 20 ACTIVE jobs ordered by match score DESC. Authentication required. Candidate only.",
+	responses={
+		200: OpenApiResponse(description="Job recommendations retrieved successfully."),
+		403: OpenApiResponse(description="Only candidates can get recommendations.")
+	}
+)
 class JobRecommendationsView(APIView):
     """
     Get job recommendations for candidate.
@@ -101,6 +121,20 @@ class JobRecommendationsView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Matching"],
+	summary="Get matching candidates",
+	description="Get matching candidates for recruiter's job. Returns candidates ordered by match score DESC. Authentication required. Recruiter only.",
+	parameters=[
+		OpenApiParameter(name='job_id', description='Job ID for matching', required=True, type=str),
+	],
+	responses={
+		200: OpenApiResponse(description="Matching candidates retrieved successfully."),
+		400: OpenApiResponse(description="job_id query parameter is required."),
+		403: OpenApiResponse(description="Only recruiters can get matching candidates."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
 class RecruiterCandidatesView(APIView):
     """
     Get matching candidates for recruiter's job.

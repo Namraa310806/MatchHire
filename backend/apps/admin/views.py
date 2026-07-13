@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 from apps.admin.permissions import IsAdmin
 from apps.admin.serializers import (
@@ -30,6 +31,24 @@ class AdminPagination(PageNumberPagination):
     max_page_size = 200
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="List users",
+	description="List all users with filtering and pagination. Admin only. Filters: role, is_active, search. Ordering: email, full_name, date_joined, -date_joined.",
+	parameters=[
+		OpenApiParameter(name='role', description='Filter by user role', required=False, type=str),
+		OpenApiParameter(name='is_active', description='Filter by active status', required=False, type=bool),
+		OpenApiParameter(name='search', description='Search by name or email', required=False, type=str),
+		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
+		OpenApiParameter(name='page', description='Page number', required=False, type=int),
+		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
+	],
+	responses={
+		200: OpenApiResponse(description="Users retrieved successfully with pagination."),
+		400: OpenApiResponse(description="Invalid filter parameters."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminUserListView(APIView):
     """
     List all users with filtering and pagination.
@@ -97,6 +116,28 @@ class AdminUserListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="Get user details",
+	description="Retrieve a specific user. Admin only.",
+	responses={
+		200: OpenApiResponse(description="User details retrieved successfully."),
+		404: OpenApiResponse(description="User not found."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
+@extend_schema(
+	tags=["Admin"],
+	summary="Update user",
+	description="Update user (is_active, role) with moderation logging. Admin only.",
+	request={"application/json": {}},
+	responses={
+		200: OpenApiResponse(description="User updated successfully."),
+		400: OpenApiResponse(description="Invalid input data."),
+		404: OpenApiResponse(description="User not found."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminUserDetailView(APIView):
     """
     Retrieve or update a specific user.
@@ -144,6 +185,25 @@ class AdminUserDetailView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="List jobs",
+	description="List all jobs with filtering and pagination. Admin only. Returns ALL jobs (draft, active, closed). Filters: status, company, recruiter_id, search.",
+	parameters=[
+		OpenApiParameter(name='status', description='Filter by job status', required=False, type=str),
+		OpenApiParameter(name='company', description='Filter by company name', required=False, type=str),
+		OpenApiParameter(name='recruiter_id', description='Filter by recruiter ID', required=False, type=str),
+		OpenApiParameter(name='search', description='Search by title or company', required=False, type=str),
+		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
+		OpenApiParameter(name='page', description='Page number', required=False, type=int),
+		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
+	],
+	responses={
+		200: OpenApiResponse(description="Jobs retrieved successfully with pagination."),
+		400: OpenApiResponse(description="Invalid filter parameters."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminJobListView(APIView):
     """
     List all jobs with filtering and pagination.
@@ -212,6 +272,18 @@ class AdminJobListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="Update job status",
+	description="Update job status with moderation logging. Admin only.",
+	request={"application/json": {}},
+	responses={
+		200: OpenApiResponse(description="Job status updated successfully."),
+		400: OpenApiResponse(description="Invalid input data."),
+		404: OpenApiResponse(description="Job not found."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminJobDetailView(APIView):
     """
     Update a specific job status.
@@ -250,6 +322,24 @@ class AdminJobDetailView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="List resumes",
+	description="List all resumes with filtering and pagination. Admin only. Filters: candidate_id, parsed, structured.",
+	parameters=[
+		OpenApiParameter(name='candidate_id', description='Filter by candidate ID', required=False, type=str),
+		OpenApiParameter(name='parsed', description='Filter by parsed status', required=False, type=bool),
+		OpenApiParameter(name='structured', description='Filter by structured data status', required=False, type=bool),
+		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
+		OpenApiParameter(name='page', description='Page number', required=False, type=int),
+		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
+	],
+	responses={
+		200: OpenApiResponse(description="Resumes retrieved successfully with pagination."),
+		400: OpenApiResponse(description="Invalid filter parameters."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminResumeListView(APIView):
     """
     List all resumes with filtering and pagination.
@@ -324,6 +414,18 @@ class AdminResumeListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="Update resume",
+	description="Update resume (activate/deactivate user) with moderation logging. Admin only.",
+	request={"application/json": {}},
+	responses={
+		200: OpenApiResponse(description="Resume updated successfully."),
+		400: OpenApiResponse(description="Invalid input data."),
+		404: OpenApiResponse(description="Resume not found."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminResumeDetailView(APIView):
     """
     Update a specific resume (activate/deactivate user).
@@ -362,6 +464,25 @@ class AdminResumeDetailView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="List applications",
+	description="List all applications with filtering and pagination (read-only). Admin only. Filters: status, candidate_id, job_id, recruiter_id.",
+	parameters=[
+		OpenApiParameter(name='status', description='Filter by application status', required=False, type=str),
+		OpenApiParameter(name='candidate_id', description='Filter by candidate ID', required=False, type=str),
+		OpenApiParameter(name='job_id', description='Filter by job ID', required=False, type=str),
+		OpenApiParameter(name='recruiter_id', description='Filter by recruiter ID', required=False, type=str),
+		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
+		OpenApiParameter(name='page', description='Page number', required=False, type=int),
+		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
+	],
+	responses={
+		200: OpenApiResponse(description="Applications retrieved successfully with pagination."),
+		400: OpenApiResponse(description="Invalid filter parameters."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminApplicationListView(APIView):
     """
     List all applications with filtering and pagination (read-only).
@@ -430,6 +551,15 @@ class AdminApplicationListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Admin"],
+	summary="Admin dashboard",
+	description="Get platform statistics with aggregated metrics. Admin only.",
+	responses={
+		200: OpenApiResponse(description="Platform statistics retrieved successfully."),
+		403: OpenApiResponse(description="Admin access required.")
+	}
+)
 class AdminDashboardView(APIView):
     """
     Get platform statistics.

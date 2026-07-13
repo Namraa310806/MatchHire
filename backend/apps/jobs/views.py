@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 from apps.users.permissions import IsRecruiter
 from .models import Job
@@ -23,6 +24,16 @@ from matchhire_backend.core.validators import validate_uuid, validate_ordering, 
 User = get_user_model()
 
 
+@extend_schema(
+	tags=["Jobs"],
+	summary="Create a new job",
+	description="Create a new job posting. Authentication required. Recruiter only.",
+	responses={
+		201: OpenApiResponse(description="Job created successfully."),
+		400: OpenApiResponse(description="Invalid input data."),
+		403: OpenApiResponse(description="Only recruiters can create jobs.")
+	}
+)
 class JobCreateView(APIView):
     """
     Create a new job.
@@ -46,6 +57,15 @@ class JobCreateView(APIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+	tags=["Jobs"],
+	summary="List my jobs",
+	description="List all jobs for the current recruiter (draft, active, closed). Authentication required. Recruiter only.",
+	responses={
+		200: OpenApiResponse(description="Jobs retrieved successfully."),
+		403: OpenApiResponse(description="Only recruiters can view their jobs.")
+	}
+)
 class MyJobsListView(APIView):
     """
     List jobs for the current recruiter.
@@ -65,6 +85,26 @@ class MyJobsListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Jobs"],
+	summary="Get job details",
+	description="Retrieve a specific job. Candidates can view ACTIVE jobs only. Recruiter owners can view own jobs (any status).",
+	responses={
+		200: OpenApiResponse(description="Job details retrieved successfully."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
+@extend_schema(
+	tags=["Jobs"],
+	summary="Update job",
+	description="Update job details. Recruiter owner only.",
+	request={"application/json": {}},
+	responses={
+		200: OpenApiResponse(description="Job updated successfully."),
+		403: OpenApiResponse(description="Only recruiters can update jobs."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
 class JobDetailView(APIView):
     """
     Retrieve or update a specific job.
@@ -135,6 +175,17 @@ class JobDetailView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Jobs"],
+	summary="Close a job",
+	description="Close a job posting. Recruiter owner only.",
+	responses={
+		200: OpenApiResponse(description="Job closed successfully."),
+		400: OpenApiResponse(description="Job is already closed."),
+		403: OpenApiResponse(description="Only recruiters can close jobs."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
 class JobCloseView(APIView):
     """
     Close a job.
@@ -173,6 +224,27 @@ class JobCloseView(APIView):
         return Response(response_serializer.data)
 
 
+@extend_schema(
+	tags=["Jobs"],
+	summary="List active jobs",
+	description="List active jobs with search, filtering, and pagination. Returns only ACTIVE jobs.",
+	parameters=[
+		OpenApiParameter(name='q', description='Search query (title, company, description)', required=False, type=str),
+		OpenApiParameter(name='location', description='Filter by location', required=False, type=str),
+		OpenApiParameter(name='employment_type', description='Filter by employment type (full_time, part_time, contract, internship)', required=False, type=str),
+		OpenApiParameter(name='experience_level', description='Filter by experience level (entry, junior, mid, senior, lead)', required=False, type=str),
+		OpenApiParameter(name='is_remote', description='Filter by remote status (true/false)', required=False, type=bool),
+		OpenApiParameter(name='salary_min', description='Filter by minimum salary', required=False, type=float),
+		OpenApiParameter(name='salary_max', description='Filter by maximum salary', required=False, type=float),
+		OpenApiParameter(name='ordering', description='Order by field (created_at, -created_at, salary_min, -salary_min, salary_max, -salary_max)', required=False, type=str),
+		OpenApiParameter(name='page', description='Page number', required=False, type=int),
+		OpenApiParameter(name='page_size', description='Page size (max 100)', required=False, type=int),
+	],
+	responses={
+		200: OpenApiResponse(description="Jobs retrieved successfully with pagination."),
+		400: OpenApiResponse(description="Invalid filter parameters.")
+	}
+)
 class PublicJobListView(APIView):
     """
     List active jobs for candidates with search, filtering, and pagination.

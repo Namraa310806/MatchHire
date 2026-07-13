@@ -1,0 +1,4692 @@
+openapi: 3.0.3
+info:
+  title: MatchHire API
+  version: v1
+  description: Backend API for MatchHire recruitment platform.
+paths:
+  /api/admin/applications/:
+    get:
+      operationId: admin_applications_retrieve
+      description: 'List all applications with filtering and pagination (read-only).
+        Admin only. Filters: status, candidate_id, job_id, recruiter_id.'
+      summary: List applications
+      parameters:
+      - in: query
+        name: candidate_id
+        schema:
+          type: string
+        description: Filter by candidate ID
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Filter by job ID
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: recruiter_id
+        schema:
+          type: string
+        description: Filter by recruiter ID
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by application status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/admin/dashboard/:
+    get:
+      operationId: admin_dashboard_retrieve
+      description: Get platform statistics with aggregated metrics. Admin only.
+      summary: Admin dashboard
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Platform statistics retrieved successfully.
+        '403':
+          description: Admin access required.
+  /api/admin/jobs/:
+    get:
+      operationId: admin_jobs_retrieve
+      description: 'List all jobs with filtering and pagination. Admin only. Returns
+        ALL jobs (draft, active, closed). Filters: status, company, recruiter_id,
+        search.'
+      summary: List jobs
+      parameters:
+      - in: query
+        name: company
+        schema:
+          type: string
+        description: Filter by company name
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: recruiter_id
+        schema:
+          type: string
+        description: Filter by recruiter ID
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by title or company
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by job status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/admin/jobs/{id}/:
+    patch:
+      operationId: admin_jobs_partial_update
+      description: Update job status with moderation logging. Admin only.
+      summary: Update job status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job status updated successfully.
+        '400':
+          description: Invalid input data.
+        '404':
+          description: Job not found.
+        '403':
+          description: Admin access required.
+  /api/admin/resumes/:
+    get:
+      operationId: admin_resumes_retrieve
+      description: 'List all resumes with filtering and pagination. Admin only. Filters:
+        candidate_id, parsed, structured.'
+      summary: List resumes
+      parameters:
+      - in: query
+        name: candidate_id
+        schema:
+          type: string
+        description: Filter by candidate ID
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: parsed
+        schema:
+          type: boolean
+        description: Filter by parsed status
+      - in: query
+        name: structured
+        schema:
+          type: boolean
+        description: Filter by structured data status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/admin/resumes/{id}/:
+    patch:
+      operationId: admin_resumes_partial_update
+      description: Update resume (activate/deactivate user) with moderation logging.
+        Admin only.
+      summary: Update resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume updated successfully.
+        '400':
+          description: Invalid input data.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Admin access required.
+  /api/admin/users/:
+    get:
+      operationId: admin_users_retrieve
+      description: 'List all users with filtering and pagination. Admin only. Filters:
+        role, is_active, search. Ordering: email, full_name, date_joined, -date_joined.'
+      summary: List users
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+        description: Filter by active status
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: role
+        schema:
+          type: string
+        description: Filter by user role
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by name or email
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Users retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/admin/users/{id}/:
+    get:
+      operationId: admin_users_retrieve_2
+      description: Retrieve a specific user. Admin only.
+      summary: Get user details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User details retrieved successfully.
+        '404':
+          description: User not found.
+        '403':
+          description: Admin access required.
+    patch:
+      operationId: admin_users_partial_update
+      description: Retrieve a specific user. Admin only.
+      summary: Get user details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User details retrieved successfully.
+        '404':
+          description: User not found.
+        '403':
+          description: Admin access required.
+  /api/analytics/candidate/dashboard/:
+    get:
+      operationId: analytics_candidate_dashboard_retrieve
+      description: Get candidate dashboard analytics with aggregated metrics for applications,
+        interviews, and matches. Authentication required. Candidate only.
+      summary: Candidate dashboard
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Dashboard analytics retrieved successfully.
+        '403':
+          description: Only candidates can access dashboard.
+  /api/analytics/recruiter/dashboard/:
+    get:
+      operationId: analytics_recruiter_dashboard_retrieve
+      description: Get recruiter dashboard analytics with aggregated metrics for jobs,
+        applications, and interviews. Authentication required. Recruiter only.
+      summary: Recruiter dashboard
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Dashboard analytics retrieved successfully.
+        '403':
+          description: Only recruiters can access dashboard.
+  /api/analytics/recruiter/jobs/{job_id}/:
+    get:
+      operationId: analytics_recruiter_jobs_retrieve
+      description: Get job-specific analytics for recruiters with application metrics
+        and conversion rate. Authentication required. Recruiter owner only.
+      summary: Job analytics
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job analytics retrieved successfully.
+        '403':
+          description: Only recruiters can access job analytics.
+        '404':
+          description: Job not found.
+  /api/analytics/recruiter/jobs/{job_id}/top-candidates/:
+    get:
+      operationId: analytics_recruiter_jobs_top_candidates_retrieve
+      description: Get top matched candidates for a job (top 20 ordered by match score
+        DESC). Authentication required. Recruiter owner only.
+      summary: Top candidates
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Top candidates retrieved successfully.
+        '403':
+          description: Only recruiters can access top candidates.
+        '404':
+          description: Job not found.
+  /api/applications/{application_id}/interviews/:
+    get:
+      operationId: applications_interviews_retrieve
+      description: List interviews for a specific application. Candidates can view
+        own application interviews. Recruiters can view interviews for their jobs.
+      summary: List application interviews
+      parameters:
+      - in: path
+        name: application_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interviews retrieved successfully.
+        '404':
+          description: Application not found.
+    post:
+      operationId: applications_interviews_create
+      description: List interviews for a specific application. Candidates can view
+        own application interviews. Recruiters can view interviews for their jobs.
+      summary: List application interviews
+      parameters:
+      - in: path
+        name: application_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+            examples:
+              ScheduleInterview:
+                value:
+                  scheduled_at: '2024-01-15T10:00:00Z'
+                  interview_type: video
+                  location: Zoom
+                summary: Schedule interview
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interviews retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/applications/{id}/:
+    get:
+      operationId: applications_retrieve
+      description: Retrieve a specific application. Candidates can view own applications.
+        Recruiters can view applications for their jobs.
+      summary: Get application details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application details retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/applications/{id}/history/:
+    get:
+      operationId: applications_history_retrieve
+      description: Retrieve application status history. Candidates can view own application
+        history. Recruiters can view history for their jobs.
+      summary: Get application history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application history retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/applications/{id}/status/:
+    patch:
+      operationId: applications_status_partial_update
+      description: Update application status. Recruiter only. Recruiter must own the
+        job.
+      summary: Update application status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+            examples:
+              UpdateApplicationStatus:
+                value:
+                  status: shortlisted
+                summary: Update application status
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application status updated successfully.
+        '400':
+          description: Invalid status transition.
+        '403':
+          description: Only recruiters can update application status.
+        '404':
+          description: Application not found.
+  /api/applications/my/:
+    get:
+      operationId: applications_my_retrieve
+      description: List all applications for the current candidate. Authentication
+        required. Candidate only.
+      summary: List my applications
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+        '403':
+          description: Only candidates can view their applications.
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Authenticate user with email and password. Returns JWT tokens in
+        HTTP-only cookies.
+      summary: User login
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+              - email
+              - password
+            examples:
+              SuccessfulLogin:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                summary: Successful login
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                SuccessfulLogin:
+                  value:
+                    email: candidate@example.com
+                    password: securepassword123
+                  summary: Successful login
+          description: Login successful. JWT tokens set in HTTP-only cookies.
+        '401':
+          description: Invalid credentials or inactive account
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Logout user by blacklisting refresh token and clearing HTTP-only
+        cookies.
+      summary: User logout
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Logout successful. Cookies cleared.
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: Retrieve information about the currently authenticated user.
+      summary: Get current user
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User information retrieved successfully.
+        '500':
+          description: Profile not found
+  /api/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: Refresh JWT access token using refresh token from HTTP-only cookie.
+      summary: Refresh access token
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Token refreshed successfully. New access token set in cookie.
+        '401':
+          description: Refresh token missing or invalid
+  /api/auth/register/candidate/:
+    post:
+      operationId: auth_register_candidate_create
+      description: Register a new candidate account. Creates user and candidate profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Candidate registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+            examples:
+              CandidateRegistration:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                  full_name: John Doe
+                summary: Candidate registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/auth/register/recruiter/:
+    post:
+      operationId: auth_register_recruiter_create
+      description: Register a new recruiter account. Creates user and recruiter profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Recruiter registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+                company_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+              - company_name
+            examples:
+              RecruiterRegistration:
+                value:
+                  email: recruiter@company.com
+                  password: securepassword123
+                  full_name: Jane Smith
+                  company_name: Tech Corp
+                summary: Recruiter registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/interviews/{interview_id}/:
+    get:
+      operationId: interviews_retrieve
+      description: Retrieve a specific interview. Candidates can view own interviews.
+        Recruiters can view interviews for their jobs.
+      summary: Get interview details
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview details retrieved successfully.
+        '404':
+          description: Interview not found.
+  /api/interviews/{interview_id}/history/:
+    get:
+      operationId: interviews_history_retrieve
+      description: Retrieve interview status history. Candidates can view own interview
+        history. Recruiters can view history for their jobs.
+      summary: Get interview history
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview history retrieved successfully.
+        '404':
+          description: Interview not found.
+  /api/interviews/{interview_id}/status/:
+    patch:
+      operationId: interviews_status_partial_update
+      description: Update interview status. Recruiter only. Recruiter must own the
+        job.
+      summary: Update interview status
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview status updated successfully.
+        '400':
+          description: Invalid status transition.
+        '403':
+          description: Only recruiters can update interview status.
+        '404':
+          description: Interview not found.
+  /api/jobs/:
+    get:
+      operationId: jobs_retrieve
+      description: List active jobs with search, filtering, and pagination. Returns
+        only ACTIVE jobs.
+      summary: List active jobs
+      parameters:
+      - in: query
+        name: employment_type
+        schema:
+          type: string
+        description: Filter by employment type (full_time, part_time, contract, internship)
+      - in: query
+        name: experience_level
+        schema:
+          type: string
+        description: Filter by experience level (entry, junior, mid, senior, lead)
+      - in: query
+        name: is_remote
+        schema:
+          type: boolean
+        description: Filter by remote status (true/false)
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field (created_at, -created_at, salary_min, -salary_min,
+          salary_max, -salary_max)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 100)
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Search query (title, company, description)
+      - in: query
+        name: salary_max
+        schema:
+          type: number
+          format: double
+        description: Filter by maximum salary
+      - in: query
+        name: salary_min
+        schema:
+          type: number
+          format: double
+        description: Filter by minimum salary
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+  /api/jobs/{id}/:
+    get:
+      operationId: jobs_retrieve_2
+      description: Retrieve a specific job. Candidates can view ACTIVE jobs only.
+        Recruiter owners can view own jobs (any status).
+      summary: Get job details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job details retrieved successfully.
+        '404':
+          description: Job not found.
+    patch:
+      operationId: jobs_partial_update
+      description: Retrieve a specific job. Candidates can view ACTIVE jobs only.
+        Recruiter owners can view own jobs (any status).
+      summary: Get job details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job details retrieved successfully.
+        '404':
+          description: Job not found.
+  /api/jobs/{id}/close/:
+    post:
+      operationId: jobs_close_create
+      description: Close a job posting. Recruiter owner only.
+      summary: Close a job
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job closed successfully.
+        '400':
+          description: Job is already closed.
+        '403':
+          description: Only recruiters can close jobs.
+        '404':
+          description: Job not found.
+  /api/jobs/{job_id}/applications/:
+    get:
+      operationId: jobs_applications_retrieve
+      description: List all applications for a specific job. Recruiter owner only.
+        Supports status filtering.
+      summary: List job applications
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by application status
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+        '400':
+          description: Invalid status filter.
+        '403':
+          description: Only recruiters can view job applications.
+        '404':
+          description: Job not found.
+  /api/jobs/{job_id}/apply/:
+    post:
+      operationId: jobs_apply_create
+      description: Apply to a job with a specific resume version. Authentication required.
+        Candidate only.
+      summary: Apply to job
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resume_version_id:
+                  type: string
+                  format: uuid
+              required:
+              - resume_version_id
+            examples:
+              ApplyToJob:
+                value:
+                  resume_version_id: 123e4567-e89b-12d3-a456-426614174000
+                summary: Apply to job
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Application created successfully.
+        '400':
+          description: Invalid request or already applied.
+        '404':
+          description: Job or resume version not found.
+  /api/jobs/{job_id}/match/:
+    get:
+      operationId: jobs_match_retrieve
+      description: Calculate or retrieve match between candidate and job. Authentication
+        required. Candidate only.
+      summary: Calculate candidate-job match
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Match calculated or retrieved successfully.
+        '404':
+          description: Job not found or match not calculated.
+        '403':
+          description: Only candidates can calculate matches.
+    post:
+      operationId: jobs_match_create
+      description: Calculate or retrieve match between candidate and job. Authentication
+        required. Candidate only.
+      summary: Calculate candidate-job match
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Match calculated or retrieved successfully.
+        '404':
+          description: Job not found or match not calculated.
+        '403':
+          description: Only candidates can calculate matches.
+  /api/jobs/create/:
+    post:
+      operationId: jobs_create_create
+      description: Create a new job posting. Authentication required. Recruiter only.
+      summary: Create a new job
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Job created successfully.
+        '400':
+          description: Invalid input data.
+        '403':
+          description: Only recruiters can create jobs.
+  /api/jobs/my/:
+    get:
+      operationId: jobs_my_retrieve
+      description: List all jobs for the current recruiter (draft, active, closed).
+        Authentication required. Recruiter only.
+      summary: List my jobs
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully.
+        '403':
+          description: Only recruiters can view their jobs.
+  /api/matching/jobs/recommendations/:
+    get:
+      operationId: matching_jobs_recommendations_retrieve
+      description: Get job recommendations for candidate. Returns top 20 ACTIVE jobs
+        ordered by match score DESC. Authentication required. Candidate only.
+      summary: Get job recommendations
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job recommendations retrieved successfully.
+        '403':
+          description: Only candidates can get recommendations.
+  /api/matching/recruiter/candidates/:
+    get:
+      operationId: matching_recruiter_candidates_retrieve
+      description: Get matching candidates for recruiter's job. Returns candidates
+        ordered by match score DESC. Authentication required. Recruiter only.
+      summary: Get matching candidates
+      parameters:
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Job ID for matching
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Matching candidates retrieved successfully.
+        '400':
+          description: job_id query parameter is required.
+        '403':
+          description: Only recruiters can get matching candidates.
+        '404':
+          description: Job not found.
+  /api/notifications/:
+    get:
+      operationId: notifications_retrieve
+      description: List notifications for the authenticated user. Paginated (20 per
+        page, max 100). Ordered newest first.
+      summary: List notifications
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Notifications retrieved successfully with pagination.
+  /api/notifications/{id}/read/:
+    patch:
+      operationId: notifications_read_partial_update
+      description: Mark a specific notification as read. Owner only.
+      summary: Mark notification as read
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Notification marked as read successfully.
+        '404':
+          description: Notification not found.
+  /api/notifications/read-all/:
+    post:
+      operationId: notifications_read_all_create
+      description: Mark all unread notifications as read for the authenticated user.
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: All notifications marked as read successfully.
+  /api/notifications/unread-count/:
+    get:
+      operationId: notifications_unread_count_retrieve
+      description: Get unread notification count for the authenticated user.
+      summary: Get unread count
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Unread count retrieved successfully.
+  /api/profile/:
+    get:
+      operationId: profile_retrieve
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+    patch:
+      operationId: profile_partial_update
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+  /api/profile/candidate/:
+    get:
+      operationId: profile_candidate_retrieve
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+    patch:
+      operationId: profile_candidate_partial_update
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+  /api/profile/recruiter/:
+    get:
+      operationId: profile_recruiter_retrieve
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+    patch:
+      operationId: profile_recruiter_partial_update
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+  /api/resumes/:
+    get:
+      operationId: resumes_retrieve
+      description: List all resumes for the current user. Authentication required.
+        Candidate only.
+      summary: List my resumes
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully.
+        '403':
+          description: Only candidates can view their resumes.
+  /api/resumes/{id}/:
+    get:
+      operationId: resumes_retrieve_2
+      description: Retrieve a specific resume. Authentication required. Candidate
+        only.
+      summary: Get resume details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume details retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can view their resumes.
+    delete:
+      operationId: resumes_destroy
+      description: Retrieve a specific resume. Authentication required. Candidate
+        only.
+      summary: Get resume details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume details retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can view their resumes.
+  /api/resumes/{id}/activate/:
+    patch:
+      operationId: resumes_activate_partial_update
+      description: Activate a specific resume version. Authentication required. Candidate
+        only.
+      summary: Activate resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version activated successfully.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can activate their resume versions.
+  /api/resumes/{id}/parse/:
+    post:
+      operationId: resumes_parse_create
+      description: Parse a resume to extract raw text. Authentication required. Candidate
+        only.
+      summary: Parse resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume parsed successfully.
+        '400':
+          description: Unsupported file type or corrupted file.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can parse their resumes.
+  /api/resumes/{id}/parsed/:
+    get:
+      operationId: resumes_parsed_retrieve
+      description: Retrieve parsed resume information. Authentication required. Candidate
+        only.
+      summary: Get parsed resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Parsed resume retrieved successfully.
+        '404':
+          description: Resume or parsed resume not found.
+        '403':
+          description: Only candidates can access their parsed resume.
+  /api/resumes/{id}/versions/:
+    get:
+      operationId: resumes_versions_retrieve
+      description: Get version history for a resume. Authentication required. Candidate
+        only.
+      summary: Get resume version history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Version history retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can access their resume history.
+  /api/resumes/{id}/versions/{version_id}/activate/:
+    patch:
+      operationId: resumes_versions_activate_partial_update
+      description: Activate a specific resume version. Authentication required. Candidate
+        only.
+      summary: Activate resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version activated successfully.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can activate their resume versions.
+  /api/resumes/{id}/versions/{version_id}/rollback/:
+    post:
+      operationId: resumes_versions_rollback_create
+      description: Rollback to a specific version of a resume. Authentication required.
+        Candidate only.
+      summary: Rollback resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Rollback successful.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can rollback their resume versions.
+  /api/resumes/{id}/versions/current/:
+    get:
+      operationId: resumes_versions_current_retrieve
+      description: Get the current version of a resume. Authentication required. Candidate
+        only.
+      summary: Get current resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Current version retrieved successfully.
+        '404':
+          description: Resume or current version not found.
+        '403':
+          description: Only candidates can access their resume versions.
+  /api/resumes/active/:
+    get:
+      operationId: resumes_active_retrieve
+      description: Get the current resume with its current version. Authentication
+        required. Candidate only.
+      summary: Get active resume
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Active resume retrieved successfully.
+        '404':
+          description: No resume or current version found.
+        '403':
+          description: Only candidates can access their resume.
+  /api/resumes/candidates/{candidate_id}/:
+    get:
+      operationId: resumes_candidates_retrieve
+      description: Get candidate profile with structured resume data. Authentication
+        required. Recruiter only.
+      summary: Get candidate profile
+      parameters:
+      - in: path
+        name: candidate_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '404':
+          description: Candidate or resume not found.
+        '403':
+          description: Only recruiters can access candidate profiles.
+  /api/resumes/candidates/search/:
+    get:
+      operationId: resumes_candidates_search_retrieve
+      description: Search candidates with filters. Authentication required. Recruiter
+        only.
+      summary: Search candidates
+      parameters:
+      - in: query
+        name: education
+        schema:
+          type: string
+        description: Filter by education level (bachelor, master, phd)
+      - in: query
+        name: experience_min
+        schema:
+          type: number
+          format: double
+        description: Minimum years of experience
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Job ID for match score filtering
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: match_score
+        schema:
+          type: number
+          format: double
+        description: Filter by minimum match score (requires job_id)
+      - in: query
+        name: skills
+        schema:
+          type: string
+        description: Filter by skill name (comma-separated)
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidates retrieved successfully.
+        '403':
+          description: Only recruiters can search candidates.
+  /api/resumes/search/:
+    get:
+      operationId: resumes_search_retrieve
+      description: Search and filter structured resume data. Authentication required.
+        Recruiter only.
+      summary: Search resumes
+      parameters:
+      - in: query
+        name: certification
+        schema:
+          type: string
+        description: Filter by certification name or issuer
+      - in: query
+        name: company
+        schema:
+          type: string
+        description: Filter by company name
+      - in: query
+        name: education
+        schema:
+          type: string
+        description: Filter by education degree or institution
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order results (name, -name, created_at, -created_at)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 'Results per page (default: 20, max: 100)'
+      - in: query
+        name: skill
+        schema:
+          type: string
+        description: Filter by skill name (can be multiple)
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully with pagination.
+        '403':
+          description: Only recruiters can search resumes.
+  /api/resumes/upload/:
+    post:
+      operationId: resumes_upload_create
+      description: 'Upload a resume file (PDF or DOCX). Maximum file size: 10 MB.
+        Authentication required. Candidate only.'
+      summary: Upload resume
+      tags:
+      - Resumes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Resume uploaded successfully.
+        '400':
+          description: Invalid file type or size.
+        '403':
+          description: Only candidates can upload resumes.
+  /api/resumes/versions/{version_id}/extract/:
+    post:
+      operationId: resumes_versions_extract_create
+      description: Extract structured resume data from a parsed resume version. Authentication
+        required. Candidate only.
+      summary: Extract structured resume data
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Structured data extracted successfully.
+        '400':
+          description: Resume must be successfully parsed before extraction.
+        '404':
+          description: Resume version or parsed resume not found.
+        '403':
+          description: Only candidates can extract structured data from their resume.
+  /api/resumes/versions/{version_id}/parse/:
+    post:
+      operationId: resumes_versions_parse_create
+      description: Parse a specific resume version to extract raw text. Authentication
+        required. Candidate only.
+      summary: Parse resume version
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version parsed successfully.
+        '400':
+          description: Unsupported file type or corrupted file.
+        '404':
+          description: Resume version not found.
+        '403':
+          description: Only candidates can parse their resume versions.
+  /api/resumes/versions/{version_id}/parsed/:
+    get:
+      operationId: resumes_versions_parsed_retrieve
+      description: Retrieve parsed resume information for a specific version. Authentication
+        required. Candidate only.
+      summary: Get parsed resume version
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Parsed resume version retrieved successfully.
+        '404':
+          description: Resume version or parsed resume not found.
+        '403':
+          description: Only candidates can access their parsed resume.
+  /api/resumes/versions/{version_id}/structured/:
+    get:
+      operationId: resumes_versions_structured_retrieve
+      description: Retrieve structured resume data for a specific version. Authentication
+        required. Candidate only.
+      summary: Get structured resume data
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Structured resume data retrieved successfully.
+        '404':
+          description: Resume version or structured resume not found.
+        '403':
+          description: Only candidates can access their structured resume data.
+  /api/users/auth/login/:
+    post:
+      operationId: users_auth_login_create
+      description: Authenticate user with email and password. Returns JWT tokens in
+        HTTP-only cookies.
+      summary: User login
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+              - email
+              - password
+            examples:
+              SuccessfulLogin:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                summary: Successful login
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                SuccessfulLogin:
+                  value:
+                    email: candidate@example.com
+                    password: securepassword123
+                  summary: Successful login
+          description: Login successful. JWT tokens set in HTTP-only cookies.
+        '401':
+          description: Invalid credentials or inactive account
+  /api/users/auth/logout/:
+    post:
+      operationId: users_auth_logout_create
+      description: Logout user by blacklisting refresh token and clearing HTTP-only
+        cookies.
+      summary: User logout
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Logout successful. Cookies cleared.
+  /api/users/auth/me/:
+    get:
+      operationId: users_auth_me_retrieve
+      description: Retrieve information about the currently authenticated user.
+      summary: Get current user
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User information retrieved successfully.
+        '500':
+          description: Profile not found
+  /api/users/auth/refresh/:
+    post:
+      operationId: users_auth_refresh_create
+      description: Refresh JWT access token using refresh token from HTTP-only cookie.
+      summary: Refresh access token
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Token refreshed successfully. New access token set in cookie.
+        '401':
+          description: Refresh token missing or invalid
+  /api/users/auth/register/candidate/:
+    post:
+      operationId: users_auth_register_candidate_create
+      description: Register a new candidate account. Creates user and candidate profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Candidate registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+            examples:
+              CandidateRegistration:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                  full_name: John Doe
+                summary: Candidate registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/users/auth/register/recruiter/:
+    post:
+      operationId: users_auth_register_recruiter_create
+      description: Register a new recruiter account. Creates user and recruiter profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Recruiter registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+                company_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+              - company_name
+            examples:
+              RecruiterRegistration:
+                value:
+                  email: recruiter@company.com
+                  password: securepassword123
+                  full_name: Jane Smith
+                  company_name: Tech Corp
+                summary: Recruiter registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/users/profile/:
+    get:
+      operationId: users_profile_retrieve
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+    patch:
+      operationId: users_profile_partial_update
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+  /api/users/profile/candidate/:
+    get:
+      operationId: users_profile_candidate_retrieve
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+    patch:
+      operationId: users_profile_candidate_partial_update
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+  /api/users/profile/recruiter/:
+    get:
+      operationId: users_profile_recruiter_retrieve
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+    patch:
+      operationId: users_profile_recruiter_partial_update
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+  /api/users/rbac/candidate-only/:
+    get:
+      operationId: users_rbac_candidate_only_retrieve
+      description: Test endpoint accessible only to candidates. Authentication required.
+        Candidate only.
+      summary: Candidate only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only candidates can access this endpoint.
+  /api/users/rbac/recruiter-only/:
+    get:
+      operationId: users_rbac_recruiter_only_retrieve
+      description: Test endpoint accessible only to recruiters. Authentication required.
+        Recruiter only.
+      summary: Recruiter only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only recruiters can access this endpoint.
+  /api/users/rbac/verified-only/:
+    get:
+      operationId: users_rbac_verified_only_retrieve
+      description: Test endpoint accessible only to verified users. Authentication
+        required.
+      summary: Verified user only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only verified users can access this endpoint.
+  /api/v1/admin/applications/:
+    get:
+      operationId: v1_admin_applications_retrieve
+      description: 'List all applications with filtering and pagination (read-only).
+        Admin only. Filters: status, candidate_id, job_id, recruiter_id.'
+      summary: List applications
+      parameters:
+      - in: query
+        name: candidate_id
+        schema:
+          type: string
+        description: Filter by candidate ID
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Filter by job ID
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: recruiter_id
+        schema:
+          type: string
+        description: Filter by recruiter ID
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by application status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/dashboard/:
+    get:
+      operationId: v1_admin_dashboard_retrieve
+      description: Get platform statistics with aggregated metrics. Admin only.
+      summary: Admin dashboard
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Platform statistics retrieved successfully.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/jobs/:
+    get:
+      operationId: v1_admin_jobs_retrieve
+      description: 'List all jobs with filtering and pagination. Admin only. Returns
+        ALL jobs (draft, active, closed). Filters: status, company, recruiter_id,
+        search.'
+      summary: List jobs
+      parameters:
+      - in: query
+        name: company
+        schema:
+          type: string
+        description: Filter by company name
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: recruiter_id
+        schema:
+          type: string
+        description: Filter by recruiter ID
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by title or company
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by job status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/jobs/{id}/:
+    patch:
+      operationId: v1_admin_jobs_partial_update
+      description: Update job status with moderation logging. Admin only.
+      summary: Update job status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job status updated successfully.
+        '400':
+          description: Invalid input data.
+        '404':
+          description: Job not found.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/resumes/:
+    get:
+      operationId: v1_admin_resumes_retrieve
+      description: 'List all resumes with filtering and pagination. Admin only. Filters:
+        candidate_id, parsed, structured.'
+      summary: List resumes
+      parameters:
+      - in: query
+        name: candidate_id
+        schema:
+          type: string
+        description: Filter by candidate ID
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: parsed
+        schema:
+          type: boolean
+        description: Filter by parsed status
+      - in: query
+        name: structured
+        schema:
+          type: boolean
+        description: Filter by structured data status
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/resumes/{id}/:
+    patch:
+      operationId: v1_admin_resumes_partial_update
+      description: Update resume (activate/deactivate user) with moderation logging.
+        Admin only.
+      summary: Update resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume updated successfully.
+        '400':
+          description: Invalid input data.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/users/:
+    get:
+      operationId: v1_admin_users_retrieve
+      description: 'List all users with filtering and pagination. Admin only. Filters:
+        role, is_active, search. Ordering: email, full_name, date_joined, -date_joined.'
+      summary: List users
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+        description: Filter by active status
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 200)
+      - in: query
+        name: role
+        schema:
+          type: string
+        description: Filter by user role
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by name or email
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Users retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+        '403':
+          description: Admin access required.
+  /api/v1/admin/users/{id}/:
+    get:
+      operationId: v1_admin_users_retrieve_2
+      description: Retrieve a specific user. Admin only.
+      summary: Get user details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User details retrieved successfully.
+        '404':
+          description: User not found.
+        '403':
+          description: Admin access required.
+    patch:
+      operationId: v1_admin_users_partial_update
+      description: Retrieve a specific user. Admin only.
+      summary: Get user details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User details retrieved successfully.
+        '404':
+          description: User not found.
+        '403':
+          description: Admin access required.
+  /api/v1/analytics/candidate/dashboard/:
+    get:
+      operationId: v1_analytics_candidate_dashboard_retrieve
+      description: Get candidate dashboard analytics with aggregated metrics for applications,
+        interviews, and matches. Authentication required. Candidate only.
+      summary: Candidate dashboard
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Dashboard analytics retrieved successfully.
+        '403':
+          description: Only candidates can access dashboard.
+  /api/v1/analytics/recruiter/dashboard/:
+    get:
+      operationId: v1_analytics_recruiter_dashboard_retrieve
+      description: Get recruiter dashboard analytics with aggregated metrics for jobs,
+        applications, and interviews. Authentication required. Recruiter only.
+      summary: Recruiter dashboard
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Dashboard analytics retrieved successfully.
+        '403':
+          description: Only recruiters can access dashboard.
+  /api/v1/analytics/recruiter/jobs/{job_id}/:
+    get:
+      operationId: v1_analytics_recruiter_jobs_retrieve
+      description: Get job-specific analytics for recruiters with application metrics
+        and conversion rate. Authentication required. Recruiter owner only.
+      summary: Job analytics
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job analytics retrieved successfully.
+        '403':
+          description: Only recruiters can access job analytics.
+        '404':
+          description: Job not found.
+  /api/v1/analytics/recruiter/jobs/{job_id}/top-candidates/:
+    get:
+      operationId: v1_analytics_recruiter_jobs_top_candidates_retrieve
+      description: Get top matched candidates for a job (top 20 ordered by match score
+        DESC). Authentication required. Recruiter owner only.
+      summary: Top candidates
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Analytics
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Top candidates retrieved successfully.
+        '403':
+          description: Only recruiters can access top candidates.
+        '404':
+          description: Job not found.
+  /api/v1/applications/{application_id}/interviews/:
+    get:
+      operationId: v1_applications_interviews_retrieve
+      description: List interviews for a specific application. Candidates can view
+        own application interviews. Recruiters can view interviews for their jobs.
+      summary: List application interviews
+      parameters:
+      - in: path
+        name: application_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interviews retrieved successfully.
+        '404':
+          description: Application not found.
+    post:
+      operationId: v1_applications_interviews_create
+      description: List interviews for a specific application. Candidates can view
+        own application interviews. Recruiters can view interviews for their jobs.
+      summary: List application interviews
+      parameters:
+      - in: path
+        name: application_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+            examples:
+              ScheduleInterview:
+                value:
+                  scheduled_at: '2024-01-15T10:00:00Z'
+                  interview_type: video
+                  location: Zoom
+                summary: Schedule interview
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interviews retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/v1/applications/{id}/:
+    get:
+      operationId: v1_applications_retrieve
+      description: Retrieve a specific application. Candidates can view own applications.
+        Recruiters can view applications for their jobs.
+      summary: Get application details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application details retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/v1/applications/{id}/history/:
+    get:
+      operationId: v1_applications_history_retrieve
+      description: Retrieve application status history. Candidates can view own application
+        history. Recruiters can view history for their jobs.
+      summary: Get application history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application history retrieved successfully.
+        '404':
+          description: Application not found.
+  /api/v1/applications/{id}/status/:
+    patch:
+      operationId: v1_applications_status_partial_update
+      description: Update application status. Recruiter only. Recruiter must own the
+        job.
+      summary: Update application status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+            examples:
+              UpdateApplicationStatus:
+                value:
+                  status: shortlisted
+                summary: Update application status
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Application status updated successfully.
+        '400':
+          description: Invalid status transition.
+        '403':
+          description: Only recruiters can update application status.
+        '404':
+          description: Application not found.
+  /api/v1/applications/my/:
+    get:
+      operationId: v1_applications_my_retrieve
+      description: List all applications for the current candidate. Authentication
+        required. Candidate only.
+      summary: List my applications
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+        '403':
+          description: Only candidates can view their applications.
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: Authenticate user with email and password. Returns JWT tokens in
+        HTTP-only cookies.
+      summary: User login
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+              - email
+              - password
+            examples:
+              SuccessfulLogin:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                summary: Successful login
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                SuccessfulLogin:
+                  value:
+                    email: candidate@example.com
+                    password: securepassword123
+                  summary: Successful login
+          description: Login successful. JWT tokens set in HTTP-only cookies.
+        '401':
+          description: Invalid credentials or inactive account
+  /api/v1/auth/logout/:
+    post:
+      operationId: v1_auth_logout_create
+      description: Logout user by blacklisting refresh token and clearing HTTP-only
+        cookies.
+      summary: User logout
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Logout successful. Cookies cleared.
+  /api/v1/auth/me/:
+    get:
+      operationId: v1_auth_me_retrieve
+      description: Retrieve information about the currently authenticated user.
+      summary: Get current user
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User information retrieved successfully.
+        '500':
+          description: Profile not found
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      description: Refresh JWT access token using refresh token from HTTP-only cookie.
+      summary: Refresh access token
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Token refreshed successfully. New access token set in cookie.
+        '401':
+          description: Refresh token missing or invalid
+  /api/v1/auth/register/candidate/:
+    post:
+      operationId: v1_auth_register_candidate_create
+      description: Register a new candidate account. Creates user and candidate profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Candidate registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+            examples:
+              CandidateRegistration:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                  full_name: John Doe
+                summary: Candidate registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/v1/auth/register/recruiter/:
+    post:
+      operationId: v1_auth_register_recruiter_create
+      description: Register a new recruiter account. Creates user and recruiter profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Recruiter registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+                company_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+              - company_name
+            examples:
+              RecruiterRegistration:
+                value:
+                  email: recruiter@company.com
+                  password: securepassword123
+                  full_name: Jane Smith
+                  company_name: Tech Corp
+                summary: Recruiter registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/v1/health/:
+    get:
+      operationId: v1_health_retrieve
+      tags:
+      - v1
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/interviews/{interview_id}/:
+    get:
+      operationId: v1_interviews_retrieve
+      description: Retrieve a specific interview. Candidates can view own interviews.
+        Recruiters can view interviews for their jobs.
+      summary: Get interview details
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview details retrieved successfully.
+        '404':
+          description: Interview not found.
+  /api/v1/interviews/{interview_id}/history/:
+    get:
+      operationId: v1_interviews_history_retrieve
+      description: Retrieve interview status history. Candidates can view own interview
+        history. Recruiters can view history for their jobs.
+      summary: Get interview history
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview history retrieved successfully.
+        '404':
+          description: Interview not found.
+  /api/v1/interviews/{interview_id}/status/:
+    patch:
+      operationId: v1_interviews_status_partial_update
+      description: Update interview status. Recruiter only. Recruiter must own the
+        job.
+      summary: Update interview status
+      parameters:
+      - in: path
+        name: interview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Interviews
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Interview status updated successfully.
+        '400':
+          description: Invalid status transition.
+        '403':
+          description: Only recruiters can update interview status.
+        '404':
+          description: Interview not found.
+  /api/v1/jobs/:
+    get:
+      operationId: v1_jobs_retrieve
+      description: List active jobs with search, filtering, and pagination. Returns
+        only ACTIVE jobs.
+      summary: List active jobs
+      parameters:
+      - in: query
+        name: employment_type
+        schema:
+          type: string
+        description: Filter by employment type (full_time, part_time, contract, internship)
+      - in: query
+        name: experience_level
+        schema:
+          type: string
+        description: Filter by experience level (entry, junior, mid, senior, lead)
+      - in: query
+        name: is_remote
+        schema:
+          type: boolean
+        description: Filter by remote status (true/false)
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by field (created_at, -created_at, salary_min, -salary_min,
+          salary_max, -salary_max)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Page size (max 100)
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Search query (title, company, description)
+      - in: query
+        name: salary_max
+        schema:
+          type: number
+          format: double
+        description: Filter by maximum salary
+      - in: query
+        name: salary_min
+        schema:
+          type: number
+          format: double
+        description: Filter by minimum salary
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully with pagination.
+        '400':
+          description: Invalid filter parameters.
+  /api/v1/jobs/{id}/:
+    get:
+      operationId: v1_jobs_retrieve_2
+      description: Retrieve a specific job. Candidates can view ACTIVE jobs only.
+        Recruiter owners can view own jobs (any status).
+      summary: Get job details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job details retrieved successfully.
+        '404':
+          description: Job not found.
+    patch:
+      operationId: v1_jobs_partial_update
+      description: Retrieve a specific job. Candidates can view ACTIVE jobs only.
+        Recruiter owners can view own jobs (any status).
+      summary: Get job details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job details retrieved successfully.
+        '404':
+          description: Job not found.
+  /api/v1/jobs/{id}/close/:
+    post:
+      operationId: v1_jobs_close_create
+      description: Close a job posting. Recruiter owner only.
+      summary: Close a job
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job closed successfully.
+        '400':
+          description: Job is already closed.
+        '403':
+          description: Only recruiters can close jobs.
+        '404':
+          description: Job not found.
+  /api/v1/jobs/{job_id}/applications/:
+    get:
+      operationId: v1_jobs_applications_retrieve
+      description: List all applications for a specific job. Recruiter owner only.
+        Supports status filtering.
+      summary: List job applications
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by application status
+      tags:
+      - Applications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Applications retrieved successfully.
+        '400':
+          description: Invalid status filter.
+        '403':
+          description: Only recruiters can view job applications.
+        '404':
+          description: Job not found.
+  /api/v1/jobs/{job_id}/apply/:
+    post:
+      operationId: v1_jobs_apply_create
+      description: Apply to a job with a specific resume version. Authentication required.
+        Candidate only.
+      summary: Apply to job
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Applications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resume_version_id:
+                  type: string
+                  format: uuid
+              required:
+              - resume_version_id
+            examples:
+              ApplyToJob:
+                value:
+                  resume_version_id: 123e4567-e89b-12d3-a456-426614174000
+                summary: Apply to job
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Application created successfully.
+        '400':
+          description: Invalid request or already applied.
+        '404':
+          description: Job or resume version not found.
+  /api/v1/jobs/{job_id}/match/:
+    get:
+      operationId: v1_jobs_match_retrieve
+      description: Calculate or retrieve match between candidate and job. Authentication
+        required. Candidate only.
+      summary: Calculate candidate-job match
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Match calculated or retrieved successfully.
+        '404':
+          description: Job not found or match not calculated.
+        '403':
+          description: Only candidates can calculate matches.
+    post:
+      operationId: v1_jobs_match_create
+      description: Calculate or retrieve match between candidate and job. Authentication
+        required. Candidate only.
+      summary: Calculate candidate-job match
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Match calculated or retrieved successfully.
+        '404':
+          description: Job not found or match not calculated.
+        '403':
+          description: Only candidates can calculate matches.
+  /api/v1/jobs/create/:
+    post:
+      operationId: v1_jobs_create_create
+      description: Create a new job posting. Authentication required. Recruiter only.
+      summary: Create a new job
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Job created successfully.
+        '400':
+          description: Invalid input data.
+        '403':
+          description: Only recruiters can create jobs.
+  /api/v1/jobs/my/:
+    get:
+      operationId: v1_jobs_my_retrieve
+      description: List all jobs for the current recruiter (draft, active, closed).
+        Authentication required. Recruiter only.
+      summary: List my jobs
+      tags:
+      - Jobs
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Jobs retrieved successfully.
+        '403':
+          description: Only recruiters can view their jobs.
+  /api/v1/matching/jobs/recommendations/:
+    get:
+      operationId: v1_matching_jobs_recommendations_retrieve
+      description: Get job recommendations for candidate. Returns top 20 ACTIVE jobs
+        ordered by match score DESC. Authentication required. Candidate only.
+      summary: Get job recommendations
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Job recommendations retrieved successfully.
+        '403':
+          description: Only candidates can get recommendations.
+  /api/v1/matching/recruiter/candidates/:
+    get:
+      operationId: v1_matching_recruiter_candidates_retrieve
+      description: Get matching candidates for recruiter's job. Returns candidates
+        ordered by match score DESC. Authentication required. Recruiter only.
+      summary: Get matching candidates
+      parameters:
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Job ID for matching
+        required: true
+      tags:
+      - Matching
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Matching candidates retrieved successfully.
+        '400':
+          description: job_id query parameter is required.
+        '403':
+          description: Only recruiters can get matching candidates.
+        '404':
+          description: Job not found.
+  /api/v1/notifications/:
+    get:
+      operationId: v1_notifications_retrieve
+      description: List notifications for the authenticated user. Paginated (20 per
+        page, max 100). Ordered newest first.
+      summary: List notifications
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Notifications retrieved successfully with pagination.
+  /api/v1/notifications/{id}/read/:
+    patch:
+      operationId: v1_notifications_read_partial_update
+      description: Mark a specific notification as read. Owner only.
+      summary: Mark notification as read
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Notification marked as read successfully.
+        '404':
+          description: Notification not found.
+  /api/v1/notifications/read-all/:
+    post:
+      operationId: v1_notifications_read_all_create
+      description: Mark all unread notifications as read for the authenticated user.
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: All notifications marked as read successfully.
+  /api/v1/notifications/unread-count/:
+    get:
+      operationId: v1_notifications_unread_count_retrieve
+      description: Get unread notification count for the authenticated user.
+      summary: Get unread count
+      tags:
+      - Notifications
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Unread count retrieved successfully.
+  /api/v1/profile/:
+    get:
+      operationId: v1_profile_retrieve
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+    patch:
+      operationId: v1_profile_partial_update
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+  /api/v1/profile/candidate/:
+    get:
+      operationId: v1_profile_candidate_retrieve
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+    patch:
+      operationId: v1_profile_candidate_partial_update
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+  /api/v1/profile/recruiter/:
+    get:
+      operationId: v1_profile_recruiter_retrieve
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+    patch:
+      operationId: v1_profile_recruiter_partial_update
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+  /api/v1/resumes/:
+    get:
+      operationId: v1_resumes_retrieve
+      description: List all resumes for the current user. Authentication required.
+        Candidate only.
+      summary: List my resumes
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully.
+        '403':
+          description: Only candidates can view their resumes.
+  /api/v1/resumes/{id}/:
+    get:
+      operationId: v1_resumes_retrieve_2
+      description: Retrieve a specific resume. Authentication required. Candidate
+        only.
+      summary: Get resume details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume details retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can view their resumes.
+    delete:
+      operationId: v1_resumes_destroy
+      description: Retrieve a specific resume. Authentication required. Candidate
+        only.
+      summary: Get resume details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume details retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can view their resumes.
+  /api/v1/resumes/{id}/activate/:
+    patch:
+      operationId: v1_resumes_activate_partial_update
+      description: Activate a specific resume version. Authentication required. Candidate
+        only.
+      summary: Activate resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version activated successfully.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can activate their resume versions.
+  /api/v1/resumes/{id}/parse/:
+    post:
+      operationId: v1_resumes_parse_create
+      description: Parse a resume to extract raw text. Authentication required. Candidate
+        only.
+      summary: Parse resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume parsed successfully.
+        '400':
+          description: Unsupported file type or corrupted file.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can parse their resumes.
+  /api/v1/resumes/{id}/parsed/:
+    get:
+      operationId: v1_resumes_parsed_retrieve
+      description: Retrieve parsed resume information. Authentication required. Candidate
+        only.
+      summary: Get parsed resume
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Parsed resume retrieved successfully.
+        '404':
+          description: Resume or parsed resume not found.
+        '403':
+          description: Only candidates can access their parsed resume.
+  /api/v1/resumes/{id}/versions/:
+    get:
+      operationId: v1_resumes_versions_retrieve
+      description: Get version history for a resume. Authentication required. Candidate
+        only.
+      summary: Get resume version history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Version history retrieved successfully.
+        '404':
+          description: Resume not found.
+        '403':
+          description: Only candidates can access their resume history.
+  /api/v1/resumes/{id}/versions/{version_id}/activate/:
+    patch:
+      operationId: v1_resumes_versions_activate_partial_update
+      description: Activate a specific resume version. Authentication required. Candidate
+        only.
+      summary: Activate resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version activated successfully.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can activate their resume versions.
+  /api/v1/resumes/{id}/versions/{version_id}/rollback/:
+    post:
+      operationId: v1_resumes_versions_rollback_create
+      description: Rollback to a specific version of a resume. Authentication required.
+        Candidate only.
+      summary: Rollback resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Rollback successful.
+        '404':
+          description: Resume or version not found.
+        '403':
+          description: Only candidates can rollback their resume versions.
+  /api/v1/resumes/{id}/versions/current/:
+    get:
+      operationId: v1_resumes_versions_current_retrieve
+      description: Get the current version of a resume. Authentication required. Candidate
+        only.
+      summary: Get current resume version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Current version retrieved successfully.
+        '404':
+          description: Resume or current version not found.
+        '403':
+          description: Only candidates can access their resume versions.
+  /api/v1/resumes/active/:
+    get:
+      operationId: v1_resumes_active_retrieve
+      description: Get the current resume with its current version. Authentication
+        required. Candidate only.
+      summary: Get active resume
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Active resume retrieved successfully.
+        '404':
+          description: No resume or current version found.
+        '403':
+          description: Only candidates can access their resume.
+  /api/v1/resumes/candidates/{candidate_id}/:
+    get:
+      operationId: v1_resumes_candidates_retrieve
+      description: Get candidate profile with structured resume data. Authentication
+        required. Recruiter only.
+      summary: Get candidate profile
+      parameters:
+      - in: path
+        name: candidate_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '404':
+          description: Candidate or resume not found.
+        '403':
+          description: Only recruiters can access candidate profiles.
+  /api/v1/resumes/candidates/search/:
+    get:
+      operationId: v1_resumes_candidates_search_retrieve
+      description: Search candidates with filters. Authentication required. Recruiter
+        only.
+      summary: Search candidates
+      parameters:
+      - in: query
+        name: education
+        schema:
+          type: string
+        description: Filter by education level (bachelor, master, phd)
+      - in: query
+        name: experience_min
+        schema:
+          type: number
+          format: double
+        description: Minimum years of experience
+      - in: query
+        name: job_id
+        schema:
+          type: string
+        description: Job ID for match score filtering
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: match_score
+        schema:
+          type: number
+          format: double
+        description: Filter by minimum match score (requires job_id)
+      - in: query
+        name: skills
+        schema:
+          type: string
+        description: Filter by skill name (comma-separated)
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidates retrieved successfully.
+        '403':
+          description: Only recruiters can search candidates.
+  /api/v1/resumes/search/:
+    get:
+      operationId: v1_resumes_search_retrieve
+      description: Search and filter structured resume data. Authentication required.
+        Recruiter only.
+      summary: Search resumes
+      parameters:
+      - in: query
+        name: certification
+        schema:
+          type: string
+        description: Filter by certification name or issuer
+      - in: query
+        name: company
+        schema:
+          type: string
+        description: Filter by company name
+      - in: query
+        name: education
+        schema:
+          type: string
+        description: Filter by education degree or institution
+      - in: query
+        name: location
+        schema:
+          type: string
+        description: Filter by location
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order results (name, -name, created_at, -created_at)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 'Results per page (default: 20, max: 100)'
+      - in: query
+        name: skill
+        schema:
+          type: string
+        description: Filter by skill name (can be multiple)
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resumes retrieved successfully with pagination.
+        '403':
+          description: Only recruiters can search resumes.
+  /api/v1/resumes/upload/:
+    post:
+      operationId: v1_resumes_upload_create
+      description: 'Upload a resume file (PDF or DOCX). Maximum file size: 10 MB.
+        Authentication required. Candidate only.'
+      summary: Upload resume
+      tags:
+      - Resumes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '201':
+          description: Resume uploaded successfully.
+        '400':
+          description: Invalid file type or size.
+        '403':
+          description: Only candidates can upload resumes.
+  /api/v1/resumes/versions/{version_id}/extract/:
+    post:
+      operationId: v1_resumes_versions_extract_create
+      description: Extract structured resume data from a parsed resume version. Authentication
+        required. Candidate only.
+      summary: Extract structured resume data
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Structured data extracted successfully.
+        '400':
+          description: Resume must be successfully parsed before extraction.
+        '404':
+          description: Resume version or parsed resume not found.
+        '403':
+          description: Only candidates can extract structured data from their resume.
+  /api/v1/resumes/versions/{version_id}/parse/:
+    post:
+      operationId: v1_resumes_versions_parse_create
+      description: Parse a specific resume version to extract raw text. Authentication
+        required. Candidate only.
+      summary: Parse resume version
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Resume version parsed successfully.
+        '400':
+          description: Unsupported file type or corrupted file.
+        '404':
+          description: Resume version not found.
+        '403':
+          description: Only candidates can parse their resume versions.
+  /api/v1/resumes/versions/{version_id}/parsed/:
+    get:
+      operationId: v1_resumes_versions_parsed_retrieve
+      description: Retrieve parsed resume information for a specific version. Authentication
+        required. Candidate only.
+      summary: Get parsed resume version
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Parsed resume version retrieved successfully.
+        '404':
+          description: Resume version or parsed resume not found.
+        '403':
+          description: Only candidates can access their parsed resume.
+  /api/v1/resumes/versions/{version_id}/structured/:
+    get:
+      operationId: v1_resumes_versions_structured_retrieve
+      description: Retrieve structured resume data for a specific version. Authentication
+        required. Candidate only.
+      summary: Get structured resume data
+      parameters:
+      - in: path
+        name: version_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Resumes
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Structured resume data retrieved successfully.
+        '404':
+          description: Resume version or structured resume not found.
+        '403':
+          description: Only candidates can access their structured resume data.
+  /api/v1/users/auth/login/:
+    post:
+      operationId: v1_users_auth_login_create
+      description: Authenticate user with email and password. Returns JWT tokens in
+        HTTP-only cookies.
+      summary: User login
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+              - email
+              - password
+            examples:
+              SuccessfulLogin:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                summary: Successful login
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                SuccessfulLogin:
+                  value:
+                    email: candidate@example.com
+                    password: securepassword123
+                  summary: Successful login
+          description: Login successful. JWT tokens set in HTTP-only cookies.
+        '401':
+          description: Invalid credentials or inactive account
+  /api/v1/users/auth/logout/:
+    post:
+      operationId: v1_users_auth_logout_create
+      description: Logout user by blacklisting refresh token and clearing HTTP-only
+        cookies.
+      summary: User logout
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Logout successful. Cookies cleared.
+  /api/v1/users/auth/me/:
+    get:
+      operationId: v1_users_auth_me_retrieve
+      description: Retrieve information about the currently authenticated user.
+      summary: Get current user
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: User information retrieved successfully.
+        '500':
+          description: Profile not found
+  /api/v1/users/auth/refresh/:
+    post:
+      operationId: v1_users_auth_refresh_create
+      description: Refresh JWT access token using refresh token from HTTP-only cookie.
+      summary: Refresh access token
+      tags:
+      - Authentication
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: Token refreshed successfully. New access token set in cookie.
+        '401':
+          description: Refresh token missing or invalid
+  /api/v1/users/auth/register/candidate/:
+    post:
+      operationId: v1_users_auth_register_candidate_create
+      description: Register a new candidate account. Creates user and candidate profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Candidate registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+            examples:
+              CandidateRegistration:
+                value:
+                  email: candidate@example.com
+                  password: securepassword123
+                  full_name: John Doe
+                summary: Candidate registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/v1/users/auth/register/recruiter/:
+    post:
+      operationId: v1_users_auth_register_recruiter_create
+      description: Register a new recruiter account. Creates user and recruiter profile.
+        Returns JWT tokens in HTTP-only cookies.
+      summary: Recruiter registration
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+                company_name:
+                  type: string
+              required:
+              - email
+              - password
+              - full_name
+              - company_name
+            examples:
+              RecruiterRegistration:
+                value:
+                  email: recruiter@company.com
+                  password: securepassword123
+                  full_name: Jane Smith
+                  company_name: Tech Corp
+                summary: Recruiter registration
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      - {}
+      responses:
+        '201':
+          description: Registration successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Invalid input data
+  /api/v1/users/profile/:
+    get:
+      operationId: v1_users_profile_retrieve
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+    patch:
+      operationId: v1_users_profile_partial_update
+      description: Retrieve the current user's profile information. Authentication
+        required.
+      summary: Get user profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Profile retrieved successfully.
+        '500':
+          description: Profile not found.
+  /api/v1/users/profile/candidate/:
+    get:
+      operationId: v1_users_profile_candidate_retrieve
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+    patch:
+      operationId: v1_users_profile_candidate_partial_update
+      description: Retrieve the candidate's profile information. Authentication required.
+        Candidate only.
+      summary: Get candidate profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Candidate profile retrieved successfully.
+        '403':
+          description: Only candidates can access their profile.
+  /api/v1/users/profile/recruiter/:
+    get:
+      operationId: v1_users_profile_recruiter_retrieve
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+    patch:
+      operationId: v1_users_profile_recruiter_partial_update
+      description: Retrieve the recruiter's profile information. Authentication required.
+        Recruiter only.
+      summary: Get recruiter profile
+      tags:
+      - Profiles
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Recruiter profile retrieved successfully.
+        '403':
+          description: Only recruiters can access their profile.
+  /api/v1/users/rbac/candidate-only/:
+    get:
+      operationId: v1_users_rbac_candidate_only_retrieve
+      description: Test endpoint accessible only to candidates. Authentication required.
+        Candidate only.
+      summary: Candidate only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only candidates can access this endpoint.
+  /api/v1/users/rbac/recruiter-only/:
+    get:
+      operationId: v1_users_rbac_recruiter_only_retrieve
+      description: Test endpoint accessible only to recruiters. Authentication required.
+        Recruiter only.
+      summary: Recruiter only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only recruiters can access this endpoint.
+  /api/v1/users/rbac/verified-only/:
+    get:
+      operationId: v1_users_rbac_verified_only_retrieve
+      description: Test endpoint accessible only to verified users. Authentication
+        required.
+      summary: Verified user only endpoint
+      tags:
+      - Users
+      security:
+      - type: http
+        scheme: bearer
+        bearerFormat: JWT
+      responses:
+        '200':
+          description: Access granted.
+        '403':
+          description: Only verified users can access this endpoint.
+components: {}
+tags:
+- name: Authentication
+  description: User authentication and authorization endpoints
+- name: Users
+  description: User management endpoints
+- name: Profiles
+  description: User profile management endpoints
+- name: Resumes
+  description: Resume upload, parsing, and management endpoints
+- name: Jobs
+  description: Job posting and management endpoints
+- name: Applications
+  description: Job application management endpoints
+- name: Matching
+  description: AI-powered candidate-job matching endpoints
+- name: Interviews
+  description: Interview scheduling and management endpoints
+- name: Notifications
+  description: Notification management endpoints
+- name: Analytics
+  description: Dashboard and analytics endpoints
+- name: Admin
+  description: Admin moderation and management endpoints

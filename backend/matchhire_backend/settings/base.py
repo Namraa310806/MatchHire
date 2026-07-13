@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "drf_spectacular",
     "matchhire_backend.core.apps.CoreConfig",
     "apps.users.apps.UsersConfig",
     "apps.jobs.apps.JobsConfig",
@@ -141,6 +142,7 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ["v1"],
     "VERSION_PARAM": "version",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -165,4 +167,43 @@ CORS_ALLOW_CREDENTIALS = True
 REDIS_URL = get_env("REDIS_URL", default="redis://redis:6379/0")
 CELERY_BROKER_URL = get_env("CELERY_BROKER_URL", default=REDIS_URL)
 CELERY_RESULT_BACKEND = get_env("CELERY_RESULT_BACKEND", default=REDIS_URL)
+
+# drf-spectacular configuration
+SPECTACULAR_SETTINGS = {
+    "TITLE": "MatchHire API",
+    "DESCRIPTION": "Backend API for MatchHire recruitment platform.",
+    "VERSION": "v1",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_NO_READ_ONLY_REQUIRED": True,
+    "ENUM_NAME_OVERRIDES": {
+        "JobStatus": "apps.jobs.models.Job.JobStatus",
+        "ApplicationStatus": "apps.applications.models.Application.ApplicationStatus",
+        "InterviewStatus": "apps.interviews.models.Interview.InterviewStatus",
+        "EmploymentType": "apps.jobs.models.Job.EmploymentType",
+        "ExperienceLevel": "apps.jobs.models.Job.ExperienceLevel",
+        "NotificationType": "apps.notifications.models.Notification.NotificationType",
+        "UserRole": "apps.users.models.User.Roles",
+    },
+    "TAGS": [
+        {"name": "Authentication", "description": "User authentication and authorization endpoints"},
+        {"name": "Users", "description": "User management endpoints"},
+        {"name": "Profiles", "description": "User profile management endpoints"},
+        {"name": "Resumes", "description": "Resume upload, parsing, and management endpoints"},
+        {"name": "Jobs", "description": "Job posting and management endpoints"},
+        {"name": "Applications", "description": "Job application management endpoints"},
+        {"name": "Matching", "description": "AI-powered candidate-job matching endpoints"},
+        {"name": "Interviews", "description": "Interview scheduling and management endpoints"},
+        {"name": "Notifications", "description": "Notification management endpoints"},
+        {"name": "Analytics", "description": "Dashboard and analytics endpoints"},
+        {"name": "Admin", "description": "Admin moderation and management endpoints"},
+    ],
+    "SECURITY": [
+        {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    ],
+}
 

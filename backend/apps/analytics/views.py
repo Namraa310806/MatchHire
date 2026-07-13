@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.applications.models import Application
 from apps.interviews.models import Interview
@@ -23,6 +24,15 @@ from .serializers import (
 TOP_CANDIDATES_LIMIT = 20
 
 
+@extend_schema(
+	tags=["Analytics"],
+	summary="Recruiter dashboard",
+	description="Get recruiter dashboard analytics with aggregated metrics for jobs, applications, and interviews. Authentication required. Recruiter only.",
+	responses={
+		200: OpenApiResponse(description="Dashboard analytics retrieved successfully."),
+		403: OpenApiResponse(description="Only recruiters can access dashboard.")
+	}
+)
 class RecruiterDashboardView(APIView):
     """
     Recruiter dashboard analytics.
@@ -80,6 +90,15 @@ class RecruiterDashboardView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Analytics"],
+	summary="Candidate dashboard",
+	description="Get candidate dashboard analytics with aggregated metrics for applications, interviews, and matches. Authentication required. Candidate only.",
+	responses={
+		200: OpenApiResponse(description="Dashboard analytics retrieved successfully."),
+		403: OpenApiResponse(description="Only candidates can access dashboard.")
+	}
+)
 class CandidateDashboardView(APIView):
     """
     Candidate dashboard analytics.
@@ -140,6 +159,16 @@ class CandidateDashboardView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Analytics"],
+	summary="Job analytics",
+	description="Get job-specific analytics for recruiters with application metrics and conversion rate. Authentication required. Recruiter owner only.",
+	responses={
+		200: OpenApiResponse(description="Job analytics retrieved successfully."),
+		403: OpenApiResponse(description="Only recruiters can access job analytics."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
 class JobAnalyticsView(APIView):
     """
     Job-specific analytics for recruiters.
@@ -190,6 +219,16 @@ class JobAnalyticsView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+	tags=["Analytics"],
+	summary="Top candidates",
+	description="Get top matched candidates for a job (top 20 ordered by match score DESC). Authentication required. Recruiter owner only.",
+	responses={
+		200: OpenApiResponse(description="Top candidates retrieved successfully."),
+		403: OpenApiResponse(description="Only recruiters can access top candidates."),
+		404: OpenApiResponse(description="Job not found.")
+	}
+)
 class TopCandidatesView(APIView):
     """
     Top matched candidates for a job.
