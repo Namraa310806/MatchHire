@@ -8,7 +8,7 @@ from .views import (
     ApplicationHistoryView,
 )
 
-app_name = "applications"
+app_name = "job_applications"
 
 urlpatterns = [
     path("my/", MyApplicationsListView.as_view(), name="my-applications"),

@@ -20,6 +20,7 @@ REDIS_URL = _production_env["REDIS_URL"]
 CELERY_BROKER_URL = _production_env["CELERY_BROKER_URL"]
 CELERY_RESULT_BACKEND = get_env("CELERY_RESULT_BACKEND", default=REDIS_URL)
 
+# Security settings
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -31,3 +32,9 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Connection pooling for database
+DATABASES["default"]["CONN_MAX_AGE"] = 600
+DATABASES["default"]["OPTIONS"] = {
+    "connect_timeout": 10,
+}

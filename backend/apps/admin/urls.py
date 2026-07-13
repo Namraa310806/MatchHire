@@ -11,7 +11,7 @@ from .views import (
     AdminUserListView,
 )
 
-app_name = "admin_moderation"
+app_name = "admin"
 
 urlpatterns = [
     path("users/", AdminUserListView.as_view(), name="admin-user-list"),

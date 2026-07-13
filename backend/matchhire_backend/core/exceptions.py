@@ -112,13 +112,18 @@ def get_error_message(exc):
 
 
 def log_exception(exc, view, request):
-    """Log exception with context"""
+    """Log exception with context including request ID"""
     if request:
         user_id = getattr(request.user, 'id', None) if request.user.is_authenticated else 'anonymous'
         endpoint = request.path
         method = request.method
+        request_id = getattr(request, 'id', None)
         
         logger.error(
             f"Exception | type={type(exc).__name__} | user_id={user_id} | "
-            f"endpoint={endpoint} | method={method} | message={str(exc)}"
+            f"endpoint={endpoint} | method={method} | request_id={request_id} | message={str(exc)}"
+        )
+    else:
+        logger.error(
+            f"Exception | type={type(exc).__name__} | message={str(exc)}"
         )
