@@ -1,0 +1,61 @@
+# Multi-stage production build for MatchHire Backend
+# Stage 1: Builder - compile dependencies
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install build dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy requirements and install dependencies
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt --prefix=/install
+
+# Stage 2: Runtime - minimal production image
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend
+
+# Install runtime dependencies only
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq5 \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user for security
+RUN groupadd -r matchhire && useradd -r -g matchhire matchhire
+
+WORKDIR /app
+
+# Copy installed dependencies from builder
+COPY --from=builder /install /usr/local
+
+# Copy application code
+COPY --chown=matchhire:matchhire backend /app/backend
+COPY --chown=matchhire:matchhire docker /app/docker
+
+# Make entrypoint executable
+RUN chmod +x /app/docker/entrypoint.backend.sh
+
+# Create directories for static and media files
+RUN mkdir -p /app/backend/staticfiles /app/backend/media \
+    && chown -R matchhire:matchhire /app/backend/staticfiles /app/backend/media
+
+# Switch to non-root user
+USER matchhire
+
+ENTRYPOINT ["sh", "/app/docker/entrypoint.backend.sh"]

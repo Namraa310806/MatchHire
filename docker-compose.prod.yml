@@ -1,0 +1,230 @@
+# Production Docker Compose configuration for MatchHire
+# This configuration is optimized for production deployment
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: matchhire_db_prod
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    environment:
+      POSTGRES_DB: ${DB_NAME:-matchhire}
+      POSTGRES_USER: ${DB_USER:-matchhire}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./backups:/backups:ro
+    networks:
+      - matchhire_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: matchhire_redis_prod
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - matchhire_network
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.prod
+      target: runtime
+    container_name: matchhire_web_prod
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    environment:
+      - PYTHONPATH=/app/backend
+    volumes:
+      - static_volume_prod:/app/backend/staticfiles
+      - media_volume_prod:/app/backend/media
+    networks:
+      - matchhire_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: gunicorn matchhire_backend.wsgi:application --bind 0.0.0.0:8000 --config /app/docker/gunicorn.conf.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.prod
+      target: runtime
+    container_name: matchhire_celery_worker_prod
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    environment:
+      - PYTHONPATH=/app/backend
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    volumes:
+      - static_volume_prod:/app/backend/staticfiles
+      - media_volume_prod:/app/backend/media
+    networks:
+      - matchhire_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A matchhire_backend worker -l info --concurrency=4
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A matchhire_backend inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend.prod
+      target: runtime
+    container_name: matchhire_celery_beat_prod
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    environment:
+      - PYTHONPATH=/app/backend
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+    volumes:
+      - static_volume_prod:/app/backend/staticfiles
+      - media_volume_prod:/app/backend/media
+      - celerybeat_data_prod:/app/backend
+    networks:
+      - matchhire_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A matchhire_backend beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f celery beat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nginx
+    container_name: matchhire_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - static_volume_prod:/staticfiles:ro
+      - media_volume_prod:/media:ro
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env.production.example
+        required: false
+    networks:
+      - matchhire_network
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  matchhire_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  static_volume_prod:
+    driver: local
+  media_volume_prod:
+    driver: local
+  celerybeat_data_prod:
+    driver: local

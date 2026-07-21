@@ -37,6 +37,9 @@ python-decouple==3.8
 # Production Server
 gunicorn==23.0.0
 
+# Production Logging
+python-json-logger==2.0.7
+
 # Development Tooling
 black==24.4.2
 ruff==0.4.10
