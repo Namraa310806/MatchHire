@@ -1,0 +1,54 @@
+name: Docker Validation
+
+on:
+  workflow_call:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.backend
+          push: false
+          tags: matchhire-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.nginx
+          push: false
+          tags: matchhire-nginx:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  docker-compose:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker compose config > /dev/null
+
+      - name: Check Docker Compose syntax
+        run: |
+          docker compose config --quiet

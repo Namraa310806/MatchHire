@@ -1,0 +1,52 @@
+name: OpenAPI Validation
+
+on:
+  workflow_call:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  openapi:
+    name: Generate and Validate OpenAPI Schema
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Generate OpenAPI schema
+        run: |
+          cd backend
+          python manage.py spectacular --color --file schema.openapi.json --settings=matchhire_backend.settings.test
+
+      - name: Validate OpenAPI schema
+        run: |
+          pip install openapi-spec-validator
+          python -c "
+          import json
+          from openapi_spec_validator import validate_spec
+          with open('backend/schema.openapi.json', 'r') as f:
+              spec = json.load(f)
+          validate_spec(spec)
+          print('OpenAPI schema is valid')
+          "
+
+      - name: Upload OpenAPI schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: backend/schema.openapi.json
+          retention-days: 30

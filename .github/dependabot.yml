@@ -1,0 +1,70 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-org/matchhire-maintainers"
+    assignees:
+      - "your-org/matchhire-maintainers"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    groups:
+      django-dependencies:
+        patterns:
+          - "django*"
+          - "djangorestframework*"
+      ml-dependencies:
+        patterns:
+          - "torch*"
+          - "tensorflow*"
+          - "scikit-learn*"
+          - "sentence-transformers*"
+      database-dependencies:
+        patterns:
+          - "psycopg2*"
+          - "redis*"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "your-org/matchhire-maintainers"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "your-org/matchhire-maintainers"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+      include: "scope"

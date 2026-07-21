@@ -1,5 +1,6 @@
 # MatchHire
 
+[![CI](https://github.com/your-org/matchhire/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/matchhire/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.1](https://img.shields.io/badge/django-5.1-green.svg)](https://docs.djangoproject.com/)

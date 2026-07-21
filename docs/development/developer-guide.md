@@ -16,6 +16,7 @@ This guide helps developers set up, understand, and work with the MatchHire back
 - [Swagger/OpenAPI](#swaggeropenapi)
 - [OpenAPI Generation](#openapi-generation)
 - [Repository Structure](#repository-structure)
+- [Continuous Integration](#continuous-integration)
 
 ## Repository Setup
 
@@ -847,3 +848,188 @@ docker compose exec web python manage.py showmigrations
 - [Docker Documentation](https://docs.docker.com/)
 - [MatchHire Architecture](../architecture/system-overview.md)
 - [Architecture Decision Records](../adr/)
+
+## Continuous Integration
+
+MatchHire uses GitHub Actions for enterprise-grade continuous integration. The CI pipeline automatically validates every pull request before merge.
+
+### CI Pipeline Architecture
+
+The CI pipeline is organized into modular workflows:
+
+- **ci.yml**: Main orchestrator that triggers all quality checks
+- **quality.yml**: Code quality validation (formatting, linting, type checking, pre-commit, Django checks)
+- **test.yml**: Automated testing with coverage reporting
+- **openapi.yml**: OpenAPI schema generation and validation
+- **docker.yml**: Docker image build and validation
+- **security.yml**: Security scanning (dependency audit, CodeQL, secret scanning)
+- **release.yml**: Automated release creation on version tags
+
+### Running CI Checks Locally
+
+Before pushing, run the equivalent checks locally:
+
+```bash
+# Full quality check (format, lint, typecheck, test)
+make verify
+
+# Individual checks
+make format              # Black and Ruff formatting
+make lint                # Ruff linting
+make typecheck           # mypy type checking
+make test                # Django tests
+make test-coverage       # Tests with coverage
+make docs                # OpenAPI schema generation
+```
+
+### CI Workflow Triggers
+
+The CI pipeline runs on:
+
+- **Push** to `main` or `develop` branches
+- **Pull requests** targeting `main` or `develop`
+- **Manual workflow dispatch** (via GitHub Actions UI)
+- **Scheduled runs** (security scanning weekly on Sundays)
+
+### Quality Gates
+
+Every pull request must pass:
+
+1. **Code Formatting**: Black and Ruff format validation
+2. **Linting**: Ruff linting with project-specific rules
+3. **Type Checking**: mypy with Django stubs
+4. **Pre-commit Hooks**: All pre-commit hooks must pass
+5. **Django Checks**: Django deployment checks
+6. **Tests**: Full test suite must pass
+7. **Coverage**: Coverage reports generated (threshold not enforced)
+8. **OpenAPI**: Schema must generate and validate successfully
+9. **Docker**: Docker images must build successfully
+10. **Security**: Dependency audit and CodeQL analysis
+
+### CI Artifacts
+
+The following artifacts are uploaded from CI runs:
+
+- **Coverage Report**: XML coverage report (retained for 30 days)
+- **OpenAPI Schema**: Generated OpenAPI JSON schema (retained for 30 days)
+
+### Debugging CI Failures
+
+#### Format/Lint Failures
+
+```bash
+# Run locally to reproduce
+make format
+make lint
+
+# Check specific files
+black --check backend/
+ruff check backend/
+```
+
+#### Type Check Failures
+
+```bash
+# Run mypy locally
+make typecheck
+
+# Check specific file
+mypy backend/apps/users/models.py
+```
+
+#### Test Failures
+
+```bash
+# Run tests locally
+make test
+
+# Run specific test
+docker compose exec web python manage.py test apps.users.tests
+
+# Run with verbose output
+docker compose exec web python manage.py test --verbosity=2
+```
+
+#### OpenAPI Validation Failures
+
+```bash
+# Generate schema locally
+make docs
+
+# Validate schema
+docker compose exec web python manage.py spectacular --validate
+```
+
+#### Docker Build Failures
+
+```bash
+# Build images locally
+docker compose build
+
+# Check Dockerfile syntax
+docker compose config
+```
+
+#### Security Scan Failures
+
+```bash
+# Run dependency audit locally
+pip install pip-audit safety
+cd backend
+pip-audit --requirements requirements.txt
+safety check --file requirements.txt
+```
+
+### CI Optimization
+
+The CI pipeline uses several optimizations to reduce runtime:
+
+- **Pip Caching**: Python dependencies cached between runs
+- **Docker Layer Caching**: Docker build layers cached
+- **Parallel Jobs**: Quality checks run in parallel
+- **Modular Workflows**: Reusable workflow composition
+- **SQLite for Tests**: Test suite uses in-memory SQLite for speed
+
+### Dependabot
+
+MatchHire uses Dependabot for automated dependency updates:
+
+- **Python dependencies**: Weekly updates on Mondays
+- **GitHub Actions**: Weekly updates on Mondays
+- **Docker base images**: Weekly updates on Mondays
+
+Dependabot updates are grouped by category (Django, ML, database, etc.) and labeled for easy review.
+
+### Security Scanning
+
+Security scanning runs on:
+
+- Every pull request
+- Weekly scheduled runs (Sundays)
+
+Security checks include:
+
+- **pip-audit**: Known vulnerability scanning
+- **safety**: Security vulnerability database check
+- **CodeQL**: Static analysis for security issues
+- **TruffleHog**: Secret scanning in committed code
+
+### CI Status Badge
+
+The repository includes a CI status badge in the README:
+
+```markdown
+[![CI](https://github.com/your-org/matchhire/actions/workflows/ci.yml/badge.svg)]
+```
+
+This badge shows the current status of the main branch CI pipeline.
+
+### Contributing to CI
+
+When modifying CI workflows:
+
+1. Test workflow changes in a feature branch
+2. Use `workflow_dispatch` to test manually
+3. Ensure all jobs complete successfully
+4. Document any new checks in this guide
+5. Update the CI architecture documentation if needed
