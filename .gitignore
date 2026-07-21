@@ -13,5 +13,15 @@ db.sqlite3
 media/
 coverage/
 .pytest_cache/
-.vscode/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+celerybeat-schedule
+schema.yml
+schema.openapi.json
+schema.openapi.yml
+
 

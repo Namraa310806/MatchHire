@@ -1,0 +1,206 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Format Code (Docker)",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "black",
+        "backend/"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Lint Code (Docker)",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "ruff",
+        "check",
+        "backend/"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Type Check (Docker)",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "mypy",
+        "backend/"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Run Tests (Docker)",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "python",
+        "manage.py",
+        "test"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Quality Check (Docker)",
+      "type": "shell",
+      "command": "make",
+      "args": ["check"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Quality Verify (Docker)",
+      "type": "shell",
+      "command": "make",
+      "args": ["verify"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Format Code (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-format"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Lint Code (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-lint"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Type Check (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-typecheck"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Run Tests (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-test"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Quality Check (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-check"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Quality Verify (Local)",
+      "type": "shell",
+      "command": "make",
+      "args": ["local-verify"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Run Migrations",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "python",
+        "manage.py",
+        "migrate"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Create Migrations",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "python",
+        "manage.py",
+        "makemigrations"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Django Shell",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "web",
+        "python",
+        "manage.py",
+        "shell"
+      ],
+      "problemMatcher": [],
+      "isBackground": true
+    }
+  ]
+}

@@ -1,21 +1,49 @@
+# Core Django and Framework
 Django==5.1.7
 djangorestframework==3.15.2
 djangorestframework-simplejwt==5.5.0
 django-cors-headers==4.7.0
+drf-spectacular==0.29.0
+
+# Database
 psycopg2-binary==2.9.10
+
+# Task Queue and Cache
 celery==5.4.0
 redis==5.2.1
+
+# Document Processing
 PyMuPDF==1.25.2
 PyPDF2==3.0.1
 python-docx==1.1.2
+
+# Machine Learning
 scikit-learn==1.6.1
 torch==2.5.1+cpu
 sentence-transformers==3.4.1
-scrapy==2.12.0
-playwright==1.50.0
-PyJWT==2.9.0
-python-decouple==3.8
-gunicorn==23.0.0
 numpy==1.26.4
 pandas==2.2.2
-drf-spectacular==0.29.0
+
+# Web Scraping
+scrapy==2.12.0
+playwright==1.50.0
+
+# Authentication and Security
+PyJWT==2.9.0
+
+# Configuration
+python-decouple==3.8
+
+# Production Server
+gunicorn==23.0.0
+
+# Development Tooling
+black==24.4.2
+ruff==0.4.10
+mypy==1.10.0
+django-stubs==5.0.4
+djangorestframework-stubs==3.15.0
+types-redis==4.6.0
+types-PyYAML==6.0.12
+pre-commit==3.7.1
+coverage==7.6.1

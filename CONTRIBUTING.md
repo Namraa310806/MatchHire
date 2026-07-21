@@ -40,19 +40,24 @@ cd matchhire
 git remote add upstream https://github.com/original-owner/matchhire.git
 ```
 
-4. Copy the development environment file:
+4. Set up development environment:
 ```bash
-cp .env.development .env
+make setup
 ```
 
-5. Build and start the containers:
+5. Install pre-commit hooks:
 ```bash
-docker compose up --build
+make install
 ```
 
-6. Run database migrations:
+6. Build and start the containers:
 ```bash
-docker compose exec web python manage.py migrate
+make docker-up
+```
+
+7. Run database migrations:
+```bash
+make migrate
 ```
 
 ## Development Workflow
@@ -77,10 +82,13 @@ git checkout -b fix/your-bug-fix
 
 ```bash
 # Run tests
-docker compose exec web python manage.py test
+make test
 
 # Run specific app tests
 docker compose exec web python manage.py test apps.your-app
+
+# Run full quality check
+make check
 
 # Check code quality
 docker compose exec web python manage.py check

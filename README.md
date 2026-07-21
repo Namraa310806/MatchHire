@@ -46,17 +46,32 @@ For detailed architecture information, see [Architecture Documentation](docs/arc
 git clone https://github.com/your-org/matchhire.git
 cd matchhire
 
-# Copy development environment file
-cp .env.development .env
+# Set up development environment
+make setup
+
+# Install pre-commit hooks
+make install
 
 # Start the stack
-docker compose up --build
+make docker-up
 
 # Run database migrations
-docker compose exec web python manage.py migrate
+make migrate
 
 # Create a superuser (optional)
-docker compose exec web python manage.py createsuperuser
+make createsuperuser
+```
+
+### Local Development (Optional)
+
+If you prefer to develop without Docker:
+
+```bash
+# Install dependencies locally
+make local-install
+
+# Run quality checks locally
+make local-check
 ```
 
 The application will be available at:
@@ -163,27 +178,34 @@ MatchHire is a **Docker-first** project. All Django management commands must be 
 ### Common Commands
 
 ```bash
+# Show all available commands
+make help
+
 # Database migrations
-docker compose exec web python manage.py makemigrations
-docker compose exec web python manage.py migrate
+make makemigrations
+make migrate
 
 # Run tests
-docker compose exec web python manage.py test
+make test
+make test-coverage
 
-# Run specific app tests
-docker compose exec web python manage.py test apps.matching
+# Code quality
+make format
+make lint
+make typecheck
+make check
 
 # Django shell
-docker compose exec web python manage.py shell
+make shell
 
 # Create superuser
-docker compose exec web python manage.py createsuperuser
+make createsuperuser
 
 # Check configuration
 docker compose exec web python manage.py check
 
 # Generate OpenAPI schema
-docker compose exec web python manage.py spectacular --color --file schema.openapi.json
+make docs
 ```
 
 ### Environment Configuration

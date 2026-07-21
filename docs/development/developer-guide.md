@@ -5,6 +5,7 @@ This guide helps developers set up, understand, and work with the MatchHire back
 ## Table of Contents
 
 - [Repository Setup](#repository-setup)
+- [Development Tooling](#development-tooling)
 - [Running Locally](#running-locally)
 - [Docker Workflow](#docker-workflow)
 - [Environment Variables](#environment-variables)
@@ -52,6 +53,147 @@ docker compose exec web python manage.py migrate
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
+
+## Development Tooling
+
+MatchHire uses modern Python tooling to ensure code quality and consistency across the project.
+
+### Tooling Stack
+
+- **Black**: Code formatter (line length: 100)
+- **Ruff**: Fast linter and formatter
+- **isort**: Import organizer
+- **mypy**: Static type checker
+- **pre-commit**: Git hook automation
+
+### Configuration
+
+All tooling configuration is centralized in `pyproject.toml` at the repository root.
+
+### Pre-commit Hooks
+
+Pre-commit hooks automatically run quality checks before each commit:
+
+```bash
+# Install pre-commit hooks (run once after cloning)
+make install
+
+# Or manually
+pip install pre-commit
+pre-commit install
+```
+
+Hooks run automatically on `git commit`. To run them manually:
+
+```bash
+pre-commit run --all-files
+```
+
+### Make Commands
+
+The project provides a Makefile for common development tasks. Commands are available in two variants:
+
+#### Docker Commands (Recommended)
+
+These commands run inside the Docker container and are the recommended workflow:
+
+```bash
+make help              # Show all available commands
+make setup             # Set up development environment
+make install           # Install pre-commit hooks
+make format            # Format code with Black and Ruff
+make lint              # Run linting with Ruff
+make typecheck         # Run type checking with mypy
+make test              # Run all tests
+make test-coverage     # Run tests with coverage
+make check             # Run all quality checks (format, lint, typecheck, test)
+make verify            # Run comprehensive quality verification (includes Django checks)
+make docs              # Generate OpenAPI schema
+make clean             # Clean up cache and temporary files
+make docker-up         # Start Docker containers
+make docker-down       # Stop Docker containers
+make docker-logs       # View Docker logs
+make shell             # Open shell in web container
+make migrate           # Run database migrations
+make makemigrations    # Create new migrations
+make createsuperuser   # Create Django superuser
+```
+
+#### Local Commands (Non-Docker)
+
+These commands run directly on your local machine (requires local Python environment):
+
+```bash
+make local-install     # Install development dependencies locally
+make local-format      # Format code locally (Black and Ruff)
+make local-lint        # Run linting locally (Ruff)
+make local-typecheck   # Run type checking locally (mypy)
+make local-test        # Run tests locally
+make local-check       # Run all quality checks locally
+make local-verify      # Run comprehensive quality verification locally
+```
+
+**Note**: Docker commands are recommended as they ensure consistent environment with production. Use local commands only when Docker is unavailable or for faster iteration during development.
+
+### Manual Tool Usage
+
+You can also run tools directly through Docker:
+
+```bash
+# Format code
+docker compose exec web black backend/
+docker compose exec web ruff format backend/
+
+# Lint code
+docker compose exec web ruff check backend/
+
+# Type check
+docker compose exec web mypy backend/
+```
+
+### VS Code Support
+
+The repository includes VS Code configuration in `.vscode/`:
+
+- **extensions.json**: Recommended extensions
+- **settings.json**: Editor settings for Python
+- **launch.json**: Debug configurations
+- **tasks.json**: Build and test tasks
+
+Install recommended extensions when opening the project for the first time.
+
+### Code Quality Workflow
+
+Before committing changes, run the full quality check:
+
+```bash
+make check              # Docker-based (recommended)
+make local-check        # Local-based
+```
+
+This command runs:
+1. Code formatting (Black, Ruff)
+2. Linting (Ruff)
+3. Type checking (mypy)
+4. Tests (Django test suite)
+
+For comprehensive verification including Django deployment checks:
+
+```bash
+make verify             # Docker-based (recommended)
+make local-verify       # Local-based
+```
+
+This command runs:
+1. Code formatting check (Black, Ruff)
+2. Linting (Ruff)
+3. Type checking (mypy)
+4. Django deployment checks
+5. Tests (Django test suite)
+
+### EditorConfig
+
+The repository uses EditorConfig (`.editorconfig`) to maintain consistent coding styles across different editors and IDEs. Your editor should automatically apply these settings.
 
 ## Running Locally
 
