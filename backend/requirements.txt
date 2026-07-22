@@ -22,7 +22,7 @@ scikit-learn==1.6.1
 torch==2.5.1+cpu
 sentence-transformers==3.4.1
 numpy==1.26.4
-pandas==2.2.2
+pandas==3.0.3
 
 # Web Scraping
 scrapy==2.12.0
