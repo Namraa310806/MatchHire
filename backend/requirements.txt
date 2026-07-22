@@ -6,11 +6,11 @@ django-cors-headers==4.7.0
 drf-spectacular==0.29.0
 
 # Database
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.12
 
 # Task Queue and Cache
 celery==5.4.0
-redis==5.2.1
+redis==8.0.1
 
 # Document Processing
 PyMuPDF==1.25.2
