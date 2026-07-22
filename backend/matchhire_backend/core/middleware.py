@@ -18,6 +18,7 @@ class RequestIDMiddleware(MiddlewareMixin):
     - Reuses client-provided X-Request-ID header if present
     - Adds request_id to request object for use in views and logging
     - Adds X-Request-ID to response headers
+    - Stores user_id in thread-local for logging context
     """
     
     REQUEST_ID_HEADER = "HTTP_X_REQUEST_ID"
@@ -29,14 +30,22 @@ class RequestIDMiddleware(MiddlewareMixin):
         request.id = request_id
         # Store in thread-local for logging filter access
         RequestIDFilter.request_id = request_id
+        
+        # Store user_id if authenticated
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            RequestIDFilter.user_id = str(request.user.id)
+        else:
+            RequestIDFilter.user_id = None
+        
         return None
     
     def process_response(self, request, response):
         """Add request ID to response headers."""
         if hasattr(request, 'id'):
             response[self.RESPONSE_HEADER] = request.id
-        # Clear thread-local request ID
+        # Clear thread-local request ID and user ID
         RequestIDFilter.request_id = None
+        RequestIDFilter.user_id = None
         return response
     
     def _get_or_generate_request_id(self, request):
@@ -60,14 +69,21 @@ class RequestIDFilter(logging.Filter):
     """
     Logging filter to inject request_id into log records.
     
-    This filter adds the request_id to each log record if available.
+    This filter adds the request_id and user_id to each log record if available.
     """
     request_id = None
+    user_id = None
     
     def filter(self, record):
-        """Add request_id to log record if available."""
+        """Add request_id and user_id to log record if available."""
         if self.request_id:
             record.request_id = self.request_id
         else:
             record.request_id = None
+        
+        if self.user_id:
+            record.user_id = self.user_id
+        else:
+            record.user_id = None
+        
         return True

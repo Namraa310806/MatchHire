@@ -12,7 +12,8 @@ This guide covers deploying MatchHire to production using Docker Compose on a Li
 6. [Scaling Services](#scaling-services)
 7. [Updating Deployments](#updating-deployments)
 8. [Monitoring](#monitoring)
-9. [Troubleshooting](#troubleshooting)
+9. [Observability](#observability)
+10. [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -246,24 +247,109 @@ docker compose -f docker-compose.prod.yml logs -f
 
 # Specific service
 docker compose -f docker-compose.prod.yml logs -f web
-
-# Last 100 lines
-docker compose -f docker-compose.prod.yml logs --tail=100 web
 ```
 
-### Resource Monitoring
+### Health Checks
 
 ```bash
-# Container stats
-docker stats
+# Basic health check
+curl https://your-domain.com/api/v1/health/
 
-# Disk usage
-docker system df
+# Readiness check
+curl https://your-domain.com/api/v1/health/ready
 
-# Volume usage
-docker volume ls
-docker volume inspect matchhire_postgres_data_prod
+# Detailed health check
+curl https://your-domain.com/api/v1/health/detailed
+
+# Version information
+curl https://your-domain.com/api/v1/health/version
 ```
+
+## Observability
+
+MatchHire includes comprehensive observability features for production monitoring.
+
+### Metrics Endpoint
+
+The application exposes Prometheus metrics at `/api/v1/metrics/`.
+
+```bash
+# View metrics
+curl https://your-domain.com/api/v1/metrics/
+```
+
+### Structured Logging
+
+Production logs are formatted as JSON for easy parsing and analysis.
+
+**Log Fields**:
+- `timestamp`: ISO 8601 format
+- `level`: Log level (INFO, ERROR, etc.)
+- `logger`: Logger name
+- `message`: Log message
+- `request_id`: Correlation ID for request tracing
+- `user_id`: User ID (when available)
+- `service`: Service name ("matchhire-backend")
+- `environment`: Environment (production)
+
+### Request Correlation
+
+Every request includes a unique `X-Request-ID` header for distributed tracing.
+
+```bash
+# View request ID in response
+curl -I https://your-domain.com/api/v1/jobs/
+# X-Request-ID: 550e8400-e29b-41d4-a716-446655440000
+```
+
+### Sentry Error Tracking
+
+Configure Sentry for error monitoring by setting the following environment variables:
+
+```bash
+SENTRY_DSN=https://your-sentry-dsn
+SENTRY_RELEASE=1.0.0
+SENTRY_TRACES_SAMPLE_RATE=0.1
+SENTRY_ERROR_SAMPLE_RATE=1.0
+```
+
+### Monitoring Stack Integration
+
+For comprehensive monitoring, integrate with:
+
+**Prometheus**:
+```yaml
+scrape_configs:
+  - job_name: 'matchhire-backend'
+    static_configs:
+      - targets: ['web:8000']
+    metrics_path: '/api/v1/metrics/'
+    scrape_interval: 15s
+```
+
+**Grafana**:
+- Import dashboard from `docs/monitoring/grafana-dashboards.json`
+- Configure Prometheus data source
+- Set up alerting rules
+
+**Alerting**:
+- See `docs/monitoring/alerting-recommendations.md` for alert configuration
+- Configure Alertmanager for notification routing
+- Set up PagerDuty/Slack integration
+
+### Operational Runbooks
+
+Comprehensive runbooks are available for common incidents:
+- [High Error Rate](../runbooks/high-error-rate.md)
+- [Database Outage](../runbooks/database-outage.md)
+- [High Latency](../runbooks/high-latency.md)
+- [Redis Outage](../runbooks/redis-outage.md)
+- [Queue Backlog](../runbooks/queue-backlog.md)
+- [Worker Offline](../runbooks/worker-offline.md)
+- [High CPU Usage](../runbooks/high-cpu-usage.md)
+- [High Memory Usage](../runbooks/high-memory-usage.md)
+
+For detailed observability architecture, see [Observability Documentation](../architecture/observability.md).
 
 ## Troubleshooting
 

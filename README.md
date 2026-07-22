@@ -84,9 +84,11 @@ The application will be available at:
 
 - **[Developer Guide](docs/development/developer-guide.md)**: Comprehensive setup and development instructions
 - **[Architecture Documentation](docs/architecture/system-overview.md)**: System architecture and design decisions
+- **[Observability Documentation](docs/architecture/observability.md)**: Monitoring, logging, and metrics architecture
 - **[Coding Standards](docs/development/coding-standards.md)**: Code style and best practices
 - **[API Documentation](docs/api/)**: API reference (OpenAPI/Swagger)
 - **[Deployment Guide](docs/deployment/)**: Production deployment instructions
+- **[Monitoring Documentation](docs/monitoring/)**: Monitoring setup, dashboards, and runbooks
 - **[Architecture Decision Records](docs/adr/)**: Technical decision documentation
 - **[Contributing Guide](CONTRIBUTING.md)**: How to contribute to the project
 
@@ -140,6 +142,10 @@ matchhire/
 │   ├── matchhire_backend/     # Django project configuration
 │   │   ├── api/              # API-level views and URLs
 │   │   ├── core/             # Cross-cutting concerns
+│   │   │   ├── logging_config.py    # Structured logging configuration
+│   │   │   ├── metrics.py            # Prometheus metrics
+│   │   │   ├── sentry_config.py      # Sentry error tracking
+│   │   │   └── middleware.py        # Request correlation middleware
 │   │   ├── settings/         # Environment-specific settings
 │   │   ├── celery.py         # Celery configuration
 │   │   └── urls.py           # Root URL configuration
@@ -151,10 +157,25 @@ matchhire/
 ├── scripts/                    # Utility scripts
 ├── docs/                       # Documentation
 │   ├── architecture/          # Architecture documentation
+│   │   ├── system-overview.md
+│   │   └── observability.md   # Monitoring and observability architecture
 │   ├── adr/                   # Architecture Decision Records
 │   ├── api/                   # API documentation
 │   ├── deployment/            # Deployment guides
 │   ├── development/           # Developer guides
+│   ├── monitoring/            # Monitoring documentation
+│   │   ├── grafana-dashboards.json
+│   │   ├── alerting-recommendations.md
+│   │   └── container-monitoring.md
+│   ├── runbooks/              # Operational runbooks
+│   │   ├── high-error-rate.md
+│   │   ├── database-outage.md
+│   │   ├── high-latency.md
+│   │   ├── redis-outage.md
+│   │   ├── queue-backlog.md
+│   │   ├── worker-offline.md
+│   │   ├── high-cpu-usage.md
+│   │   └── high-memory-usage.md
 │   └── guides/                # User guides
 ├── .env.development           # Development environment template
 ├── .env.production.example    # Production environment template
@@ -245,6 +266,7 @@ MatchHire includes several security features:
 - XSS prevention via DRF serializers
 - httpOnly cookies to prevent XSS token theft
 - SameSite=Lax to prevent CSRF attacks
+- Sentry error tracking for security incident monitoring
 
 For security policies and vulnerability reporting, see [SECURITY.md](SECURITY.md).
 

@@ -18,6 +18,7 @@ from .serializers import (
 )
 from .services.workflow import InterviewWorkflowService
 from matchhire_backend.core.validators import validate_uuid
+from matchhire_backend.core.metrics import track_interview_scheduled
 
 User = get_user_model()
 
@@ -139,6 +140,13 @@ class ApplicationInterviewsListView(APIView):
             created_by=request.user,
             **serializer.validated_data,
         )
+
+        # Track business metric
+        try:
+            track_interview_scheduled()
+        except Exception:
+            # Don't fail the request if metrics tracking fails
+            pass
 
         response_serializer = InterviewDetailSerializer(interview)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

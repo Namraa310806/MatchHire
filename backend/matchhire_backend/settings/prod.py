@@ -4,6 +4,7 @@ from .base import *  # noqa: F401,F403
 
 
 DEBUG = False
+ENVIRONMENT = "production"
 _production_env = validate_production_env()
 
 SECRET_KEY = _production_env["SECRET_KEY"]
@@ -39,46 +40,6 @@ DATABASES["default"]["OPTIONS"] = {
     "connect_timeout": 10,
 }
 
-# Production logging configuration (JSON format for container environments)
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "json": {
-            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
-        },
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "json",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "django.db.backends": {
-            "handlers": ["console"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "celery": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-}
+# Reconfigure logging for production (JSON format)
+from matchhire_backend.core.logging_config import configure_logging
+configure_logging("production")

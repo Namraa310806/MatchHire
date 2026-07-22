@@ -4,7 +4,8 @@ from pathlib import Path
 from decouple import Csv
 
 from matchhire_backend.core.env import get_env
-from matchhire_backend.core.middleware import RequestIDFilter
+from matchhire_backend.core.logging_config import configure_logging
+from matchhire_backend.core.sentry_config import init_sentry
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -71,6 +72,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "matchhire_backend.core.metrics_middleware.PrometheusMetricsMiddleware",
 ]
 
 ROOT_URLCONF = "matchhire_backend.urls"
@@ -209,94 +211,10 @@ SPECTACULAR_SETTINGS = {
     ],
 }
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {request_id} {message}",
-            "style": "{",
-        },
-        "simple": {
-            "format": "{levelname} {message}",
-            "style": "{",
-        },
-    },
-    "filters": {
-        "require_debug_true": {
-            "()": "django.utils.log.RequireDebugTrue",
-        },
-        "request_id_filter": {
-            "()": "matchhire_backend.core.middleware.RequestIDFilter",
-        },
-    },
-    "handlers": {
-        "console": {
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "filters": ["request_id_filter"],
-        },
-        "request": {
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "filters": ["request_id_filter"],
-        },
-        "error": {
-            "level": "ERROR",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "filters": ["request_id_filter"],
-        },
-        "security": {
-            "level": "WARNING",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "filters": ["request_id_filter"],
-        },
-        "celery": {
-            "level": "INFO",
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": True,
-        },
-        "django.request": {
-            "handlers": ["request"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "django.server": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "matchhire": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": True,
-        },
-        "matchhire.exceptions": {
-            "handlers": ["error"],
-            "level": "ERROR",
-            "propagate": False,
-        },
-        "matchhire.security": {
-            "handlers": ["security"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "celery": {
-            "handlers": ["celery"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-}
+# Configure logging based on environment
+ENVIRONMENT = get_env("ENVIRONMENT", default="development")
+configure_logging(ENVIRONMENT)
+
+# Initialize Sentry for error monitoring
+init_sentry()
 

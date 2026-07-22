@@ -19,6 +19,7 @@ from .serializers import (
 )
 from .services.workflow import ApplicationWorkflowService
 from matchhire_backend.core.validators import validate_uuid
+from matchhire_backend.core.metrics import track_application_submission
 
 User = get_user_model()
 
@@ -115,6 +116,13 @@ class JobApplyView(APIView):
             candidate=request.user,
             resume_version=resume_version,
         )
+
+        # Track business metric
+        try:
+            track_application_submission()
+        except Exception:
+            # Don't fail the request if metrics tracking fails
+            pass
 
         response_serializer = ApplicationDetailSerializer(application)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

@@ -20,6 +20,7 @@ from .serializers import (
     JobSearchPagination,
 )
 from matchhire_backend.core.validators import validate_uuid, validate_ordering, validate_search_length
+from matchhire_backend.core.metrics import track_job_creation
 
 User = get_user_model()
 
@@ -54,6 +55,14 @@ class JobCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         job = serializer.save()
+        
+        # Track business metric
+        try:
+            track_job_creation()
+        except Exception:
+            # Don't fail the request if metrics tracking fails
+            pass
+        
         response_serializer = JobDetailSerializer(job)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 

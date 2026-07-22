@@ -30,6 +30,7 @@ from .services.versioning import ResumeVersioningService
 from .services.extraction_service import ResumeExtractionService
 from .services.search_service import ResumeSearchService
 from matchhire_backend.core.validators import validate_uuid, validate_ordering, validate_search_length
+from matchhire_backend.core.metrics import track_resume_upload
 
 User = get_user_model()
 
@@ -175,6 +176,13 @@ class ResumeUploadView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         resume_version = serializer.save()
+
+        # Track business metric
+        try:
+            track_resume_upload()
+        except Exception:
+            # Don't fail the request if metrics tracking fails
+            pass
 
         response_serializer = ResumeVersionSerializer(resume_version)
         return Response(

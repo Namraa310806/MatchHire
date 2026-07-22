@@ -13,6 +13,14 @@ class CoreConfig(AppConfig):
         if os.environ.get("MATCHHIRE_SKIP_STARTUP_CHECKS") == "1":
             return
 
+        # Initialize Prometheus metrics
+        try:
+            from .metrics import init_metrics
+            init_metrics()
+        except Exception:
+            # Don't fail startup if metrics initialization fails
+            pass
+
         from .startup_checks import run_startup_checks
 
         run_startup_checks()
