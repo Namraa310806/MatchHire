@@ -16,6 +16,7 @@ from apps.matching.serializers import (
     CandidateMatchSerializer,
 )
 from apps.users.permissions import IsCandidate, IsRecruiter
+from apps.core.cache import CacheService
 
 User = get_user_model()
 
@@ -105,21 +106,34 @@ class JobRecommendationsView(APIView):
 
     def get(self, request):
         """Get job recommendations for candidate"""
-        # Get all ACTIVE jobs with query optimization
-        active_jobs = Job.objects.filter(status=Job.JobStatus.ACTIVE).select_related("recruiter")
+        # PERFORMANCE OPTIMIZATION: Use pre-calculated JobMatch records instead of calculating on-the-fly
+        # This reduces query count from O(N) to O(1) where N is the number of active jobs
+        # Additionally, cache the results for improved performance
         
-        # Calculate matches for all active jobs
-        recommendations = []
-        for job in active_jobs:
-            job_match = MatchingService.calculate_match(request.user, job)
-            recommendations.append(job_match)
+        cache_key = CacheService.get_key('job_recommendations', str(request.user.id))
         
-        # Sort by match score descending and limit to 20
-        recommendations.sort(key=lambda x: x.match_score, reverse=True)
-        recommendations = recommendations[:20]
+        def compute_recommendations():
+            recommendations = JobMatch.objects.filter(
+                candidate=request.user,
+                job__status=Job.JobStatus.ACTIVE
+            ).select_related(
+                "job",
+                "job__recruiter"
+            ).order_by(
+                "-match_score",
+                "-calculated_at"
+            )[:20]
+            
+            serializer = JobRecommendationSerializer(recommendations, many=True)
+            return serializer.data
         
-        serializer = JobRecommendationSerializer(recommendations, many=True)
-        return Response(serializer.data)
+        data = CacheService.get_or_set(
+            cache_key,
+            compute_recommendations,
+            ttl=CacheService.TTL_CONFIG['job_recommendations']
+        )
+        
+        return Response(data)
 
 
 @extend_schema(
@@ -164,17 +178,16 @@ class RecruiterCandidatesView(APIView):
         except Job.DoesNotExist:
             raise Http404("Job not found")
         
-        # Get all candidates
-        candidates = User.objects.filter(role=User.Roles.CANDIDATE)
-        
-        # Calculate matches for all candidates
-        candidate_matches = []
-        for candidate in candidates:
-            job_match = MatchingService.calculate_match(candidate, job)
-            candidate_matches.append(job_match)
-        
-        # Sort by match score descending
-        candidate_matches.sort(key=lambda x: x.match_score, reverse=True)
+        # PERFORMANCE OPTIMIZATION: Use pre-calculated JobMatch records instead of calculating on-the-fly
+        # This reduces query count from O(N) to O(1) where N is the number of candidates
+        candidate_matches = JobMatch.objects.filter(
+            job=job
+        ).select_related(
+            "candidate"
+        ).order_by(
+            "-match_score",
+            "-calculated_at"
+        )
         
         serializer = CandidateMatchSerializer(candidate_matches, many=True)
         return Response(serializer.data)

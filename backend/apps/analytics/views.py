@@ -12,6 +12,7 @@ from apps.jobs.models import Job
 from apps.jobs.permissions import IsJobOwner
 from apps.matching.models import JobMatch
 from apps.users.permissions import IsCandidate, IsRecruiter
+from apps.core.cache import CacheService
 
 from .serializers import (
     RecruiterDashboardSerializer,
@@ -46,45 +47,55 @@ class RecruiterDashboardView(APIView):
     throttle_scope = 'analytics'
 
     def get(self, request):
-        """Get recruiter dashboard analytics with query optimization"""
+        """Get recruiter dashboard analytics with query optimization and caching"""
         recruiter = request.user
         
-        # Get job metrics in a single query
-        job_metrics = Job.objects.filter(recruiter=recruiter).aggregate(
-            total_jobs=Count('id'),
-            active_jobs=Count('id', filter=Q(status=Job.JobStatus.ACTIVE)),
-            closed_jobs=Count('id', filter=Q(status=Job.JobStatus.CLOSED)),
-        )
+        # PERFORMANCE OPTIMIZATION: Cache dashboard metrics
+        cache_key = CacheService.get_key('dashboard_metrics', str(recruiter.id), 'recruiter')
         
-        # Get application metrics in a single query
-        # Filter applications for jobs owned by this recruiter
-        application_metrics = Application.objects.filter(
-            job__recruiter=recruiter
-        ).aggregate(
-            total_applications=Count('id'),
-            submitted_applications=Count('id', filter=Q(status=Application.ApplicationStatus.SUBMITTED)),
-            under_review_applications=Count('id', filter=Q(status=Application.ApplicationStatus.UNDER_REVIEW)),
-            shortlisted_applications=Count('id', filter=Q(status=Application.ApplicationStatus.SHORTLISTED)),
-            rejected_applications=Count('id', filter=Q(status=Application.ApplicationStatus.REJECTED)),
-            hired_applications=Count('id', filter=Q(status=Application.ApplicationStatus.HIRED)),
-        )
+        def compute_dashboard():
+            # Get job metrics in a single query
+            job_metrics = Job.objects.filter(recruiter=recruiter).aggregate(
+                total_jobs=Count('id'),
+                active_jobs=Count('id', filter=Q(status=Job.JobStatus.ACTIVE)),
+                closed_jobs=Count('id', filter=Q(status=Job.JobStatus.CLOSED)),
+            )
+            
+            # Get application metrics in a single query
+            # Filter applications for jobs owned by this recruiter
+            application_metrics = Application.objects.filter(
+                job__recruiter=recruiter
+            ).aggregate(
+                total_applications=Count('id'),
+                submitted_applications=Count('id', filter=Q(status=Application.ApplicationStatus.SUBMITTED)),
+                under_review_applications=Count('id', filter=Q(status=Application.ApplicationStatus.UNDER_REVIEW)),
+                shortlisted_applications=Count('id', filter=Q(status=Application.ApplicationStatus.SHORTLISTED)),
+                rejected_applications=Count('id', filter=Q(status=Application.ApplicationStatus.REJECTED)),
+                hired_applications=Count('id', filter=Q(status=Application.ApplicationStatus.HIRED)),
+            )
+            
+            # Get interview metrics in a single query
+            # Filter interviews for applications on jobs owned by this recruiter
+            interview_metrics = Interview.objects.filter(
+                application__job__recruiter=recruiter
+            ).aggregate(
+                scheduled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.SCHEDULED)),
+                completed_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.COMPLETED)),
+                cancelled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.CANCELLED)),
+            )
+            
+            # Combine all metrics
+            return {
+                **job_metrics,
+                **application_metrics,
+                **interview_metrics,
+            }
         
-        # Get interview metrics in a single query
-        # Filter interviews for applications on jobs owned by this recruiter
-        interview_metrics = Interview.objects.filter(
-            application__job__recruiter=recruiter
-        ).aggregate(
-            scheduled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.SCHEDULED)),
-            completed_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.COMPLETED)),
-            cancelled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.CANCELLED)),
+        data = CacheService.get_or_set(
+            cache_key,
+            compute_dashboard,
+            ttl=CacheService.TTL_CONFIG['dashboard_metrics']
         )
-        
-        # Combine all metrics
-        data = {
-            **job_metrics,
-            **application_metrics,
-            **interview_metrics,
-        }
         
         serializer = RecruiterDashboardSerializer(data)
         return Response(serializer.data)
@@ -112,48 +123,60 @@ class CandidateDashboardView(APIView):
     throttle_scope = 'analytics'
 
     def get(self, request):
-        """Get candidate dashboard analytics with query optimization"""
+        """Get candidate dashboard analytics with query optimization and caching"""
         candidate = request.user
         
-        # Get application metrics in a single query
-        application_metrics = Application.objects.filter(
-            candidate=candidate
-        ).aggregate(
-            total_applications=Count('id'),
-            submitted=Count('id', filter=Q(status=Application.ApplicationStatus.SUBMITTED)),
-            under_review=Count('id', filter=Q(status=Application.ApplicationStatus.UNDER_REVIEW)),
-            shortlisted=Count('id', filter=Q(status=Application.ApplicationStatus.SHORTLISTED)),
-            rejected=Count('id', filter=Q(status=Application.ApplicationStatus.REJECTED)),
-            hired=Count('id', filter=Q(status=Application.ApplicationStatus.HIRED)),
+        # PERFORMANCE OPTIMIZATION: Cache dashboard metrics
+        cache_key = CacheService.get_key('dashboard_metrics', str(candidate.id), 'candidate')
+        
+        def compute_dashboard():
+            # Get application metrics in a single query
+            application_metrics = Application.objects.filter(
+                candidate=candidate
+            ).aggregate(
+                total_applications=Count('id'),
+                submitted=Count('id', filter=Q(status=Application.ApplicationStatus.SUBMITTED)),
+                under_review=Count('id', filter=Q(status=Application.ApplicationStatus.UNDER_REVIEW)),
+                shortlisted=Count('id', filter=Q(status=Application.ApplicationStatus.SHORTLISTED)),
+                rejected=Count('id', filter=Q(status=Application.ApplicationStatus.REJECTED)),
+                hired=Count('id', filter=Q(status=Application.ApplicationStatus.HIRED)),
+            )
+            
+            # Get interview metrics in a single query
+            interview_metrics = Interview.objects.filter(
+                application__candidate=candidate
+            ).aggregate(
+                scheduled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.SCHEDULED)),
+                completed_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.COMPLETED)),
+                cancelled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.CANCELLED)),
+            )
+            
+            # Get match metrics in a single query
+            match_metrics = JobMatch.objects.filter(
+                candidate=candidate
+            ).aggregate(
+                total_matches=Count('id'),
+                average_match_score=Avg('match_score'),
+            )
+            
+            # Combine all metrics
+            data = {
+                **application_metrics,
+                **interview_metrics,
+                **match_metrics,
+            }
+            
+            # Handle None values for average_match_score when no matches exist
+            if data['average_match_score'] is None:
+                data['average_match_score'] = 0.0
+            
+            return data
+        
+        data = CacheService.get_or_set(
+            cache_key,
+            compute_dashboard,
+            ttl=CacheService.TTL_CONFIG['dashboard_metrics']
         )
-        
-        # Get interview metrics in a single query
-        interview_metrics = Interview.objects.filter(
-            application__candidate=candidate
-        ).aggregate(
-            scheduled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.SCHEDULED)),
-            completed_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.COMPLETED)),
-            cancelled_interviews=Count('id', filter=Q(status=Interview.InterviewStatus.CANCELLED)),
-        )
-        
-        # Get match metrics in a single query
-        match_metrics = JobMatch.objects.filter(
-            candidate=candidate
-        ).aggregate(
-            total_matches=Count('id'),
-            average_match_score=Avg('match_score'),
-        )
-        
-        # Combine all metrics
-        data = {
-            **application_metrics,
-            **interview_metrics,
-            **match_metrics,
-        }
-        
-        # Handle None values for average_match_score when no matches exist
-        if data['average_match_score'] is None:
-            data['average_match_score'] = 0.0
         
         serializer = CandidateDashboardSerializer(data)
         return Response(serializer.data)

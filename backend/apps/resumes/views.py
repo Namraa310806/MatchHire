@@ -214,7 +214,25 @@ class ResumeListView(APIView):
 
     def get(self, request):
         """List all resumes for the current user"""
-        resumes = Resume.objects.filter(user=request.user).order_by("-created_at")
+        # PERFORMANCE OPTIMIZATION: Use prefetch_related with Prefetch to fetch current versions
+        # This eliminates N+1 queries in ResumeListSerializer.get_current_version()
+        from django.db.models import Prefetch
+        
+        current_version_prefetch = Prefetch(
+            'versions',
+            queryset=ResumeVersion.objects.filter(is_current=True).select_related(
+                'parsed_resume',
+                'structured_resume'
+            ),
+            to_attr='current_version_prefetch'
+        )
+        
+        resumes = Resume.objects.filter(
+            user=request.user
+        ).prefetch_related(
+            current_version_prefetch
+        ).order_by("-created_at")
+        
         serializer = ResumeListSerializer(resumes, many=True)
         return Response(serializer.data)
 

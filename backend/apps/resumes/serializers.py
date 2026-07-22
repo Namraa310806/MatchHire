@@ -70,7 +70,18 @@ class ResumeListSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at", "current_version")
 
     def get_current_version(self, obj):
-        """Get the current version data"""
+        """
+        Get the current version data.
+        
+        PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
+        The view should prefetch current versions with Prefetch object.
+        """
+        # Check if data was prefetched by the view
+        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+            current_version = obj.current_version_prefetch[0]
+            return ResumeVersionSerializer(current_version).data
+        
+        # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
             return ResumeVersionSerializer(current_version).data
@@ -93,7 +104,18 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at", "current_version")
 
     def get_current_version(self, obj):
-        """Get the current version data"""
+        """
+        Get the current version data.
+        
+        PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
+        The view should prefetch current versions with Prefetch object.
+        """
+        # Check if data was prefetched by the view
+        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+            current_version = obj.current_version_prefetch[0]
+            return ResumeVersionSerializer(current_version).data
+        
+        # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
             return ResumeVersionSerializer(current_version).data
@@ -115,7 +137,18 @@ class ResumeActivationSerializer(serializers.ModelSerializer):
         )
 
     def get_current_version(self, obj: Resume) -> dict:
-        """Get the current version data"""
+        """
+        Get the current version data.
+        
+        PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
+        The view should prefetch current versions with Prefetch object.
+        """
+        # Check if data was prefetched by the view
+        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+            current_version = obj.current_version_prefetch[0]
+            return ResumeVersionSerializer(current_version).data
+        
+        # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
             return ResumeVersionSerializer(current_version).data
@@ -330,23 +363,48 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     certification_count = serializers.SerializerMethodField()
 
     def get_skills(self, obj):
-        """Get list of skill names"""
+        """
+        Get list of skill names.
+        
+        PERFORMANCE NOTE: This method requires prefetch_related('skills') on the queryset
+        to avoid N+1 queries. The ResumeSearchService already includes this optimization.
+        """
         return [skill.name for skill in obj.skills.all()]
 
     def get_experience_count(self, obj):
-        """Get count of experience entries"""
+        """
+        Get count of experience entries.
+        
+        PERFORMANCE NOTE: This method requires prefetch_related('experience') on the queryset
+        to avoid N+1 queries. The ResumeSearchService already includes this optimization.
+        """
         return obj.experience.count()
 
     def get_education_count(self, obj):
-        """Get count of education entries"""
+        """
+        Get count of education entries.
+        
+        PERFORMANCE NOTE: This method requires prefetch_related('education') on the queryset
+        to avoid N+1 queries. The ResumeSearchService already includes this optimization.
+        """
         return obj.education.count()
 
     def get_project_count(self, obj):
-        """Get count of project entries"""
+        """
+        Get count of project entries.
+        
+        PERFORMANCE NOTE: This method requires prefetch_related('projects') on the queryset
+        to avoid N+1 queries. The ResumeSearchService already includes this optimization.
+        """
         return obj.projects.count()
 
     def get_certification_count(self, obj):
-        """Get count of certification entries"""
+        """
+        Get count of certification entries.
+        
+        PERFORMANCE NOTE: This method requires prefetch_related('certifications') on the queryset
+        to avoid N+1 queries. The ResumeSearchService already includes this optimization.
+        """
         return obj.certifications.count()
 
 

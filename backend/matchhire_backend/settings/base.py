@@ -60,6 +60,13 @@ INSTALLED_APPS = [
     "apps.admin.apps.AdminConfig",
 ]
 
+# Performance profiling tools (only in development)
+if DEBUG:
+    INSTALLED_APPS.extend([
+        "debug_toolbar",
+        "querycount",
+    ])
+
 AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
@@ -74,6 +81,10 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "matchhire_backend.core.metrics_middleware.PrometheusMetricsMiddleware",
 ]
+
+# Add Django Debug Toolbar middleware in development
+if DEBUG:
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "matchhire_backend.urls"
 
@@ -217,4 +228,31 @@ configure_logging(ENVIRONMENT)
 
 # Initialize Sentry for error monitoring
 init_sentry()
+
+# Performance profiling configuration (only in development)
+if DEBUG:
+    # Django Debug Toolbar
+    INTERNAL_IPS = get_env("INTERNAL_IPS", default="127.0.0.1,localhost", cast=Csv())
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TEMPLATE_CONTEXT": True,
+        "ENABLE_STACKTRACES": True,
+        "SHOW_COOKIES": True,
+        "SHOW_HEADERS": True,
+    }
+    
+    # django-querycount
+    QUERYCOUNT = {
+        "DISPLAY": True,
+        "DISPLAY_NUM_QUERIES": True,
+        "DISPLAY_THRESHOLD": 5,  # Highlight queries that execute more than 5 times
+        "IGNORE_REQUEST_PATTERNS": [
+            r"^/static/",
+            r"^/media/",
+            r"^/favicon",
+            r"^/__debug__",
+        ],
+        "IGNORE_SQL_PATTERNS": [
+            r"SELECT.*FROM django_migrations",
+        ],
+    }
 
