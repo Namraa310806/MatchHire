@@ -70,6 +70,10 @@ def worker_abort(worker):
     """Called when a worker received the SIGABRT signal."""
     pass
 
+def child_exit(server, worker):
+    """Called just after a worker has been exited."""
+    pass
+
 def nworkers_changed(server, new_value, old_value):
     """Called just after num_workers changed."""
     pass

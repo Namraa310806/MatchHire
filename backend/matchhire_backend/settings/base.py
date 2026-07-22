@@ -80,6 +80,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "matchhire_backend.core.metrics_middleware.PrometheusMetricsMiddleware",
+    "matchhire_backend.core.security_headers.SecurityHeadersMiddleware",
 ]
 
 # Add Django Debug Toolbar middleware in development

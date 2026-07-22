@@ -20,6 +20,7 @@ from .serializers import (
 )
 from .models import User
 from matchhire_backend.core.security_audit import SecurityAuditService
+from matchhire_backend.core.ip_throttling import IPLoginRateThrottle, IPRegistrationRateThrottle
 
 
 def _cookie_max_age(token_lifetime):
@@ -99,6 +100,7 @@ def _build_authenticated_response(user, message, status_code=status.HTTP_200_OK)
 )
 class LoginView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_classes = (IPLoginRateThrottle,)
 	throttle_scope = 'login'
 
 	def post(self, request):
@@ -161,6 +163,7 @@ class LoginView(APIView):
 )
 class CandidateRegistrationView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_classes = (IPRegistrationRateThrottle,)
 	throttle_scope = 'registration'
 
 	def post(self, request):
@@ -201,6 +204,7 @@ class CandidateRegistrationView(APIView):
 )
 class RecruiterRegistrationView(APIView):
 	permission_classes = (AllowAny,)
+	throttle_classes = (IPRegistrationRateThrottle,)
 	throttle_scope = 'registration'
 
 	def post(self, request):
