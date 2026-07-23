@@ -1,0 +1,13 @@
+export { DashboardPage } from './DashboardPage';
+export { CompanyProfilePage } from './CompanyProfilePage';
+export { CreateJobPage } from './CreateJobPage';
+export { EditJobPage } from './EditJobPage';
+export { JobsPage } from './JobsPage';
+export { CandidateSearchPage } from './CandidateSearchPage';
+export { CandidateProfilePage } from './CandidateProfilePage';
+export { RecommendationsPage } from './RecommendationsPage';
+export { ApplicationPipelinePage } from './ApplicationPipelinePage';
+export { InterviewCalendarPage } from './InterviewCalendarPage';
+export { AnalyticsPage } from './AnalyticsPage';
+export { NotificationsPage } from './NotificationsPage';
+export { SettingsPage } from './SettingsPage';
