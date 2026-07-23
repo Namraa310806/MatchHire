@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.analytics.apps.AnalyticsConfig",
     "apps.admin.apps.AdminConfig",
+    "apps.search.apps.SearchConfig",
 ]
 
 # Performance profiling tools (only in development, not in tests)
@@ -245,6 +246,74 @@ configure_logging(ENVIRONMENT)
 
 # Initialize Sentry for error monitoring
 init_sentry()
+
+# Search configuration
+SEARCH_PROVIDER = get_env("SEARCH_PROVIDER", default="postgresql")
+
+SEARCH_CONFIG = {
+    "postgresql": {
+        "connection": "default",
+    },
+    "elasticsearch": {
+        "hosts": get_env("ELASTICSEARCH_HOSTS", default="http://localhost:9200", cast=Csv()),
+        "index_prefix": "matchhire",
+        "timeout": get_env("SEARCH_TIMEOUT", default=30, cast=int),
+    },
+    "opensearch": {
+        "hosts": get_env("OPENSEARCH_HOSTS", default="http://localhost:9200", cast=Csv()),
+        "index_prefix": "matchhire",
+        "timeout": get_env("SEARCH_TIMEOUT", default=30, cast=int),
+    },
+}
+
+SEARCH_PAGE_SIZE = 20
+SEARCH_MAX_PAGE_SIZE = 100
+SEARCH_AUTOCOMPLETE_LIMIT = 10
+SEARCH_MAX_AUTOCOMPLETE_LIMIT = 50
+SEARCH_TIMEOUT = 30
+
+SEARCH_CACHE_CONFIG = {
+    "enabled": get_env("SEARCH_CACHE_ENABLED", default=False, cast=bool),
+    "backend": "redis",
+    "ttl": {
+        "search_results": 300,  # 5 minutes
+        "autocomplete": 3600,  # 1 hour
+        "facets": 600,  # 10 minutes
+    },
+}
+
+SEARCH_FEATURE_FLAGS = {
+    "full_text_search": True,
+    "autocomplete": True,
+    "faceting": False,  # Will be enabled with Elasticsearch
+    "vector_search": False,  # Will be enabled in future phase
+    "hybrid_search": False,  # Will be enabled in future phase
+}
+
+SEARCH_RANKING_CONFIG = {
+    "default_strategy": "match_score",
+    "strategies": {
+        "match_score": {
+            "weights": {
+                "match_score": 1.0,
+                "recency": 0.2,
+            }
+        },
+        "bm25": {
+            "weights": {
+                "text_relevance": 1.0,
+                "recency": 0.3,
+                "popularity": 0.2,
+            }
+        },
+    },
+}
+
+SEARCH_VECTOR_CONFIG = {
+    "provider": None,  # Will be configured in future phase
+    "model": None,
+    "dimension": None,
+}
 
 # Performance profiling configuration (only in development, not in tests)
 if DEBUG and not TESTING:
