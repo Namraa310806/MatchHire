@@ -12,7 +12,7 @@ psycopg2-binary==2.9.10
 elasticsearch==8.15.0
 
 # Task Queue and Cache
-celery==5.4.0
+celery==5.6.3
 redis==5.2.1
 
 # Document Processing
