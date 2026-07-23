@@ -11,6 +11,7 @@ from threading import Lock
 
 from apps.search.providers.base import SearchProvider
 from apps.search.providers.postgresql import PostgreSQLProvider
+from apps.search.providers.elasticsearch import ElasticsearchProvider
 from apps.search.exceptions import ProviderNotRegistered, ConfigurationError
 
 
@@ -46,6 +47,7 @@ class SearchRegistry:
 
         # Register built-in providers
         self.register_provider("postgresql", PostgreSQLProvider)
+        self.register_provider("elasticsearch", ElasticsearchProvider)
 
     def register_provider(
         self,

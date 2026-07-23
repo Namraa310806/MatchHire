@@ -8,6 +8,9 @@ drf-spectacular==0.29.0
 # Database
 psycopg2-binary==2.9.10
 
+# Search
+elasticsearch==8.15.0
+
 # Task Queue and Cache
 celery==5.4.0
 redis==5.2.1

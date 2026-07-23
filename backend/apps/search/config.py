@@ -175,3 +175,45 @@ class SearchConfig:
         """
         ranking_config = cls.get_ranking_config()
         return ranking_config.get("default_strategy", "bm25")
+
+    @classmethod
+    def get_elasticsearch_config(cls) -> Dict[str, Any]:
+        """
+        Get Elasticsearch-specific configuration.
+
+        Returns:
+            Elasticsearch configuration dictionary with defaults
+        """
+        search_config = getattr(settings, "SEARCH_CONFIG", {})
+        es_config = search_config.get("elasticsearch", {})
+
+        # Default Elasticsearch configuration
+        defaults = {
+            "hosts": ["http://localhost:9200"],
+            "username": None,
+            "password": None,
+            "api_key": None,
+            "cloud_id": None,
+            "verify_certs": True,
+            "ca_certs": None,
+            "client_cert": None,
+            "client_key": None,
+            "ssl_show_warn": True,
+            "request_timeout": 30,
+            "max_retries": 3,
+            "retry_on_timeout": True,
+            "retry_on_status": [502, 503, 504],
+            "http_compress": False,
+            "max_connections": 10,
+            "max_connections_per_host": 10,
+            "connection_class": None,
+            "index_prefix": "matchhire",
+            "use_aliases": True,
+            "refresh_interval": "1s",
+            "number_of_shards": 3,
+            "number_of_replicas": 1,
+        }
+
+        # Merge with user configuration
+        defaults.update(es_config)
+        return defaults
