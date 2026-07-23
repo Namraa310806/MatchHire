@@ -28,7 +28,7 @@ numpy==1.26.4
 pandas==2.2.2
 
 # Web Scraping
-scrapy==2.12.0
+scrapy==2.16.0
 playwright==1.50.0
 
 # Authentication and Security
