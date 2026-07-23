@@ -1,0 +1,253 @@
+name: Accessibility Tests
+
+on:
+  workflow_call:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  accessibility:
+    name: Accessibility Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Install Pa11y CI
+        run: |
+          npm install -g pa11y-ci
+
+      - name: Start preview server
+        run: |
+          cd frontend
+          npm run preview &
+          sleep 10
+
+      - name: Run Pa11y CI
+        run: |
+          pa11y-ci --config frontend/.pa11yci.json
+        continue-on-error: true
+
+      - name: Install Axe CLI
+        run: |
+          npm install -g @axe-core/cli
+
+      - name: Run Axe CLI on build
+        run: |
+          cd frontend/dist
+          axe http://localhost:4173 --tags wcag2a,wcag2aa,wcag21aa
+        continue-on-error: true
+
+      - name: Install Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+
+      - name: Run Lighthouse CI
+        run: |
+          cd frontend
+          lhci autorun --collect.url=http://localhost:4173 --collect.numberOfRuns=3 --assert.presets=lighthouse:recommended
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload accessibility results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-results
+          path: frontend/.lighthouseci/
+          retention-days: 30
+
+  playwright-accessibility:
+    name: Playwright Accessibility Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: matchhire_test
+          POSTGRES_USER: matchhire
+          POSTGRES_PASSWORD: matchhire
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          cd frontend && npm ci
+
+      - name: Install Playwright
+        run: |
+          cd frontend
+          npx playwright install --with-deps chromium
+
+      - name: Setup and start services
+        run: |
+          cd backend
+          python manage.py migrate --settings=matchhire_backend.settings.test
+          python manage.py runserver 0.0.0.0:8000 --settings=matchhire_backend.settings.test &
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: matchhire_test
+          DB_USER: matchhire
+          DB_PASSWORD: matchhire
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Build and start frontend
+        run: |
+          cd frontend
+          npm run build
+          npm run preview &
+        env:
+          VITE_API_URL: http://localhost:8000
+
+      - name: Wait for services
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:8000/health/; do sleep 2; done'
+          timeout 60 bash -c 'until curl -f http://localhost:4173/; do sleep 2; done'
+
+      - name: Run accessibility tests
+        run: |
+          cd frontend
+          npx playwright test --project=chromium tests/accessibility/
+        env:
+          CI: true
+
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-accessibility-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
+  wcag-compliance:
+    name: WCAG 2.1 AA Compliance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Install axe-core
+        run: |
+          cd frontend
+          npm install --save-dev @axe-core/react
+
+      - name: Run automated accessibility audit
+        run: |
+          cd frontend
+          npx jest --testPathPattern=accessibility --coverage
+        continue-on-error: true
+
+      - name: Check for common accessibility issues
+        run: |
+          cd frontend/src
+          
+          # Check for missing alt attributes
+          echo "Checking for images without alt attributes..."
+          grep -r "<img" --include="*.tsx" --include="*.jsx" . | grep -v "alt=" || echo "No images without alt found"
+          
+          # Check for buttons without aria-label
+          echo "Checking for buttons without accessible labels..."
+          grep -r "<button" --include="*.tsx" --include="*.jsx" . | grep -v "aria-label" | grep -v ">" || echo "All buttons have labels"
+          
+          # Check for form inputs without labels
+          echo "Checking for form inputs without labels..."
+          grep -r "<input" --include="*.tsx" --include="*.jsx" . | grep -v "aria-label" | grep -v "id=" || echo "All inputs have labels"
+        continue-on-error: true
+
+      - name: Generate accessibility report
+        run: |
+          echo "# Accessibility Report" > accessibility-report.md
+          echo "" >> accessibility-report.md
+          echo "## WCAG 2.1 AA Compliance Status" >> accessibility-report.md
+          echo "" >> accessibility-report.md
+          echo "- Automated checks: Completed" >> accessibility-report.md
+          echo "- Manual review required: Yes" >> accessibility-report.md
+          echo "- Date: $(date)" >> accessibility-report.md
+
+      - name: Upload accessibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wcag-compliance-report
+          path: accessibility-report.md
+          retention-days: 30

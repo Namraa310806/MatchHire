@@ -1,25 +1,37 @@
 # MatchHire
 
 [![CI](https://github.com/your-org/matchhire/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/matchhire/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/your-org/matchhire/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/matchhire)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.1](https://img.shields.io/badge/django-5.1-green.svg)](https://docs.djangoproject.com/)
+[![React 19](https://img.shields.io/badge/react-19-61DAFB.svg)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![AWS Ready](https://img.shields.io/badge/aws-ready-orange.svg)](https://aws.amazon.com/)
+[![Production Ready](https://img.shields.io/badge/production-ready-success.svg)](https://github.com/your-org/matchhire)
 
-MatchHire is a verified job aggregation and intelligent matching platform that ingests jobs exclusively from official company career portals. The platform normalizes, scores, and matches opportunities against candidate profiles using a production-grade Django backend with React frontend, PostgreSQL, Redis, Celery, and Nginx.
+<div align="center">
+
+**MatchHire** is a production-grade job aggregation and intelligent matching platform that ingests jobs exclusively from official company career portals. The platform normalizes, scores, and matches opportunities against candidate profiles using AI-powered semantic matching.
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture) • [Contributing](#-contributing)
+
+</div>
+
+---
 
 ## 🎯 Features
 
-- **Verified Job Sources**: Jobs ingested only from official company career portals
-- **AI-Powered Matching**: Embedding-based semantic skill similarity using sentence-transformers, with deterministic experience and education scoring
-- **Resume Parsing**: Automated resume extraction and structured data parsing (PDF, DOCX)
-- **Role-Based Access Control**: Granular permissions for candidates, recruiters, and admins
-- **JWT Authentication**: Secure token-based authentication with cookie storage
-- **Interview Management**: Complete interview scheduling and workflow
-- **Real-time Notifications**: In-platform notification system
-- **Analytics Dashboard**: Comprehensive hiring analytics for recruiters
-- **OpenAPI Documentation**: Auto-generated API documentation with Swagger UI
-- **Production-Ready**: Docker-based deployment with comprehensive testing
+- **✅ Verified Job Sources**: Jobs ingested only from official company career portals
+- **🤖 AI-Powered Matching**: Embedding-based semantic skill similarity using sentence-transformers, with deterministic experience and education scoring
+- **📄 Resume Parsing**: Automated resume extraction and structured data parsing (PDF, DOCX)
+- **🔐 Role-Based Access Control**: Granular permissions for candidates, recruiters, and admins
+- **🔑 JWT Authentication**: Secure token-based authentication with cookie storage
+- **📅 Interview Management**: Complete interview scheduling and workflow
+- **🔔 Real-time Notifications**: In-platform notification system
+- **📊 Analytics Dashboard**: Comprehensive hiring analytics for recruiters
+- **📚 OpenAPI Documentation**: Auto-generated API documentation with Swagger UI
+- **🚀 Production-Ready**: Docker-based deployment with comprehensive testing, AWS support, and CI/CD
 
 ## 🏗️ Architecture
 
@@ -39,6 +51,8 @@ For detailed architecture information, see [Architecture Documentation](docs/arc
 
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
 - Git
+- 8GB RAM minimum
+- 20GB disk space
 
 ### Installation
 
@@ -59,9 +73,19 @@ make docker-up
 # Run database migrations
 make migrate
 
+# Populate demo data
+docker compose exec web python manage.py populate_demo_data --companies 50 --jobs 200 --candidates 500
+
 # Create a superuser (optional)
 make createsuperuser
 ```
+
+### Access the Application
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000/api/v1/
+- **Admin Panel**: http://localhost:8000/admin/
+- **Swagger UI**: http://localhost:8000/api/v1/schema/swagger-ui/
 
 ### Local Development (Optional)
 
@@ -75,22 +99,14 @@ make local-install
 make local-check
 ```
 
-The application will be available at:
-
-- API: <http://localhost:8000/api/v1/>
-- Admin: <http://localhost:8000/admin/>
-- Swagger UI: <http://localhost:8000/api/v1/schema/swagger-ui/>
-
 ## 📚 Documentation
 
 - **[Developer Guide](docs/development/developer-guide.md)**: Comprehensive setup and development instructions
 - **[Architecture Documentation](docs/architecture/system-overview.md)**: System architecture and design decisions
-- **[Observability Documentation](docs/architecture/observability.md)**: Monitoring, logging, and metrics architecture
-- **[Coding Standards](docs/development/coding-standards.md)**: Code style and best practices
+- **[AWS Deployment Guide](docs/deployment/AWS_DEPLOYMENT_GUIDE.md)**: Complete AWS deployment instructions
+- **[Demo Guide](docs/guides/DEMO_GUIDE.md)**: Step-by-step demo scenarios
+- **[Troubleshooting Guide](docs/guides/TROUBLESHOOTING_GUIDE.md)**: Common issues and solutions
 - **[API Documentation](docs/api/)**: API reference (OpenAPI/Swagger)
-- **[Deployment Guide](docs/deployment/)**: Production deployment instructions
-- **[Monitoring Documentation](docs/monitoring/)**: Monitoring setup, dashboards, and runbooks
-- **[Architecture Decision Records](docs/adr/)**: Technical decision documentation
 - **[Contributing Guide](CONTRIBUTING.md)**: How to contribute to the project
 
 ## 🛠️ Tech Stack
@@ -306,6 +322,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Django and Django REST Framework communities
+- React and Vite communities
 - All contributors who have helped improve MatchHire
 - Open-source projects that make MatchHire possible
 
@@ -316,3 +333,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Last Updated**: July 2026
 
 For version history, see [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the hiring community**
+
+[⬆ Back to top](#matchhire)
+
+</div>

@@ -32,3 +32,13 @@ jobs:
     name: Security Scanning
     uses: ./.github/workflows/security.yml
     secrets: inherit
+
+  e2e:
+    name: E2E Tests
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+
+  accessibility:
+    name: Accessibility Tests
+    uses: ./.github/workflows/accessibility.yml
+    secrets: inherit
