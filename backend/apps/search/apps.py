@@ -7,4 +7,8 @@ class SearchConfig(AppConfig):
     verbose_name = "Search"
 
     def ready(self):
-        import apps.search.signals  # noqa
+        import apps.search.signals  # noqa: F401
+
+        from apps.search.indexing import register_indexing_signals
+
+        register_indexing_signals()

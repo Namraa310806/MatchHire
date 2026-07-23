@@ -1,0 +1,16 @@
+{
+  "job_id": "d86d3a0a-5f3c-4409-835f-4b85ebef33a5",
+  "entity_type": "candidate",
+  "status": "cancelled",
+  "total_count": 0,
+  "processed_count": 0,
+  "failed_count": 0,
+  "start_time": null,
+  "end_time": "2026-07-23T05:14:10.373221",
+  "error_message": null,
+  "checkpoint": null,
+  "metadata": {},
+  "progress_percentage": 100.0,
+  "duration": 0.0,
+  "documents_per_second": 0.0
+}

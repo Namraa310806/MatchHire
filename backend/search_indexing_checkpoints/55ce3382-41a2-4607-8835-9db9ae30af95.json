@@ -1,0 +1,16 @@
+{
+  "job_id": "55ce3382-41a2-4607-8835-9db9ae30af95",
+  "entity_type": "job",
+  "status": "pending",
+  "total_count": 0,
+  "processed_count": 0,
+  "failed_count": 0,
+  "start_time": null,
+  "end_time": null,
+  "error_message": null,
+  "checkpoint": null,
+  "metadata": {},
+  "progress_percentage": 100.0,
+  "duration": 0.0,
+  "documents_per_second": 0.0
+}

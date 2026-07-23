@@ -53,3 +53,34 @@ class JobMatch(models.Model):
         return (
             f"JobMatch<{self.candidate.email} -> {self.job.title}: {self.match_score}%>"
         )
+
+
+class JobSkill(models.Model):
+    """Discrete skill requirement attached to a job."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="required_skills",
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = "job_skills"
+        verbose_name = "job skill"
+        verbose_name_plural = "job skills"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "name"],
+                name="unique_job_skill_name",
+                violation_error_message="A job cannot list the same required skill twice.",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["job"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"JobSkill<{self.name}>"

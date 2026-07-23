@@ -1,0 +1,16 @@
+{
+  "job_id": "4598f689-56d8-4876-a08e-7b477bb57c8c",
+  "entity_type": "candidate",
+  "status": "paused",
+  "total_count": 0,
+  "processed_count": 0,
+  "failed_count": 0,
+  "start_time": null,
+  "end_time": null,
+  "error_message": null,
+  "checkpoint": null,
+  "metadata": {},
+  "progress_percentage": 100.0,
+  "duration": 0.0,
+  "documents_per_second": 0.0
+}

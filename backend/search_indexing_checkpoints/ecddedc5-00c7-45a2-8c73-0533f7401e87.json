@@ -1,0 +1,16 @@
+{
+  "job_id": "ecddedc5-00c7-45a2-8c73-0533f7401e87",
+  "entity_type": "candidate",
+  "status": "pending",
+  "total_count": 0,
+  "processed_count": 0,
+  "failed_count": 0,
+  "start_time": null,
+  "end_time": null,
+  "error_message": null,
+  "checkpoint": null,
+  "metadata": {},
+  "progress_percentage": 100.0,
+  "duration": 0.0,
+  "documents_per_second": 0.0
+}

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -6,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.jobs.models import Job
-from apps.matching.models import JobMatch
+from apps.matching.models import JobMatch, JobSkill
 from apps.matching.services.matching import MatchingService
 from apps.resumes.models import (
     Resume,
@@ -64,7 +65,7 @@ class MatchingServiceTests(TestCase):
         ResumeSkill.objects.create(structured_resume=structured_resume, name="Python")
         ResumeSkill.objects.create(structured_resume=structured_resume, name="Django")
 
-        skills_score, matched, missing, matched_count, total_count = (
+        skills_score, matched, missing, matched_count, total_count, _ = (
             MatchingService.calculate_skill_score(self.candidate, self.job)
         )
 
@@ -180,7 +181,7 @@ class MatchingServiceTests(TestCase):
         self.job.requirements = ""
         self.job.save()
 
-        skills_score, matched, missing, matched_count, total_count = (
+        skills_score, matched, missing, matched_count, total_count, _ = (
             MatchingService.calculate_skill_score(self.candidate, self.job)
         )
 
@@ -201,7 +202,7 @@ class MatchingServiceTests(TestCase):
             is_current=True,
         )
 
-        skills_score, _, _, _, _ = MatchingService.calculate_skill_score(
+        skills_score, _, _, _, _, _ = MatchingService.calculate_skill_score(
             self.candidate, self.job
         )
         experience_score, experience_years = MatchingService.calculate_experience_score(
@@ -269,9 +270,192 @@ class MatchingServiceTests(TestCase):
 
         self.assertIn("matched_skills", job_match.explanation)
         self.assertIn("missing_skills", job_match.explanation)
+        self.assertIn("matched_skill_details", job_match.explanation)
+        self.assertIn("missing_skill_details", job_match.explanation)
         self.assertIn("experience_level_required", job_match.explanation)
         self.assertIn("candidate_experience_years", job_match.explanation)
         self.assertIn("education_found", job_match.explanation)
+
+    def _create_resume_with_skills(self, user, skill_names):
+        resume = Resume.objects.create(user=user)
+        version = ResumeVersion.objects.create(
+            resume=resume,
+            original_filename="resume.pdf",
+            stored_filename=f"{user.email.replace('@', '_')}_{len(skill_names)}.pdf",
+            file_size=1000,
+            mime_type="application/pdf",
+            version_number=1,
+            is_current=True,
+        )
+        structured_resume = StructuredResume.objects.create(resume_version=version)
+        for skill_name in skill_names:
+            ResumeSkill.objects.create(
+                structured_resume=structured_resume,
+                name=skill_name,
+            )
+        return structured_resume
+
+    def _create_job_with_structured_skills(self, skill_names, requirements=""):
+        job = Job.objects.create(
+            recruiter=self.recruiter,
+            title="Structured Skills Job",
+            company_name="Tech Corp",
+            location="San Francisco",
+            description="We need a software engineer",
+            requirements=requirements,
+            experience_level=Job.ExperienceLevel.SENIOR,
+            status=Job.JobStatus.ACTIVE,
+        )
+        for skill_name in skill_names:
+            JobSkill.objects.create(job=job, name=skill_name)
+        return job
+
+    class FakeEmbeddingModel:
+        def __init__(self):
+            self.encode_calls = []
+
+        def encode(
+            self,
+            texts,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        ):
+            if isinstance(texts, str):
+                texts = [texts]
+
+            texts = list(texts)
+            self.encode_calls.append(texts)
+
+            vectors = []
+            for text in texts:
+                normalized = text.strip().casefold()
+                if normalized == "js":
+                    vectors.append([1.0, 0.0, 0.0])
+                elif normalized == "javascript":
+                    vectors.append([0.8, 0.6, 0.0])
+                elif normalized == "ml":
+                    vectors.append([0.0, 1.0, 0.0])
+                elif normalized == "machine learning":
+                    vectors.append([0.0, 0.8, 0.6])
+                elif normalized == "cobol":
+                    vectors.append([1.0, 0.0, 0.0])
+                elif normalized == "kubernetes":
+                    vectors.append([0.0, 1.0, 0.0])
+                else:
+                    bucket = sum(ord(char) for char in normalized) % 3
+                    vector = [0.0, 0.0, 0.0]
+                    vector[bucket] = 1.0
+                    vectors.append(vector)
+
+            return vectors
+
+    def test_32_structured_job_skills_are_used(self):
+        """Test 32: Structured JobSkill rows are preferred over free-text requirements"""
+        self._create_resume_with_skills(self.candidate, ["Python"])
+        job = self._create_job_with_structured_skills(["Python"], requirements="Go, Rust")
+
+        skills_score, matched, missing, matched_count, total_count, skill_details = (
+            MatchingService.calculate_skill_score(self.candidate, job)
+        )
+
+        self.assertEqual(skills_score, Decimal("100.00"))
+        self.assertEqual(matched_count, 1)
+        self.assertEqual(total_count, 1)
+        self.assertEqual(matched, ["Python"])
+        self.assertEqual(missing, [])
+        self.assertEqual(skill_details["matched"][0]["match_type"], "exact")
+
+    def test_33_semantically_similar_skills_match(self):
+        """Test 33: Semantic skill matching works for differently worded skills"""
+        self._create_resume_with_skills(self.candidate, ["JS", "ML"])
+        job = self._create_job_with_structured_skills(["JavaScript", "Machine Learning"])
+
+        fake_model = self.FakeEmbeddingModel()
+        with mock.patch(
+            "apps.matching.services.matching._load_skill_embedding_model",
+            return_value=fake_model,
+        ):
+            skills_score, matched, missing, matched_count, total_count, skill_details = (
+                MatchingService.calculate_skill_score(self.candidate, job)
+            )
+
+        self.assertEqual(skills_score, Decimal("100.00"))
+        self.assertEqual(matched_count, 2)
+        self.assertEqual(total_count, 2)
+        self.assertEqual(missing, [])
+        self.assertEqual(
+            {detail["match_type"] for detail in skill_details["matched"]},
+            {"semantic"},
+        )
+        self.assertEqual(len(fake_model.encode_calls), 2)
+
+    def test_34_unrelated_skills_do_not_false_positive(self):
+        """Test 34: Unrelated skills do not match above the similarity threshold"""
+        self._create_resume_with_skills(self.candidate, ["Kubernetes"])
+        job = self._create_job_with_structured_skills(["COBOL"])
+
+        fake_model = self.FakeEmbeddingModel()
+        with mock.patch(
+            "apps.matching.services.matching._load_skill_embedding_model",
+            return_value=fake_model,
+        ):
+            skills_score, matched, missing, matched_count, total_count, skill_details = (
+                MatchingService.calculate_skill_score(self.candidate, job)
+            )
+
+        self.assertEqual(skills_score, Decimal("0.00"))
+        self.assertEqual(matched_count, 0)
+        self.assertEqual(total_count, 1)
+        self.assertEqual(matched, [])
+        self.assertEqual(missing, ["COBOL"])
+        self.assertLess(skill_details["missing"][0]["similarity"], 0.75)
+
+    def test_35_skill_match_threshold_is_respected(self):
+        """Test 35: Skill match threshold controls semantic matches"""
+        self._create_resume_with_skills(self.candidate, ["JS"])
+        job = self._create_job_with_structured_skills(["JavaScript"])
+
+        fake_model = self.FakeEmbeddingModel()
+        with mock.patch(
+            "apps.matching.services.matching._load_skill_embedding_model",
+            return_value=fake_model,
+        ):
+            with mock.patch.object(MatchingService, "SKILL_MATCH_THRESHOLD", 0.81):
+                skills_score, matched, missing, matched_count, total_count, _ = (
+                    MatchingService.calculate_skill_score(self.candidate, job)
+                )
+
+        self.assertEqual(skills_score, Decimal("0.00"))
+        self.assertEqual(matched_count, 0)
+        self.assertEqual(total_count, 1)
+        self.assertEqual(matched, [])
+        self.assertEqual(missing, ["JavaScript"])
+
+    def test_36_embedding_batches_are_cached_for_bulk_recalculation(self):
+        """Test 36: Job-level required skill embeddings are reused across candidate recalculations"""
+        required_skills = [f"Skill {index}" for index in range(20)]
+        job = self._create_job_with_structured_skills(required_skills)
+
+        for index in range(50):
+            candidate = User.objects.create_user(
+                email=f"candidate{index}@example.com",
+                password="pass12345",
+                full_name=f"Candidate {index}",
+                role=User.Roles.CANDIDATE,
+            )
+            self._create_resume_with_skills(candidate, [f"Candidate Skill {index}"])
+
+        fake_model = self.FakeEmbeddingModel()
+        with mock.patch(
+            "apps.matching.services.matching._load_skill_embedding_model",
+            return_value=fake_model,
+        ):
+            result = MatchingService.recalculate_for_job(job.id)
+
+        self.assertEqual(result, 50)
+        self.assertEqual(len(fake_model.encode_calls), 51)
+        self.assertEqual(len(fake_model.encode_calls[0]), 20)
 
 
 class MatchingAPITests(TestCase):

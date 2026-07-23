@@ -1,21 +1,38 @@
+from functools import lru_cache
 from decimal import Decimal
 
 from django.utils import timezone
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
 from apps.resumes.models import Resume, StructuredResume, ResumeSkill
 
 
+SKILL_EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
+
+@lru_cache(maxsize=1)
+def _load_skill_embedding_model() -> SentenceTransformer:
+    """Load and cache the sentence-transformers model once per process."""
+    return SentenceTransformer(SKILL_EMBEDDING_MODEL_NAME, device="cpu")
+
+
 class MatchingService:
     """
-    Service layer for deterministic candidate-job matching.
+    Service layer for candidate-job matching.
 
     Calculates match scores based on:
-    - Skills (60% weight)
+    - Skills (60% weight, semantic similarity with embeddings)
     - Experience (30% weight)
     - Education (10% weight)
+
+    Skill matching uses structured JobSkill rows when available and falls back to the
+    legacy comma-separated Job.requirements text for backwards compatibility.
     """
+
+    SKILL_MATCH_THRESHOLD = 0.75
 
     # Experience level requirements in years
     EXPERIENCE_REQUIREMENTS = {
@@ -38,9 +55,14 @@ class MatchingService:
         Returns:
             JobMatch instance with calculated scores
         """
-        skills_score, matched_skills, missing_skills, matched_count, total_count = (
-            cls.calculate_skill_score(candidate, job)
-        )
+        (
+            skills_score,
+            matched_skills,
+            missing_skills,
+            matched_count,
+            total_count,
+            skill_details,
+        ) = cls.calculate_skill_score(candidate, job)
         experience_score, experience_years = cls.calculate_experience_score(
             candidate, job
         )
@@ -61,6 +83,7 @@ class MatchingService:
             job,
             matched_skills,
             missing_skills,
+            skill_details,
             experience_years,
             education_score > 0,
         )
@@ -147,31 +170,105 @@ class MatchingService:
         """
         Calculate skill match score.
 
-        Extracts required skills from job requirements text and matches against candidate's skills.
+        Extracts required skills from structured JobSkill rows when present and falls
+        back to job requirements text when a job has no structured skills yet.
+
+        Exact normalized string matches short-circuit the semantic path. Remaining
+        unmatched skills are compared via sentence-transformers embeddings and
+        cosine similarity.
 
         Returns:
-            Tuple of (score, matched_skills_list, missing_skills_list, matched_count, total_count)
+            Tuple of (score, matched_skills_list, missing_skills_list, matched_count,
+            total_count, skill_details)
         """
-        # Extract required skills from job requirements
-        required_skills = cls._extract_skills_from_text(job.requirements)
+        required_skills = cls._get_job_required_skills(job)
         total_count = len(required_skills)
 
         if total_count == 0:
-            return Decimal("0"), [], [], 0, 0
+            return Decimal("0"), [], [], 0, 0, {"matched": [], "missing": []}
 
-        # Get candidate's structured resume skills
-        candidate_skills = cls._get_candidate_skills(candidate)
-        candidate_skill_names = {skill.name.lower() for skill in candidate_skills}
+        candidate_skills = [
+            skill.name.strip()
+            for skill in cls._get_candidate_skills(candidate)
+            if skill.name and skill.name.strip()
+        ]
+        candidate_skill_lookup = {
+            cls._normalize_skill_name(skill): skill for skill in candidate_skills
+        }
 
-        # Match skills (case-insensitive)
+        required_skill_embeddings = cls._get_skill_embeddings(required_skills, job=job)
+        semantic_required_indices = [
+            index
+            for index, skill in enumerate(required_skills)
+            if cls._normalize_skill_name(skill) not in candidate_skill_lookup
+        ]
+
+        if semantic_required_indices and candidate_skills:
+            semantic_required_embeddings = [
+                required_skill_embeddings[index] for index in semantic_required_indices
+            ]
+            candidate_skill_embeddings = cls._get_skill_embeddings(candidate_skills)
+            semantic_similarity_matrix = cosine_similarity(
+                semantic_required_embeddings,
+                candidate_skill_embeddings,
+            )
+        else:
+            semantic_similarity_matrix = None
+
         matched_skills = []
         missing_skills = []
+        matched_details = []
+        missing_details = []
+        semantic_row_index = 0
 
         for skill in required_skills:
-            if skill.lower() in candidate_skill_names:
+            normalized_required_skill = cls._normalize_skill_name(skill)
+            exact_match = candidate_skill_lookup.get(normalized_required_skill)
+
+            if exact_match:
                 matched_skills.append(skill)
+                matched_details.append(
+                    {
+                        "required_skill": skill,
+                        "matched_skill": exact_match,
+                        "similarity": 1.0,
+                        "match_type": "exact",
+                    }
+                )
+                continue
+
+            similarity_score = 0.0
+            matched_candidate_skill = None
+
+            if semantic_similarity_matrix is not None:
+                row = semantic_similarity_matrix[semantic_row_index]
+                semantic_row_index += 1
+                best_candidate_index = max(
+                    range(len(row)), key=lambda candidate_index: row[candidate_index]
+                )
+                similarity_score = float(row[best_candidate_index])
+                matched_candidate_skill = candidate_skills[best_candidate_index]
+
+            if similarity_score >= cls.SKILL_MATCH_THRESHOLD:
+                matched_skills.append(skill)
+                matched_details.append(
+                    {
+                        "required_skill": skill,
+                        "matched_skill": matched_candidate_skill,
+                        "similarity": round(similarity_score, 4),
+                        "match_type": "semantic",
+                    }
+                )
             else:
                 missing_skills.append(skill)
+                missing_details.append(
+                    {
+                        "required_skill": skill,
+                        "best_candidate_skill": matched_candidate_skill,
+                        "similarity": round(similarity_score, 4),
+                        "match_type": "semantic" if matched_candidate_skill else "none",
+                    }
+                )
 
         matched_count = len(matched_skills)
 
@@ -180,7 +277,14 @@ class MatchingService:
             Decimal("0.01")
         )
 
-        return score, matched_skills, missing_skills, matched_count, total_count
+        return (
+            score,
+            matched_skills,
+            missing_skills,
+            matched_count,
+            total_count,
+            {"matched": matched_details, "missing": missing_details},
+        )
 
     @classmethod
     def calculate_experience_score(cls, candidate, job):
@@ -229,7 +333,13 @@ class MatchingService:
 
     @classmethod
     def build_explanation(
-        cls, job, matched_skills, missing_skills, experience_years, education_found
+        cls,
+        job,
+        matched_skills,
+        missing_skills,
+        skill_details,
+        experience_years,
+        education_found,
     ):
         """
         Build explanation JSON for the match.
@@ -240,27 +350,71 @@ class MatchingService:
         return {
             "matched_skills": matched_skills,
             "missing_skills": missing_skills,
+            "matched_skill_details": skill_details["matched"],
+            "missing_skill_details": skill_details["missing"],
             "experience_level_required": job.experience_level,
             "candidate_experience_years": experience_years,
             "education_found": education_found,
         }
 
     @classmethod
+    def _get_job_required_skills(cls, job):
+        """Get required skills from structured rows first, then legacy text."""
+        cached_skills = getattr(job, "_matching_required_skills", None)
+        if cached_skills is not None:
+            return cached_skills
+
+        structured_skills = list(job.required_skills.values_list("name", flat=True))
+        if structured_skills:
+            job._matching_required_skills = structured_skills
+            return structured_skills
+
+        legacy_skills = cls._extract_skills_from_text(job.requirements)
+        job._matching_required_skills = legacy_skills
+        return legacy_skills
+
+    @classmethod
+    def _get_skill_embeddings(cls, skills, job=None):
+        """Embed a batch of skills once and cache job-level required skill vectors."""
+        if not skills:
+            return []
+
+        if job is not None:
+            cached_skills = getattr(job, "_matching_required_skills", None)
+            cached_embeddings = getattr(job, "_matching_required_skill_embeddings", None)
+            if cached_skills == skills and cached_embeddings is not None:
+                return cached_embeddings
+
+        model = _load_skill_embedding_model()
+        embeddings = model.encode(
+            skills,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+
+        if job is not None:
+            job._matching_required_skills = list(skills)
+            job._matching_required_skill_embeddings = embeddings
+
+        return embeddings
+
+    @staticmethod
+    def _normalize_skill_name(skill_name):
+        return skill_name.strip().casefold()
+
+    @classmethod
     def _extract_skills_from_text(cls, text):
         """
-        Extract skills from job requirements text.
+        Extract skills from legacy job requirements text.
 
-        Simple extraction: split by comma and clean whitespace.
-
-        TECHNICAL DEBT: This simple comma-separated parsing is insufficient for real-world
-        recruiter requirements which are often in natural language paragraphs.
-        Future improvement: Create a JobSkill model to store structured skill requirements
-        instead of parsing free text. This would enable more sophisticated matching and
-        better handle natural language requirements like "strong Python and Django experience".
+        This is retained only as a backwards-compatible fallback for jobs that do not
+        yet have structured JobSkill rows.
         """
         if not text:
             return []
 
+        # Legacy fallback for comma-separated recruiter input.
         skills = []
         for skill in text.split(","):
             skill = skill.strip()

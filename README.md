@@ -11,7 +11,7 @@ MatchHire is a verified job aggregation and intelligent matching platform that i
 ## 🎯 Features
 
 - **Verified Job Sources**: Jobs ingested only from official company career portals
-- **AI-Powered Matching**: Intelligent candidate-job matching with semantic analysis
+- **AI-Powered Matching**: Embedding-based semantic skill similarity using sentence-transformers, with deterministic experience and education scoring
 - **Resume Parsing**: Automated resume extraction and structured data parsing (PDF, DOCX)
 - **Role-Based Access Control**: Granular permissions for candidates, recruiters, and admins
 - **JWT Authentication**: Secure token-based authentication with cookie storage
@@ -76,9 +76,10 @@ make local-check
 ```
 
 The application will be available at:
-- API: http://localhost:8000/api/v1/
-- Admin: http://localhost:8000/admin/
-- Swagger UI: http://localhost:8000/api/v1/schema/swagger-ui/
+
+- API: <http://localhost:8000/api/v1/>
+- Admin: <http://localhost:8000/admin/>
+- Swagger UI: <http://localhost:8000/api/v1/schema/swagger-ui/>
 
 ## 📚 Documentation
 
@@ -97,7 +98,7 @@ The application will be available at:
 ### Backend
 
 | Component | Technology | Version |
-|-----------|-----------|---------|
+| --- | --- | --- |
 | Framework | Django | 5.1.7 |
 | API | Django REST Framework | 3.15.2 |
 | Authentication | djangorestframework-simplejwt | 5.5.0 |
@@ -105,7 +106,7 @@ The application will be available at:
 | Cache/Broker | Redis | 5.2.1 |
 | Task Queue | Celery | 5.4.0 |
 | Document Processing | PyMuPDF, PyPDF2, python-docx | Latest |
-| Machine Learning | scikit-learn, sentence-transformers | Latest |
+| Machine Learning | scikit-learn, sentence-transformers, torch | Latest |
 | API Documentation | drf-spectacular | 0.29.0 |
 | WSGI Server | Gunicorn | 23.0.0 |
 
@@ -126,7 +127,7 @@ The application will be available at:
 
 ## 📁 Project Structure
 
-```
+```text
 matchhire/
 ├── backend/                    # Django backend
 │   ├── apps/                  # Django applications
@@ -252,6 +253,10 @@ docker compose exec web python manage.py test
 docker compose exec web coverage run --source='.' manage.py test
 docker compose exec web coverage report
 ```
+
+## Matching Notes
+
+Skill matching uses sentence-transformers embeddings to compare recruiter-listed skills against candidate resume skills. Experience and education scoring remain rule-based at this stage, so the system is semantic for skills rather than a full end-to-end NLP resume parser.
 
 ## 🔒 Security
 

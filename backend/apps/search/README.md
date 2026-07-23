@@ -1,6 +1,7 @@
 # Search Module
 
 ## Phase 5.1 - Search Infrastructure
+## Phase 5.2 - Search Indexing Engine
 
 **Status:** Complete
 
@@ -9,6 +10,8 @@
 ## Overview
 
 The search module provides a provider-agnostic search infrastructure for the MatchHire platform. It supports multiple search backends (PostgreSQL, Elasticsearch, OpenSearch, Vector Search, Hybrid Search) while maintaining a consistent API and service layer.
+
+The indexing engine serves as the single source of truth for keeping search providers synchronized with application data.
 
 ---
 
@@ -22,6 +25,31 @@ apps/search/
 ├── exceptions.py                    # Search-specific exceptions
 ├── registry.py                      # Provider registry
 ├── signals.py                       # Django signals for indexing
+├── indexing/                        # Indexing engine (Phase 5.2)
+│   ├── __init__.py
+│   ├── documents.py                 # Search document models
+│   ├── serializers.py               # Django model serializers
+│   ├── index_manager.py             # Index management operations
+│   ├── sync_service.py              # Synchronization engine
+│   ├── bulk_indexer.py              # Bulk indexing framework
+│   ├── event_handlers.py            # Django signal handlers
+│   ├── metrics.py                   # Metrics collection
+│   ├── verification.py              # Integrity verification
+│   ├── management/
+│   │   ├── __init__.py
+│   │   └── commands/
+│   │       ├── __init__.py
+│   │       ├── rebuild_search_index.py
+│   │       ├── sync_search_index.py
+│   │       ├── verify_search_index.py
+│   │       └── search_index_status.py
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_documents.py
+│       ├── test_serializers.py
+│       ├── test_sync_service.py
+│       ├── test_index_manager.py
+│       └── test_bulk_indexer.py
 ├── providers/
 │   ├── __init__.py
 │   ├── base.py                      # Base provider interface
