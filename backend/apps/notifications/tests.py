@@ -1,9 +1,7 @@
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
-from decimal import Decimal
-from io import BytesIO
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
@@ -13,7 +11,6 @@ from apps.notifications.services.notification_service import NotificationService
 from apps.jobs.models import Job
 from apps.applications.models import Application
 from apps.interviews.models import Interview
-from apps.matching.models import JobMatch
 from apps.resumes.models import Resume, ResumeVersion, StructuredResume
 
 User = get_user_model()
@@ -91,6 +88,7 @@ class NotificationModelTests(TestCase):
         )
         # Create notifications with explicit timestamps to ensure ordering
         import time
+
         notification1 = Notification.objects.create(
             recipient=user,
             title="First",
@@ -195,7 +193,11 @@ class NotificationFactoryTests(TestCase):
         )
         self.assertEqual(
             notification.metadata,
-            {"application_id": "app-123", "job_id": "job-456", "candidate_id": "cand-789"},
+            {
+                "application_id": "app-123",
+                "job_id": "job-456",
+                "candidate_id": "cand-789",
+            },
         )
 
     def test_3_candidate_notified_on_application_status_change(self):
@@ -218,7 +220,11 @@ class NotificationFactoryTests(TestCase):
         )
         self.assertEqual(
             notification.metadata,
-            {"application_id": "app-123", "old_status": "SUBMITTED", "new_status": "UNDER_REVIEW"},
+            {
+                "application_id": "app-123",
+                "old_status": "SUBMITTED",
+                "new_status": "UNDER_REVIEW",
+            },
         )
 
     def test_4_candidate_notified_on_interview_scheduled(self):
@@ -239,7 +245,8 @@ class NotificationFactoryTests(TestCase):
             Notification.NotificationType.INTERVIEW_SCHEDULED,
         )
         self.assertEqual(
-            notification.metadata, {"interview_id": "int-123", "application_id": "app-456"}
+            notification.metadata,
+            {"interview_id": "int-123", "application_id": "app-456"},
         )
 
     def test_5_candidate_notified_on_interview_completed(self):
@@ -292,7 +299,9 @@ class NotificationFactoryTests(TestCase):
         self.assertEqual(
             notification.notification_type, Notification.NotificationType.MATCH_CREATED
         )
-        self.assertEqual(notification.metadata, {"job_id": "job-123", "match_score": 82.5})
+        self.assertEqual(
+            notification.metadata, {"job_id": "job-123", "match_score": 82.5}
+        )
 
 
 class NotificationAPITests(TestCase):
@@ -334,6 +343,7 @@ class NotificationAPITests(TestCase):
     def test_9_notifications_ordered_newest_first(self):
         """Test that notifications are ordered newest first."""
         import time
+
         notification1 = Notification.objects.create(
             recipient=self.candidate,
             title="First",
@@ -399,7 +409,9 @@ class NotificationAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["updated_count"], 2)
         self.assertEqual(
-            Notification.objects.filter(recipient=self.candidate, is_read=False).count(),
+            Notification.objects.filter(
+                recipient=self.candidate, is_read=False
+            ).count(),
             0,
         )
 
@@ -538,7 +550,9 @@ class WorkflowIntegrationTests(TestCase):
         # Submit application via API
         client = APIClient()
         client.force_authenticate(user=self.candidate)
-        with patch("apps.notifications.tasks.notify_application_submitted.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_application_submitted.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 response = client.post(
                     f"/api/jobs/{self.job.id}/apply/",
@@ -574,10 +588,14 @@ class WorkflowIntegrationTests(TestCase):
         # Change status
         from apps.applications.services.workflow import ApplicationWorkflowService
 
-        with patch("apps.notifications.tasks.notify_application_status_changed.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_application_status_changed.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 ApplicationWorkflowService.change_status(
-                    application, Application.ApplicationStatus.UNDER_REVIEW, self.recruiter
+                    application,
+                    Application.ApplicationStatus.UNDER_REVIEW,
+                    self.recruiter,
                 )
         self.assertTrue(delay.called)
 
@@ -607,12 +625,16 @@ class WorkflowIntegrationTests(TestCase):
         # Schedule interview via API
         client = APIClient()
         client.force_authenticate(user=self.recruiter)
-        with patch("apps.notifications.tasks.notify_interview_scheduled.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_interview_scheduled.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 response = client.post(
                     f"/api/applications/{application.id}/interviews/",
                     {
-                        "scheduled_at": (timezone.now() + timedelta(days=7)).isoformat(),
+                        "scheduled_at": (
+                            timezone.now() + timedelta(days=7)
+                        ).isoformat(),
                         "duration_minutes": 60,
                         "interview_type": Interview.InterviewType.VIDEO,
                         "meeting_link": "https://example.com/meet",
@@ -655,7 +677,9 @@ class WorkflowIntegrationTests(TestCase):
         # Complete interview
         from apps.interviews.services.workflow import InterviewWorkflowService
 
-        with patch("apps.notifications.tasks.notify_interview_completed.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_interview_completed.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 InterviewWorkflowService.change_status(
                     interview, Interview.InterviewStatus.COMPLETED, self.recruiter
@@ -695,7 +719,9 @@ class WorkflowIntegrationTests(TestCase):
         # Cancel interview
         from apps.interviews.services.workflow import InterviewWorkflowService
 
-        with patch("apps.notifications.tasks.notify_interview_cancelled.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_interview_cancelled.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 InterviewWorkflowService.change_status(
                     interview, Interview.InterviewStatus.CANCELLED, self.recruiter
@@ -719,9 +745,7 @@ class WorkflowIntegrationTests(TestCase):
             version_number=1,
             is_current=True,
         )
-        structured_resume = StructuredResume.objects.create(
-            resume_version=resume_version
-        )
+        StructuredResume.objects.create(resume_version=resume_version)
         Notification.objects.all().delete()
         # Create match
         from apps.matching.services.matching import MatchingService

@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 
 from apps.admin.permissions import IsAdmin
 from apps.admin.serializers import (
@@ -26,42 +26,67 @@ from apps.users.models import User
 
 class AdminPagination(PageNumberPagination):
     """Pagination for admin endpoints"""
+
     page_size = 50
     page_size_query_param = "page_size"
     max_page_size = 200
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="List users",
-	description="List all users with filtering and pagination. Admin only. Filters: role, is_active, search. Ordering: email, full_name, date_joined, -date_joined.",
-	parameters=[
-		OpenApiParameter(name='role', description='Filter by user role', required=False, type=str),
-		OpenApiParameter(name='is_active', description='Filter by active status', required=False, type=bool),
-		OpenApiParameter(name='search', description='Search by name or email', required=False, type=str),
-		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
-		OpenApiParameter(name='page', description='Page number', required=False, type=int),
-		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
-	],
-	responses={
-		200: OpenApiResponse(description="Users retrieved successfully with pagination."),
-		400: OpenApiResponse(description="Invalid filter parameters."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="List users",
+    description="List all users with filtering and pagination. Admin only. Filters: role, is_active, search. Ordering: email, full_name, date_joined, -date_joined.",
+    parameters=[
+        OpenApiParameter(
+            name="role", description="Filter by user role", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="is_active",
+            description="Filter by active status",
+            required=False,
+            type=bool,
+        ),
+        OpenApiParameter(
+            name="search",
+            description="Search by name or email",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="ordering", description="Order by field", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="page", description="Page number", required=False, type=int
+        ),
+        OpenApiParameter(
+            name="page_size",
+            description="Page size (max 200)",
+            required=False,
+            type=int,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Users retrieved successfully with pagination."
+        ),
+        400: OpenApiResponse(description="Invalid filter parameters."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminUserListView(APIView):
     """
     List all users with filtering and pagination.
-    
+
     GET /api/admin/users/
-    
+
     Admin only.
     Filters: role, is_active, search (name/email)
     Ordering: email, full_name, date_joined, -date_joined
     """
+
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get(self, request):
         """List all users with filtering and ordering"""
@@ -100,7 +125,9 @@ class AdminUserListView(APIView):
         valid_ordering_fields = ["email", "full_name", "date_joined", "-date_joined"]
         if ordering not in valid_ordering_fields:
             return Response(
-                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
+                {
+                    "detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         queryset = queryset.order_by(ordering)
@@ -117,40 +144,41 @@ class AdminUserListView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="Get user details",
-	description="Retrieve a specific user. Admin only.",
-	responses={
-		200: OpenApiResponse(description="User details retrieved successfully."),
-		404: OpenApiResponse(description="User not found."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="Get user details",
+    description="Retrieve a specific user. Admin only.",
+    responses={
+        200: OpenApiResponse(description="User details retrieved successfully."),
+        404: OpenApiResponse(description="User not found."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 @extend_schema(
-	tags=["Admin"],
-	summary="Update user",
-	description="Update user (is_active, role) with moderation logging. Admin only.",
-	request={"application/json": {}},
-	responses={
-		200: OpenApiResponse(description="User updated successfully."),
-		400: OpenApiResponse(description="Invalid input data."),
-		404: OpenApiResponse(description="User not found."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="Update user",
+    description="Update user (is_active, role) with moderation logging. Admin only.",
+    request={"application/json": {}},
+    responses={
+        200: OpenApiResponse(description="User updated successfully."),
+        400: OpenApiResponse(description="Invalid input data."),
+        404: OpenApiResponse(description="User not found."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminUserDetailView(APIView):
     """
     Retrieve or update a specific user.
-    
+
     GET /api/admin/users/<id>/
     PATCH /api/admin/users/<id>/
-    
+
     Admin only.
     GET: Retrieve user details
     PATCH: Update is_active and role fields
     """
+
     permission_classes = (IsAdmin,)
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get_object(self, id):
         """Get user by id"""
@@ -186,38 +214,67 @@ class AdminUserDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="List jobs",
-	description="List all jobs with filtering and pagination. Admin only. Returns ALL jobs (draft, active, closed). Filters: status, company, recruiter_id, search.",
-	parameters=[
-		OpenApiParameter(name='status', description='Filter by job status', required=False, type=str),
-		OpenApiParameter(name='company', description='Filter by company name', required=False, type=str),
-		OpenApiParameter(name='recruiter_id', description='Filter by recruiter ID', required=False, type=str),
-		OpenApiParameter(name='search', description='Search by title or company', required=False, type=str),
-		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
-		OpenApiParameter(name='page', description='Page number', required=False, type=int),
-		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
-	],
-	responses={
-		200: OpenApiResponse(description="Jobs retrieved successfully with pagination."),
-		400: OpenApiResponse(description="Invalid filter parameters."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="List jobs",
+    description="List all jobs with filtering and pagination. Admin only. Returns ALL jobs (draft, active, closed). Filters: status, company, recruiter_id, search.",
+    parameters=[
+        OpenApiParameter(
+            name="status", description="Filter by job status", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="company",
+            description="Filter by company name",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="recruiter_id",
+            description="Filter by recruiter ID",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="search",
+            description="Search by title or company",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="ordering", description="Order by field", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="page", description="Page number", required=False, type=int
+        ),
+        OpenApiParameter(
+            name="page_size",
+            description="Page size (max 200)",
+            required=False,
+            type=int,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Jobs retrieved successfully with pagination."
+        ),
+        400: OpenApiResponse(description="Invalid filter parameters."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminJobListView(APIView):
     """
     List all jobs with filtering and pagination.
-    
+
     GET /api/admin/jobs/
-    
+
     Admin only.
     Returns ALL jobs (draft, active, closed).
     Filters: status, company, recruiter_id, search
     Ordering: created_at, -created_at, title, -title
     """
+
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get(self, request):
         """List all jobs with filtering and ordering"""
@@ -229,7 +286,9 @@ class AdminJobListView(APIView):
             valid_statuses = [choice[0] for choice in Job.JobStatus.choices]
             if status_filter not in valid_statuses:
                 return Response(
-                    {"detail": f"Invalid status. Valid values: {', '.join(valid_statuses)}"},
+                    {
+                        "detail": f"Invalid status. Valid values: {', '.join(valid_statuses)}"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             queryset = queryset.filter(status=status_filter)
@@ -256,7 +315,9 @@ class AdminJobListView(APIView):
         valid_ordering_fields = ["created_at", "-created_at", "title", "-title"]
         if ordering not in valid_ordering_fields:
             return Response(
-                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
+                {
+                    "detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         queryset = queryset.order_by(ordering)
@@ -273,28 +334,29 @@ class AdminJobListView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="Update job status",
-	description="Update job status with moderation logging. Admin only.",
-	request={"application/json": {}},
-	responses={
-		200: OpenApiResponse(description="Job status updated successfully."),
-		400: OpenApiResponse(description="Invalid input data."),
-		404: OpenApiResponse(description="Job not found."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="Update job status",
+    description="Update job status with moderation logging. Admin only.",
+    request={"application/json": {}},
+    responses={
+        200: OpenApiResponse(description="Job status updated successfully."),
+        400: OpenApiResponse(description="Invalid input data."),
+        404: OpenApiResponse(description="Job not found."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminJobDetailView(APIView):
     """
     Update a specific job status.
-    
+
     PATCH /api/admin/jobs/<id>/
-    
+
     Admin only.
     Update job status with moderation logging.
     """
+
     permission_classes = (IsAdmin,)
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get_object(self, id):
         """Get job by id"""
@@ -323,36 +385,63 @@ class AdminJobDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="List resumes",
-	description="List all resumes with filtering and pagination. Admin only. Filters: candidate_id, parsed, structured.",
-	parameters=[
-		OpenApiParameter(name='candidate_id', description='Filter by candidate ID', required=False, type=str),
-		OpenApiParameter(name='parsed', description='Filter by parsed status', required=False, type=bool),
-		OpenApiParameter(name='structured', description='Filter by structured data status', required=False, type=bool),
-		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
-		OpenApiParameter(name='page', description='Page number', required=False, type=int),
-		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
-	],
-	responses={
-		200: OpenApiResponse(description="Resumes retrieved successfully with pagination."),
-		400: OpenApiResponse(description="Invalid filter parameters."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="List resumes",
+    description="List all resumes with filtering and pagination. Admin only. Filters: candidate_id, parsed, structured.",
+    parameters=[
+        OpenApiParameter(
+            name="candidate_id",
+            description="Filter by candidate ID",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="parsed",
+            description="Filter by parsed status",
+            required=False,
+            type=bool,
+        ),
+        OpenApiParameter(
+            name="structured",
+            description="Filter by structured data status",
+            required=False,
+            type=bool,
+        ),
+        OpenApiParameter(
+            name="ordering", description="Order by field", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="page", description="Page number", required=False, type=int
+        ),
+        OpenApiParameter(
+            name="page_size",
+            description="Page size (max 200)",
+            required=False,
+            type=int,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Resumes retrieved successfully with pagination."
+        ),
+        400: OpenApiResponse(description="Invalid filter parameters."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminResumeListView(APIView):
     """
     List all resumes with filtering and pagination.
-    
+
     GET /api/admin/resumes/
-    
+
     Admin only.
     Filters: candidate_id, parsed (has current version), structured (has structured data)
     Ordering: created_at, -created_at
     """
+
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get(self, request):
         """List all resumes with filtering and ordering"""
@@ -398,7 +487,9 @@ class AdminResumeListView(APIView):
         valid_ordering_fields = ["created_at", "-created_at"]
         if ordering not in valid_ordering_fields:
             return Response(
-                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
+                {
+                    "detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         queryset = queryset.order_by(ordering)
@@ -415,28 +506,29 @@ class AdminResumeListView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="Update resume",
-	description="Update resume (activate/deactivate user) with moderation logging. Admin only.",
-	request={"application/json": {}},
-	responses={
-		200: OpenApiResponse(description="Resume updated successfully."),
-		400: OpenApiResponse(description="Invalid input data."),
-		404: OpenApiResponse(description="Resume not found."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="Update resume",
+    description="Update resume (activate/deactivate user) with moderation logging. Admin only.",
+    request={"application/json": {}},
+    responses={
+        200: OpenApiResponse(description="Resume updated successfully."),
+        400: OpenApiResponse(description="Invalid input data."),
+        404: OpenApiResponse(description="Resume not found."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminResumeDetailView(APIView):
     """
     Update a specific resume (activate/deactivate user).
-    
+
     PATCH /api/admin/resumes/<id>/
-    
+
     Admin only.
     Update user is_active status with moderation logging.
     """
+
     permission_classes = (IsAdmin,)
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get_object(self, id):
         """Get resume by id"""
@@ -465,38 +557,67 @@ class AdminResumeDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="List applications",
-	description="List all applications with filtering and pagination (read-only). Admin only. Filters: status, candidate_id, job_id, recruiter_id.",
-	parameters=[
-		OpenApiParameter(name='status', description='Filter by application status', required=False, type=str),
-		OpenApiParameter(name='candidate_id', description='Filter by candidate ID', required=False, type=str),
-		OpenApiParameter(name='job_id', description='Filter by job ID', required=False, type=str),
-		OpenApiParameter(name='recruiter_id', description='Filter by recruiter ID', required=False, type=str),
-		OpenApiParameter(name='ordering', description='Order by field', required=False, type=str),
-		OpenApiParameter(name='page', description='Page number', required=False, type=int),
-		OpenApiParameter(name='page_size', description='Page size (max 200)', required=False, type=int),
-	],
-	responses={
-		200: OpenApiResponse(description="Applications retrieved successfully with pagination."),
-		400: OpenApiResponse(description="Invalid filter parameters."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="List applications",
+    description="List all applications with filtering and pagination (read-only). Admin only. Filters: status, candidate_id, job_id, recruiter_id.",
+    parameters=[
+        OpenApiParameter(
+            name="status",
+            description="Filter by application status",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="candidate_id",
+            description="Filter by candidate ID",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="job_id", description="Filter by job ID", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="recruiter_id",
+            description="Filter by recruiter ID",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="ordering", description="Order by field", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="page", description="Page number", required=False, type=int
+        ),
+        OpenApiParameter(
+            name="page_size",
+            description="Page size (max 200)",
+            required=False,
+            type=int,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Applications retrieved successfully with pagination."
+        ),
+        400: OpenApiResponse(description="Invalid filter parameters."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminApplicationListView(APIView):
     """
     List all applications with filtering and pagination (read-only).
-    
+
     GET /api/admin/applications/
-    
+
     Admin only.
     Read-only inspection. No status editing.
     Filters: status, candidate_id, job_id, recruiter_id
     Ordering: created_at, -created_at
     """
+
     permission_classes = (IsAdmin,)
     pagination_class = AdminPagination
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get(self, request):
         """List all applications with filtering and ordering"""
@@ -507,10 +628,14 @@ class AdminApplicationListView(APIView):
         # Filter by status
         status_filter = request.query_params.get("status")
         if status_filter:
-            valid_statuses = [choice[0] for choice in Application.ApplicationStatus.choices]
+            valid_statuses = [
+                choice[0] for choice in Application.ApplicationStatus.choices
+            ]
             if status_filter not in valid_statuses:
                 return Response(
-                    {"detail": f"Invalid status. Valid values: {', '.join(valid_statuses)}"},
+                    {
+                        "detail": f"Invalid status. Valid values: {', '.join(valid_statuses)}"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             queryset = queryset.filter(status=status_filter)
@@ -535,7 +660,9 @@ class AdminApplicationListView(APIView):
         valid_ordering_fields = ["created_at", "-created_at"]
         if ordering not in valid_ordering_fields:
             return Response(
-                {"detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"},
+                {
+                    "detail": f"Invalid ordering. Valid values: {', '.join(valid_ordering_fields)}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         queryset = queryset.order_by(ordering)
@@ -552,25 +679,26 @@ class AdminApplicationListView(APIView):
 
 
 @extend_schema(
-	tags=["Admin"],
-	summary="Admin dashboard",
-	description="Get platform statistics with aggregated metrics. Admin only.",
-	responses={
-		200: OpenApiResponse(description="Platform statistics retrieved successfully."),
-		403: OpenApiResponse(description="Admin access required.")
-	}
+    tags=["Admin"],
+    summary="Admin dashboard",
+    description="Get platform statistics with aggregated metrics. Admin only.",
+    responses={
+        200: OpenApiResponse(description="Platform statistics retrieved successfully."),
+        403: OpenApiResponse(description="Admin access required."),
+    },
 )
 class AdminDashboardView(APIView):
     """
     Get platform statistics.
-    
+
     GET /api/admin/dashboard/
-    
+
     Admin only.
     Returns aggregated platform statistics.
     """
+
     permission_classes = (IsAdmin,)
-    throttle_scope = 'admin'
+    throttle_scope = "admin"
 
     def get(self, request):
         """Get platform statistics"""

@@ -19,7 +19,9 @@ def enqueue_resume_version_refresh(sender, instance: ResumeVersion, **kwargs) ->
 
 
 @receiver(post_save, sender=StructuredResume)
-def enqueue_structured_resume_refresh(sender, instance: StructuredResume, **kwargs) -> None:
+def enqueue_structured_resume_refresh(
+    sender, instance: StructuredResume, **kwargs
+) -> None:
     if not instance.resume_version.is_current:
         return
 

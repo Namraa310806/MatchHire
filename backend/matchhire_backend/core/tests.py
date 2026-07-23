@@ -14,13 +14,14 @@ Tests cover:
 - API versioning
 - Exception handling
 """
+
 import uuid
 from io import BytesIO
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
-from rest_framework.exceptions import ValidationError, Throttled
+from rest_framework.exceptions import ValidationError
 
 from matchhire_backend.core.validators import (
     validate_uuid,
@@ -44,10 +45,6 @@ from matchhire_backend.core.throttling import (
     AdminRateThrottle,
     AnalyticsRateThrottle,
 )
-from apps.users.models import User
-from apps.jobs.models import Job
-from apps.resumes.models import Resume, ResumeVersion
-from apps.applications.models import Application
 
 
 User = get_user_model()
@@ -146,11 +143,15 @@ class SecurityAuditServiceTest(TestCase):
 
     def test_log_invalid_upload(self):
         """Test invalid upload logging."""
-        SecurityAuditService.log_invalid_upload("user123", "malicious.exe", "dangerous extension")
+        SecurityAuditService.log_invalid_upload(
+            "user123", "malicious.exe", "dangerous extension"
+        )
 
     def test_log_rate_limit_exceeded(self):
         """Test rate limit exceeded logging."""
-        SecurityAuditService.log_rate_limit_exceeded("user123", "login", "/api/auth/login/")
+        SecurityAuditService.log_rate_limit_exceeded(
+            "user123", "login", "/api/auth/login/"
+        )
 
     def test_log_invalid_status_transition(self):
         """Test invalid status transition logging."""
@@ -166,7 +167,9 @@ class SecurityAuditServiceTest(TestCase):
 
     def test_log_suspicious_activity(self):
         """Test suspicious activity logging."""
-        SecurityAuditService.log_suspicious_activity("user123", "brute_force", "multiple_failed_logins")
+        SecurityAuditService.log_suspicious_activity(
+            "user123", "brute_force", "multiple_failed_logins"
+        )
 
 
 class ThrottleClassesTest(TestCase):
@@ -175,57 +178,57 @@ class ThrottleClassesTest(TestCase):
     def test_anonymous_rate_throttle_scope(self):
         """Test AnonymousRateThrottle has correct scope."""
         throttle = AnonymousRateThrottle()
-        self.assertEqual(throttle.scope, 'anonymous')
+        self.assertEqual(throttle.scope, "anonymous")
 
     def test_authenticated_rate_throttle_scope(self):
         """Test AuthenticatedRateThrottle has correct scope."""
         throttle = AuthenticatedRateThrottle()
-        self.assertEqual(throttle.scope, 'authenticated')
+        self.assertEqual(throttle.scope, "authenticated")
 
     def test_login_rate_throttle_scope(self):
         """Test LoginRateThrottle has correct scope."""
         throttle = LoginRateThrottle()
-        self.assertEqual(throttle.scope, 'login')
+        self.assertEqual(throttle.scope, "login")
 
     def test_registration_rate_throttle_scope(self):
         """Test RegistrationRateThrottle has correct scope."""
         throttle = RegistrationRateThrottle()
-        self.assertEqual(throttle.scope, 'registration')
+        self.assertEqual(throttle.scope, "registration")
 
     def test_resume_upload_rate_throttle_scope(self):
         """Test ResumeUploadRateThrottle has correct scope."""
         throttle = ResumeUploadRateThrottle()
-        self.assertEqual(throttle.scope, 'resume_upload')
+        self.assertEqual(throttle.scope, "resume_upload")
 
     def test_job_apply_rate_throttle_scope(self):
         """Test JobApplyRateThrottle has correct scope."""
         throttle = JobApplyRateThrottle()
-        self.assertEqual(throttle.scope, 'job_apply')
+        self.assertEqual(throttle.scope, "job_apply")
 
     def test_matching_rate_throttle_scope(self):
         """Test MatchingRateThrottle has correct scope."""
         throttle = MatchingRateThrottle()
-        self.assertEqual(throttle.scope, 'matching')
+        self.assertEqual(throttle.scope, "matching")
 
     def test_interview_schedule_rate_throttle_scope(self):
         """Test InterviewScheduleRateThrottle has correct scope."""
         throttle = InterviewScheduleRateThrottle()
-        self.assertEqual(throttle.scope, 'interview_schedule')
+        self.assertEqual(throttle.scope, "interview_schedule")
 
     def test_notification_rate_throttle_scope(self):
         """Test NotificationRateThrottle has correct scope."""
         throttle = NotificationRateThrottle()
-        self.assertEqual(throttle.scope, 'notification')
+        self.assertEqual(throttle.scope, "notification")
 
     def test_admin_rate_throttle_scope(self):
         """Test AdminRateThrottle has correct scope."""
         throttle = AdminRateThrottle()
-        self.assertEqual(throttle.scope, 'admin')
+        self.assertEqual(throttle.scope, "admin")
 
     def test_analytics_rate_throttle_scope(self):
         """Test AnalyticsRateThrottle has correct scope."""
         throttle = AnalyticsRateThrottle()
-        self.assertEqual(throttle.scope, 'analytics')
+        self.assertEqual(throttle.scope, "analytics")
 
 
 class FileUploadValidationTest(APITestCase):
@@ -250,13 +253,13 @@ class FileUploadValidationTest(APITestCase):
         pdf_file.content_type = "application/pdf"
 
         response = self.client.post(
-            "/api/v1/resumes/upload/",
-            {"file": pdf_file},
-            format="multipart"
+            "/api/v1/resumes/upload/", {"file": pdf_file}, format="multipart"
         )
         # Should succeed or fail based on actual implementation
         # This tests the validation is called
-        self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST])
+        self.assertIn(
+            response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
+        )
 
     def test_upload_dangerous_extension(self):
         """Test uploading a file with dangerous extension is rejected."""
@@ -266,9 +269,7 @@ class FileUploadValidationTest(APITestCase):
         exe_file.content_type = "application/x-msdownload"
 
         response = self.client.post(
-            "/api/v1/resumes/upload/",
-            {"file": exe_file},
-            format="multipart"
+            "/api/v1/resumes/upload/", {"file": exe_file}, format="multipart"
         )
         # Should be rejected
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -282,9 +283,7 @@ class FileUploadValidationTest(APITestCase):
         large_file.content_type = "application/pdf"
 
         response = self.client.post(
-            "/api/v1/resumes/upload/",
-            {"file": large_file},
-            format="multipart"
+            "/api/v1/resumes/upload/", {"file": large_file}, format="multipart"
         )
         # Should be rejected
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -297,13 +296,17 @@ class APIVersioningTest(APITestCase):
         """Test v1 API is accessible."""
         response = self.client.get("/api/v1/jobs/")
         # Should return 401 (unauthenticated) or 200 if public
-        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_200_OK])
+        self.assertIn(
+            response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_200_OK]
+        )
 
     def test_backward_compatibility(self):
         """Test backward compatibility with /api/ path."""
         response = self.client.get("/api/jobs/")
         # Should return 401 (unauthenticated) or 200 if public
-        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_200_OK])
+        self.assertIn(
+            response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_200_OK]
+        )
 
 
 class PermissionAuditTest(APITestCase):
@@ -332,7 +335,7 @@ class PermissionAuditTest(APITestCase):
         """Test login endpoint allows anonymous access."""
         response = self.client.post(
             "/api/v1/auth/login/",
-            {"email": "test@example.com", "password": "wrongpass"}
+            {"email": "test@example.com", "password": "wrongpass"},
         )
         # Should not return 403 (permission denied)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -348,7 +351,7 @@ class PermissionAuditTest(APITestCase):
         response = self.client.post(
             "/api/v1/resumes/upload/",
             {"file": BytesIO(b"%PDF-1.4")},
-            format="multipart"
+            format="multipart",
         )
         # Recruiter should not be able to upload resume
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -363,7 +366,7 @@ class PermissionAuditTest(APITestCase):
                 "description": "Test Description",
                 "company_name": "Test Company",
                 "location": "Test Location",
-            }
+            },
         )
         # Candidate should not be able to create job
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -401,19 +404,18 @@ class SecurityHeadersTest(TestCase):
     @override_settings(DEBUG=False)
     def test_security_headers_in_production(self):
         """Test security headers are set in production."""
-        from django.conf import settings
         from matchhire_backend.settings import prod
-        
+
         # Check that security settings are defined
-        self.assertTrue(hasattr(prod, 'SECURE_SSL_REDIRECT'))
-        self.assertTrue(hasattr(prod, 'SESSION_COOKIE_SECURE'))
-        self.assertTrue(hasattr(prod, 'CSRF_COOKIE_SECURE'))
-        self.assertTrue(hasattr(prod, 'SECURE_HSTS_SECONDS'))
-        self.assertTrue(hasattr(prod, 'X_FRAME_OPTIONS'))
-        self.assertTrue(hasattr(prod, 'SECURE_CONTENT_TYPE_NOSNIFF'))
-        self.assertTrue(hasattr(prod, 'SECURE_BROWSER_XSS_FILTER'))
-        self.assertTrue(hasattr(prod, 'SECURE_REFERRER_POLICY'))
-        self.assertTrue(hasattr(prod, 'SECURE_PROXY_SSL_HEADER'))
+        self.assertTrue(hasattr(prod, "SECURE_SSL_REDIRECT"))
+        self.assertTrue(hasattr(prod, "SESSION_COOKIE_SECURE"))
+        self.assertTrue(hasattr(prod, "CSRF_COOKIE_SECURE"))
+        self.assertTrue(hasattr(prod, "SECURE_HSTS_SECONDS"))
+        self.assertTrue(hasattr(prod, "X_FRAME_OPTIONS"))
+        self.assertTrue(hasattr(prod, "SECURE_CONTENT_TYPE_NOSNIFF"))
+        self.assertTrue(hasattr(prod, "SECURE_BROWSER_XSS_FILTER"))
+        self.assertTrue(hasattr(prod, "SECURE_REFERRER_POLICY"))
+        self.assertTrue(hasattr(prod, "SECURE_PROXY_SSL_HEADER"))
 
 
 class PasswordValidatorsTest(TestCase):
@@ -422,14 +424,26 @@ class PasswordValidatorsTest(TestCase):
     def test_password_validators_configured(self):
         """Test password validators are configured."""
         from django.conf import settings
-        
+
         validators = settings.AUTH_PASSWORD_VALIDATORS
-        validator_names = [v['NAME'] for v in validators]
-        
-        self.assertIn('django.contrib.auth.password_validation.UserAttributeSimilarityValidator', validator_names)
-        self.assertIn('django.contrib.auth.password_validation.MinimumLengthValidator', validator_names)
-        self.assertIn('django.contrib.auth.password_validation.CommonPasswordValidator', validator_names)
-        self.assertIn('django.contrib.auth.password_validation.NumericPasswordValidator', validator_names)
+        validator_names = [v["NAME"] for v in validators]
+
+        self.assertIn(
+            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+            validator_names,
+        )
+        self.assertIn(
+            "django.contrib.auth.password_validation.MinimumLengthValidator",
+            validator_names,
+        )
+        self.assertIn(
+            "django.contrib.auth.password_validation.CommonPasswordValidator",
+            validator_names,
+        )
+        self.assertIn(
+            "django.contrib.auth.password_validation.NumericPasswordValidator",
+            validator_names,
+        )
 
 
 class JWTConfigurationTest(TestCase):
@@ -439,27 +453,31 @@ class JWTConfigurationTest(TestCase):
         """Test JWT access token lifetime is 15 minutes."""
         from datetime import timedelta
         from django.conf import settings
-        
-        self.assertEqual(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'], timedelta(minutes=15))
+
+        self.assertEqual(
+            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"], timedelta(minutes=15)
+        )
 
     def test_jwt_refresh_token_lifetime(self):
         """Test JWT refresh token lifetime is 7 days."""
         from datetime import timedelta
         from django.conf import settings
-        
-        self.assertEqual(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'], timedelta(days=7))
+
+        self.assertEqual(
+            settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"], timedelta(days=7)
+        )
 
     def test_jwt_rotation_enabled(self):
         """Test JWT token rotation is enabled."""
         from django.conf import settings
-        
-        self.assertTrue(settings.SIMPLE_JWT['ROTATE_REFRESH_TOKENS'])
+
+        self.assertTrue(settings.SIMPLE_JWT["ROTATE_REFRESH_TOKENS"])
 
     def test_jwt_blacklist_enabled(self):
         """Test JWT blacklist after rotation is enabled."""
         from django.conf import settings
-        
-        self.assertTrue(settings.SIMPLE_JWT['BLACKLIST_AFTER_ROTATION'])
+
+        self.assertTrue(settings.SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"])
 
 
 class CORSConfigurationTest(TestCase):
@@ -468,17 +486,17 @@ class CORSConfigurationTest(TestCase):
     def test_cors_uses_whitelist(self):
         """Test CORS uses whitelist not allow all."""
         from django.conf import settings
-        
+
         # Should have CORS_ALLOWED_ORIGINS defined
-        self.assertTrue(hasattr(settings, 'CORS_ALLOWED_ORIGINS'))
-        
+        self.assertTrue(hasattr(settings, "CORS_ALLOWED_ORIGINS"))
+
         # Should NOT have CORS_ALLOW_ALL_ORIGINS set to True
-        self.assertFalse(getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', False))
+        self.assertFalse(getattr(settings, "CORS_ALLOW_ALL_ORIGINS", False))
 
     def test_cors_credentials_allowed(self):
         """Test CORS allows credentials."""
         from django.conf import settings
-        
+
         self.assertTrue(settings.CORS_ALLOW_CREDENTIALS)
 
 
@@ -489,12 +507,11 @@ class ExceptionHandlerTest(APITestCase):
         """Test validation errors return consistent format."""
         self.client = APIClient()
         response = self.client.post(
-            "/api/v1/auth/login/",
-            {"email": "invalid", "password": "invalid"}
+            "/api/v1/auth/login/", {"email": "invalid", "password": "invalid"}
         )
         # Should return error in consistent format
         if response.status_code == status.HTTP_400_BAD_REQUEST:
-            self.assertIn('error', response.data)
+            self.assertIn("error", response.data)
 
 
 class ThrottlingIntegrationTest(APITestCase):
@@ -507,18 +524,22 @@ class ThrottlingIntegrationTest(APITestCase):
     def test_login_endpoint_has_throttle_scope(self):
         """Test login endpoint has throttle scope."""
         from apps.users.auth_views import LoginView
+
         view = LoginView()
-        self.assertEqual(view.throttle_scope, 'login')
+        self.assertEqual(view.throttle_scope, "login")
 
     def test_registration_endpoint_has_throttle_scope(self):
         """Test registration endpoints have throttle scope."""
-        from apps.users.auth_views import CandidateRegistrationView, RecruiterRegistrationView
-        
+        from apps.users.auth_views import (
+            CandidateRegistrationView,
+            RecruiterRegistrationView,
+        )
+
         candidate_view = CandidateRegistrationView()
         recruiter_view = RecruiterRegistrationView()
-        
-        self.assertEqual(candidate_view.throttle_scope, 'registration')
-        self.assertEqual(recruiter_view.throttle_scope, 'registration')
+
+        self.assertEqual(candidate_view.throttle_scope, "registration")
+        self.assertEqual(recruiter_view.throttle_scope, "registration")
 
 
 class DRFSettingsTest(TestCase):
@@ -527,27 +548,27 @@ class DRFSettingsTest(TestCase):
     def test_throttle_classes_configured(self):
         """Test default throttle classes are configured."""
         from django.conf import settings
-        
-        self.assertIn('DEFAULT_THROTTLE_CLASSES', settings.REST_FRAMEWORK)
-        self.assertIn('DEFAULT_THROTTLE_RATES', settings.REST_FRAMEWORK)
+
+        self.assertIn("DEFAULT_THROTTLE_CLASSES", settings.REST_FRAMEWORK)
+        self.assertIn("DEFAULT_THROTTLE_RATES", settings.REST_FRAMEWORK)
 
     def test_exception_handler_configured(self):
         """Test custom exception handler is configured."""
         from django.conf import settings
-        
-        self.assertIn('EXCEPTION_HANDLER', settings.REST_FRAMEWORK)
+
+        self.assertIn("EXCEPTION_HANDLER", settings.REST_FRAMEWORK)
         self.assertEqual(
-            settings.REST_FRAMEWORK['EXCEPTION_HANDLER'],
-            'matchhire_backend.core.exceptions.custom_exception_handler'
+            settings.REST_FRAMEWORK["EXCEPTION_HANDLER"],
+            "matchhire_backend.core.exceptions.custom_exception_handler",
         )
 
     def test_versioning_configured(self):
         """Test API versioning is configured."""
         from django.conf import settings
-        
-        self.assertIn('DEFAULT_VERSIONING_CLASS', settings.REST_FRAMEWORK)
-        self.assertIn('DEFAULT_VERSION', settings.REST_FRAMEWORK)
-        self.assertIn('ALLOWED_VERSIONS', settings.REST_FRAMEWORK)
-        
-        self.assertEqual(settings.REST_FRAMEWORK['DEFAULT_VERSION'], 'v1')
-        self.assertEqual(settings.REST_FRAMEWORK['ALLOWED_VERSIONS'], ['v1'])
+
+        self.assertIn("DEFAULT_VERSIONING_CLASS", settings.REST_FRAMEWORK)
+        self.assertIn("DEFAULT_VERSION", settings.REST_FRAMEWORK)
+        self.assertIn("ALLOWED_VERSIONS", settings.REST_FRAMEWORK)
+
+        self.assertEqual(settings.REST_FRAMEWORK["DEFAULT_VERSION"], "v1")
+        self.assertEqual(settings.REST_FRAMEWORK["ALLOWED_VERSIONS"], ["v1"])

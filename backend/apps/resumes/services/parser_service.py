@@ -3,7 +3,7 @@
 from django.utils import timezone
 
 from apps.resumes.models import ResumeVersion, ParsedResume
-from apps.resumes.parsers import ResumeParserFactory, CorruptedResumeError, UnsupportedResumeType
+from apps.resumes.parsers import ResumeParserFactory
 
 
 class ResumeParserService:
@@ -40,7 +40,7 @@ class ResumeParserService:
                 "raw_text": raw_text,
                 "status": ParsedResume.ParseStatus.SUCCESS,
                 "parsed_at": timezone.now(),
-            }
+            },
         )
 
         # If updating an existing record
@@ -54,7 +54,9 @@ class ResumeParserService:
         return parsed_resume
 
     @staticmethod
-    def mark_as_failed(resume_version: ResumeVersion, error_message: str) -> ParsedResume:
+    def mark_as_failed(
+        resume_version: ResumeVersion, error_message: str
+    ) -> ParsedResume:
         """
         Mark a resume version parsing as failed.
 
@@ -71,7 +73,7 @@ class ResumeParserService:
                 "status": ParsedResume.ParseStatus.FAILED,
                 "error_message": error_message,
                 "parsed_at": timezone.now(),
-            }
+            },
         )
 
         if not created:

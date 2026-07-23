@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.db.models import Q
 
 from ..models import Resume, ResumeVersion, ParsedResume
 
@@ -16,7 +15,7 @@ class ResumeVersioningService:
         stored_filename: str,
         file_size: int,
         mime_type: str,
-        change_reason: str = None
+        change_reason: str = None,
     ) -> ResumeVersion:
         """
         Create a new version for a resume.
@@ -37,11 +36,17 @@ class ResumeVersioningService:
             The newly created ResumeVersion instance
         """
         # Get the highest version number for this resume
-        last_version = ResumeVersion.objects.filter(resume=resume).order_by('-version_number').first()
+        last_version = (
+            ResumeVersion.objects.filter(resume=resume)
+            .order_by("-version_number")
+            .first()
+        )
         next_version_number = (last_version.version_number + 1) if last_version else 1
 
         # Deactivate all current versions for this resume
-        ResumeVersion.objects.filter(resume=resume, is_current=True).update(is_current=False)
+        ResumeVersion.objects.filter(resume=resume, is_current=True).update(
+            is_current=False
+        )
 
         # Create new version with all required fields
         version = ResumeVersion.objects.create(
@@ -62,13 +67,13 @@ class ResumeVersioningService:
     def get_current_version(resume: Resume) -> ResumeVersion:
         """
         Get the current version of a resume.
-        
+
         Args:
             resume: The Resume instance
-            
+
         Returns:
             The current ResumeVersion instance
-            
+
         Raises:
             ResumeVersion.DoesNotExist: If no current version exists
         """
@@ -79,49 +84,51 @@ class ResumeVersioningService:
     def rollback_version(resume: Resume, version_id: str) -> ResumeVersion:
         """
         Rollback to a specific version of a resume.
-        
+
         Deactivates the current version and activates the specified version.
-        
+
         Args:
             resume: The Resume instance
             version_id: The UUID of the version to rollback to
-            
+
         Returns:
             The activated ResumeVersion instance
-            
+
         Raises:
             ResumeVersion.DoesNotExist: If the version doesn't exist or doesn't belong to this resume
         """
         # Get the version to rollback to
         target_version = ResumeVersion.objects.get(id=version_id, resume=resume)
-        
+
         # Deactivate all current versions for this resume
-        ResumeVersion.objects.filter(resume=resume, is_current=True).update(is_current=False)
-        
+        ResumeVersion.objects.filter(resume=resume, is_current=True).update(
+            is_current=False
+        )
+
         # Activate the target version
         target_version.is_current = True
         target_version.save()
-        
+
         return target_version
 
     @staticmethod
     def get_version_history(resume: Resume) -> list[ResumeVersion]:
         """
         Get all versions for a resume, ordered newest first.
-        
+
         Args:
             resume: The Resume instance
-            
+
         Returns:
             QuerySet of ResumeVersion instances ordered by version_number descending
         """
-        return ResumeVersion.objects.filter(resume=resume).order_by('-version_number')
+        return ResumeVersion.objects.filter(resume=resume).order_by("-version_number")
 
     @staticmethod
     def link_parsed_resume(version: ResumeVersion, parsed_resume: ParsedResume) -> None:
         """
         Link a ParsedResume to a ResumeVersion.
-        
+
         Args:
             version: The ResumeVersion instance
             parsed_resume: The ParsedResume instance to link

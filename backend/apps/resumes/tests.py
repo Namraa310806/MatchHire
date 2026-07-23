@@ -1,4 +1,3 @@
-import io
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -6,7 +5,17 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from apps.users.models import User
-from .models import Resume, ResumeVersion, ParsedResume, StructuredResume, ResumeSkill, ResumeEducation, ResumeExperience, ResumeProject, ResumeCertification
+from .models import (
+    Resume,
+    ResumeVersion,
+    ParsedResume,
+    StructuredResume,
+    ResumeSkill,
+    ResumeEducation,
+    ResumeExperience,
+    ResumeProject,
+    ResumeCertification,
+)
 from .services.validators import validate_resume_file
 from .services.storage import ResumeStorageService
 from .services.extraction_service import ResumeExtractionService
@@ -18,7 +27,9 @@ class ResumeValidatorTests(TestCase):
     def test_valid_pdf_file(self):
         """Test that a valid PDF file passes validation"""
         pdf_content = b"%PDF-1.4\n%fake pdf content"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
 
         try:
             validate_resume_file(file)
@@ -28,7 +39,11 @@ class ResumeValidatorTests(TestCase):
     def test_valid_docx_file(self):
         """Test that a valid DOCX file passes validation"""
         docx_content = b"PK\x03\x04" + b"\x00" * 100
-        file = SimpleUploadedFile("resume.docx", docx_content, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        file = SimpleUploadedFile(
+            "resume.docx",
+            docx_content,
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
         try:
             validate_resume_file(file)
@@ -38,7 +53,9 @@ class ResumeValidatorTests(TestCase):
     def test_invalid_extension_doc(self):
         """Test that .doc files are rejected"""
         doc_content = b"some content"
-        file = SimpleUploadedFile("resume.doc", doc_content, content_type="application/msword")
+        file = SimpleUploadedFile(
+            "resume.doc", doc_content, content_type="application/msword"
+        )
 
         with self.assertRaises(ValidationError) as context:
             validate_resume_file(file)
@@ -58,7 +75,9 @@ class ResumeValidatorTests(TestCase):
     def test_invalid_extension_exe(self):
         """Test that .exe files are rejected"""
         exe_content = b"MZ\x90\x00"
-        file = SimpleUploadedFile("malware.exe", exe_content, content_type="application/x-msdownload")
+        file = SimpleUploadedFile(
+            "malware.exe", exe_content, content_type="application/x-msdownload"
+        )
 
         with self.assertRaises(ValidationError) as context:
             validate_resume_file(file)
@@ -67,7 +86,9 @@ class ResumeValidatorTests(TestCase):
     def test_oversized_file(self):
         """Test that files larger than 10MB are rejected"""
         large_content = b"x" * (11 * 1024 * 1024)
-        file = SimpleUploadedFile("large.pdf", large_content, content_type="application/pdf")
+        file = SimpleUploadedFile(
+            "large.pdf", large_content, content_type="application/pdf"
+        )
 
         with self.assertRaises(ValidationError) as context:
             validate_resume_file(file)
@@ -91,7 +112,11 @@ class ResumeValidatorTests(TestCase):
     def test_invalid_docx_signature(self):
         """Test that files with .docx extension but invalid signature are rejected"""
         fake_docx = b"NOT A DOCX"
-        file = SimpleUploadedFile("fake.docx", fake_docx, content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        file = SimpleUploadedFile(
+            "fake.docx",
+            fake_docx,
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
         with self.assertRaises(ValidationError) as context:
             validate_resume_file(file)
@@ -149,14 +174,22 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload first resume
         pdf_content1 = b"%PDF-1.4\n%first pdf"
-        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
-        response1 = self.client.post("/api/resumes/upload/", {"file": file1}, format="multipart")
+        file1 = SimpleUploadedFile(
+            "resume1.pdf", pdf_content1, content_type="application/pdf"
+        )
+        response1 = self.client.post(
+            "/api/resumes/upload/", {"file": file1}, format="multipart"
+        )
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
 
         # Upload second resume
         pdf_content2 = b"%PDF-1.4\n%second pdf"
-        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
-        response2 = self.client.post("/api/resumes/upload/", {"file": file2}, format="multipart")
+        file2 = SimpleUploadedFile(
+            "resume2.pdf", pdf_content2, content_type="application/pdf"
+        )
+        response2 = self.client.post(
+            "/api/resumes/upload/", {"file": file2}, format="multipart"
+        )
         self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
 
         # Verify only one Resume exists for the user
@@ -168,8 +201,12 @@ class ResumeArchitectureTests(TestCase):
         self.client.force_authenticate(user=self.candidate)
 
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -189,19 +226,29 @@ class ResumeArchitectureTests(TestCase):
 
         # First upload
         pdf_content1 = b"%PDF-1.4\n%first pdf"
-        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
-        response1 = self.client.post("/api/resumes/upload/", {"file": file1}, format="multipart")
+        file1 = SimpleUploadedFile(
+            "resume1.pdf", pdf_content1, content_type="application/pdf"
+        )
+        response1 = self.client.post(
+            "/api/resumes/upload/", {"file": file1}, format="multipart"
+        )
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
 
         # Second upload
         pdf_content2 = b"%PDF-1.4\n%second pdf"
-        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
-        response2 = self.client.post("/api/resumes/upload/", {"file": file2}, format="multipart")
+        file2 = SimpleUploadedFile(
+            "resume2.pdf", pdf_content2, content_type="application/pdf"
+        )
+        response2 = self.client.post(
+            "/api/resumes/upload/", {"file": file2}, format="multipart"
+        )
         self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
 
         # Verify two versions exist
         resume = Resume.objects.get(user=self.candidate)
-        versions = ResumeVersion.objects.filter(resume=resume).order_by('version_number')
+        versions = ResumeVersion.objects.filter(resume=resume).order_by(
+            "version_number"
+        )
         self.assertEqual(versions.count(), 2)
 
         # Verify version numbers
@@ -218,23 +265,33 @@ class ResumeArchitectureTests(TestCase):
 
         # First upload
         pdf_content1 = b"%PDF-1.4\n%first pdf"
-        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
+        file1 = SimpleUploadedFile(
+            "resume1.pdf", pdf_content1, content_type="application/pdf"
+        )
         self.client.post("/api/resumes/upload/", {"file": file1}, format="multipart")
 
         # Second upload
         pdf_content2 = b"%PDF-1.4\n%second pdf"
-        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
+        file2 = SimpleUploadedFile(
+            "resume2.pdf", pdf_content2, content_type="application/pdf"
+        )
         self.client.post("/api/resumes/upload/", {"file": file2}, format="multipart")
 
         # Third upload
         pdf_content3 = b"%PDF-1.4\n%third pdf"
-        file3 = SimpleUploadedFile("resume3.pdf", pdf_content3, content_type="application/pdf")
-        response3 = self.client.post("/api/resumes/upload/", {"file": file3}, format="multipart")
+        file3 = SimpleUploadedFile(
+            "resume3.pdf", pdf_content3, content_type="application/pdf"
+        )
+        response3 = self.client.post(
+            "/api/resumes/upload/", {"file": file3}, format="multipart"
+        )
         self.assertEqual(response3.status_code, status.HTTP_201_CREATED)
 
         # Verify three versions exist
         resume = Resume.objects.get(user=self.candidate)
-        versions = ResumeVersion.objects.filter(resume=resume).order_by('version_number')
+        versions = ResumeVersion.objects.filter(resume=resume).order_by(
+            "version_number"
+        )
         self.assertEqual(versions.count(), 3)
 
         # Verify version numbers
@@ -254,12 +311,16 @@ class ResumeArchitectureTests(TestCase):
         # Upload three times
         for i in range(1, 4):
             pdf_content = b"%PDF-1.4\n%pdf content"
-            file = SimpleUploadedFile(f"resume{i}.pdf", pdf_content, content_type="application/pdf")
+            file = SimpleUploadedFile(
+                f"resume{i}.pdf", pdf_content, content_type="application/pdf"
+            )
             self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         # Verify exactly one current version exists
         resume = Resume.objects.get(user=self.candidate)
-        current_count = ResumeVersion.objects.filter(resume=resume, is_current=True).count()
+        current_count = ResumeVersion.objects.filter(
+            resume=resume, is_current=True
+        ).count()
         self.assertEqual(current_count, 1)
 
     def test_resume_container_reused_across_uploads(self):
@@ -268,14 +329,22 @@ class ResumeArchitectureTests(TestCase):
 
         # First upload
         pdf_content1 = b"%PDF-1.4\n%first pdf"
-        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
-        response1 = self.client.post("/api/resumes/upload/", {"file": file1}, format="multipart")
+        file1 = SimpleUploadedFile(
+            "resume1.pdf", pdf_content1, content_type="application/pdf"
+        )
+        response1 = self.client.post(
+            "/api/resumes/upload/", {"file": file1}, format="multipart"
+        )
         resume_id_1 = response1.data["resume_id"]
 
         # Second upload
         pdf_content2 = b"%PDF-1.4\n%second pdf"
-        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
-        response2 = self.client.post("/api/resumes/upload/", {"file": file2}, format="multipart")
+        file2 = SimpleUploadedFile(
+            "resume2.pdf", pdf_content2, content_type="application/pdf"
+        )
+        response2 = self.client.post(
+            "/api/resumes/upload/", {"file": file2}, format="multipart"
+        )
         resume_id_2 = response2.data["resume_id"]
 
         # Verify same Resume container was used
@@ -289,15 +358,23 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
-        resume_id = response.data["resume_id"]
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
+        response.data["resume_id"]
         version_id = response.data["id"]
 
         # Parse the version
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Sample resume text"
-            parse_response = self.client.post(f"/api/resumes/versions/{version_id}/parse/")
+            parse_response = self.client.post(
+                f"/api/resumes/versions/{version_id}/parse/"
+            )
             self.assertEqual(parse_response.status_code, status.HTTP_200_OK)
 
         # Verify ParsedResume is linked to ResumeVersion
@@ -312,23 +389,35 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload first resume
         pdf_content1 = b"%PDF-1.4\n%first pdf"
-        file1 = SimpleUploadedFile("resume1.pdf", pdf_content1, content_type="application/pdf")
-        response1 = self.client.post("/api/resumes/upload/", {"file": file1}, format="multipart")
+        file1 = SimpleUploadedFile(
+            "resume1.pdf", pdf_content1, content_type="application/pdf"
+        )
+        response1 = self.client.post(
+            "/api/resumes/upload/", {"file": file1}, format="multipart"
+        )
         version1_id = response1.data["id"]
 
         # Upload second resume
         pdf_content2 = b"%PDF-1.4\n%second pdf"
-        file2 = SimpleUploadedFile("resume2.pdf", pdf_content2, content_type="application/pdf")
-        response2 = self.client.post("/api/resumes/upload/", {"file": file2}, format="multipart")
+        file2 = SimpleUploadedFile(
+            "resume2.pdf", pdf_content2, content_type="application/pdf"
+        )
+        response2 = self.client.post(
+            "/api/resumes/upload/", {"file": file2}, format="multipart"
+        )
         version2_id = response2.data["id"]
 
         # Parse version 1
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Text from version 1"
             self.client.post(f"/api/resumes/versions/{version1_id}/parse/")
 
         # Parse version 2
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Text from version 2"
             self.client.post(f"/api/resumes/versions/{version2_id}/parse/")
 
@@ -347,11 +436,15 @@ class ResumeArchitectureTests(TestCase):
         # Upload three times
         pdf_content = b"%PDF-1.4\n%pdf content"
         for i in range(1, 4):
-            file = SimpleUploadedFile(f"resume{i}.pdf", pdf_content, content_type="application/pdf")
+            file = SimpleUploadedFile(
+                f"resume{i}.pdf", pdf_content, content_type="application/pdf"
+            )
             self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         resume = Resume.objects.get(user=self.candidate)
-        versions = list(ResumeVersion.objects.filter(resume=resume).order_by('version_number'))
+        versions = list(
+            ResumeVersion.objects.filter(resume=resume).order_by("version_number")
+        )
 
         # Rollback to version 1
         response = self.client.post(
@@ -381,8 +474,12 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         resume_id = response.data["resume_id"]
 
         # Try to access as other candidate
@@ -396,8 +493,12 @@ class ResumeArchitectureTests(TestCase):
 
         # Try to upload
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # Try to list
@@ -408,8 +509,12 @@ class ResumeArchitectureTests(TestCase):
         """Test that anonymous users are blocked from resume endpoints"""
         # Try to upload
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try to list
@@ -423,7 +528,9 @@ class ResumeArchitectureTests(TestCase):
         # Upload three times
         for i in range(1, 4):
             pdf_content = b"%PDF-1.4\n%pdf content"
-            file = SimpleUploadedFile(f"resume{i}.pdf", pdf_content, content_type="application/pdf")
+            file = SimpleUploadedFile(
+                f"resume{i}.pdf", pdf_content, content_type="application/pdf"
+            )
             self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         resume = Resume.objects.get(user=self.candidate)
@@ -442,8 +549,12 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         resume_id = upload_response.data["resume_id"]
 
         response = self.client.get(f"/api/resumes/{resume_id}/versions/current/")
@@ -459,7 +570,9 @@ class ResumeArchitectureTests(TestCase):
         # Upload three times
         for i in range(1, 4):
             pdf_content = b"%PDF-1.4\n%pdf content"
-            file = SimpleUploadedFile(f"resume{i}.pdf", pdf_content, content_type="application/pdf")
+            file = SimpleUploadedFile(
+                f"resume{i}.pdf", pdf_content, content_type="application/pdf"
+            )
             self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         resume = Resume.objects.get(user=self.candidate)
@@ -479,8 +592,12 @@ class ResumeArchitectureTests(TestCase):
         self.client.force_authenticate(user=self.candidate)
 
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn("id", response.data)  # version_id
@@ -498,7 +615,9 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
         self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         response = self.client.get("/api/resumes/")
@@ -514,7 +633,9 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
         self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
 
         response = self.client.get("/api/resumes/active/")
@@ -531,12 +652,18 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         resume_id = upload_response.data["resume_id"]
 
         # Parse current version
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Sample resume text"
             response = self.client.post(f"/api/resumes/{resume_id}/parse/")
 
@@ -553,11 +680,17 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload and parse resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         resume_id = upload_response.data["resume_id"]
 
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Sample resume text"
             self.client.post(f"/api/resumes/{resume_id}/parse/")
 
@@ -577,12 +710,18 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         version_id = upload_response.data["id"]
 
         # Parse specific version
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Sample resume text"
             response = self.client.post(f"/api/resumes/versions/{version_id}/parse/")
 
@@ -597,11 +736,17 @@ class ResumeArchitectureTests(TestCase):
 
         # Upload and parse resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         version_id = upload_response.data["id"]
 
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = "Sample resume text"
             self.client.post(f"/api/resumes/versions/{version_id}/parse/")
 
@@ -641,19 +786,26 @@ class ResumeExtractionTests(TestCase):
     def _create_parsed_resume(self, raw_text):
         """Helper to create a parsed resume with given text"""
         self.client.force_authenticate(user=self.candidate)
-        
+
         # Upload resume
         pdf_content = b"%PDF-1.4\n%test pdf"
-        file = SimpleUploadedFile("resume.pdf", pdf_content, content_type="application/pdf")
-        upload_response = self.client.post("/api/resumes/upload/", {"file": file}, format="multipart")
+        file = SimpleUploadedFile(
+            "resume.pdf", pdf_content, content_type="application/pdf"
+        )
+        upload_response = self.client.post(
+            "/api/resumes/upload/", {"file": file}, format="multipart"
+        )
         version_id = upload_response.data["id"]
-        
+
         # Parse with mock
         from unittest.mock import patch
-        with patch('apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text') as mock_extract:
+
+        with patch(
+            "apps.resumes.parsers.pdf_parser.PDFResumeParser.extract_text"
+        ) as mock_extract:
             mock_extract.return_value = raw_text
             self.client.post(f"/api/resumes/versions/{version_id}/parse/")
-        
+
         return ParsedResume.objects.get(resume_version_id=version_id)
 
     def test_email_extraction(self):
@@ -664,10 +816,10 @@ Email: john.doe@example.com
 Phone: (555) 123-4567
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         self.assertEqual(structured_resume.email, "john.doe@example.com")
 
     def test_phone_extraction(self):
@@ -678,10 +830,10 @@ Email: jane@example.com
 Phone: +1 (555) 987-6543
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         self.assertIn("555", structured_resume.phone)
         self.assertIn("987", structured_resume.phone)
 
@@ -693,10 +845,10 @@ Email: john@example.com
 LinkedIn: https://www.linkedin.com/in/johndoe
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         self.assertIn("linkedin.com", structured_resume.linkedin_url)
         self.assertIn("johndoe", structured_resume.linkedin_url)
 
@@ -708,10 +860,10 @@ Email: jane@example.com
 GitHub: https://github.com/janedeveloper
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         self.assertIn("github.com", structured_resume.github_url)
         self.assertIn("janedeveloper", structured_resume.github_url)
 
@@ -722,11 +874,11 @@ Skills
 Python, Django, AWS, PostgreSQL, JavaScript, React
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
-        skills = list(structured_resume.skills.values_list('name', flat=True))
+
+        skills = list(structured_resume.skills.values_list("name", flat=True))
         self.assertIn("Python", skills)
         self.assertIn("Django", skills)
         self.assertIn("AWS", skills)
@@ -740,10 +892,10 @@ Stanford University
 2018 - 2022
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         education = structured_resume.education.first()
         self.assertIsNotNone(education)
         # First line is treated as institution
@@ -759,10 +911,10 @@ June 2020 - Present
 Developed scalable web applications
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         experience = structured_resume.experience.first()
         self.assertIsNotNone(experience)
         self.assertIn("Google", experience.company)
@@ -777,10 +929,10 @@ Built a full-stack e-commerce platform using Django and React
 GitHub: https://github.com/user/ecommerce
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         project = structured_resume.projects.first()
         self.assertIsNotNone(project)
         self.assertIn("E-commerce", project.title)
@@ -795,10 +947,10 @@ Issued by Amazon Web Services
 January 2023
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
         structured_resume = ResumeExtractionService.extract(parsed_resume)
-        
+
         certification = structured_resume.certifications.first()
         self.assertIsNotNone(certification)
         self.assertIn("AWS", certification.name)
@@ -811,11 +963,11 @@ Skills
 Python, Django
 """
         parsed_resume = self._create_parsed_resume(raw_text1)
-        
+
         # First extraction
         structured_resume1 = ResumeExtractionService.extract(parsed_resume)
         skills_count_1 = structured_resume1.skills.count()
-        
+
         # Update raw text and re-extract
         raw_text2 = """
 Skills
@@ -823,24 +975,29 @@ Python, Django, JavaScript, React
 """
         parsed_resume.raw_text = raw_text2
         parsed_resume.save()
-        
+
         structured_resume2 = ResumeExtractionService.extract(parsed_resume)
         skills_count_2 = structured_resume2.skills.count()
-        
+
         # Verify re-extraction replaced old records
         self.assertGreater(skills_count_2, skills_count_1)
-        self.assertEqual(StructuredResume.objects.filter(resume_version=parsed_resume.resume_version).count(), 1)
+        self.assertEqual(
+            StructuredResume.objects.filter(
+                resume_version=parsed_resume.resume_version
+            ).count(),
+            1,
+        )
 
     def test_extraction_endpoint_ownership_enforced(self):
         """Test that extraction endpoint enforces ownership"""
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to extract as other candidate
         self.client.force_authenticate(user=self.other_candidate)
         response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_extraction_endpoint_recruiter_blocked(self):
@@ -848,11 +1005,11 @@ Python, Django, JavaScript, React
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to extract as recruiter
         self.client.force_authenticate(user=self.recruiter)
         response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_extraction_endpoint_anonymous_blocked(self):
@@ -860,11 +1017,11 @@ Python, Django, JavaScript, React
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to extract as anonymous
         self.client.force_authenticate(user=None)
         response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_structured_endpoint_works(self):
@@ -876,15 +1033,15 @@ Skills
 Python, Django
 """
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
-        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        ResumeExtractionService.extract(parsed_resume)
         version_id = parsed_resume.resume_version.id
-        
+
         # Get structured data via API
         self.client.force_authenticate(user=self.candidate)
         response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("full_name", response.data)
         self.assertIn("email", response.data)
@@ -895,16 +1052,16 @@ Python, Django
         """Test that extraction requires successful parsing"""
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Mark as failed
         parsed_resume.status = ParsedResume.ParseStatus.FAILED
         parsed_resume.save()
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to extract
         self.client.force_authenticate(user=self.candidate)
         response = self.client.post(f"/api/resumes/versions/{version_id}/extract/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("successfully parsed", response.data["detail"])
 
@@ -912,45 +1069,45 @@ Python, Django
         """Test that structured endpoint enforces ownership"""
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
-        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        ResumeExtractionService.extract(parsed_resume)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to access as other candidate
         self.client.force_authenticate(user=self.other_candidate)
         response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_structured_endpoint_recruiter_blocked(self):
         """Test that recruiters are blocked from structured endpoint"""
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
-        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        ResumeExtractionService.extract(parsed_resume)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to access as recruiter
         self.client.force_authenticate(user=self.recruiter)
         response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_structured_endpoint_anonymous_blocked(self):
         """Test that anonymous users are blocked from structured endpoint"""
         raw_text = "John Doe\nEmail: john@example.com"
         parsed_resume = self._create_parsed_resume(raw_text)
-        
+
         # Extract
-        structured_resume = ResumeExtractionService.extract(parsed_resume)
+        ResumeExtractionService.extract(parsed_resume)
         version_id = parsed_resume.resume_version.id
-        
+
         # Try to access as anonymous
         self.client.force_authenticate(user=None)
         response = self.client.get(f"/api/resumes/versions/{version_id}/structured/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
@@ -986,15 +1143,41 @@ class ResumeSearchTests(TestCase):
         )
 
         # Create resumes and structured data for each candidate
-        self._create_structured_resume(self.candidate1, "Python Developer", "San Francisco", ["Python", "Django"], "Google", "Bachelor", "AWS")
-        self._create_structured_resume(self.candidate2, "JavaScript Developer", "New York", ["JavaScript", "React"], "Microsoft", "Masters", "Azure")
-        self._create_structured_resume(self.candidate3, "Full Stack Developer", "Ahmedabad", ["Python", "React", "AWS"], "Amazon", "Bachelor", "GCP")
+        self._create_structured_resume(
+            self.candidate1,
+            "Python Developer",
+            "San Francisco",
+            ["Python", "Django"],
+            "Google",
+            "Bachelor",
+            "AWS",
+        )
+        self._create_structured_resume(
+            self.candidate2,
+            "JavaScript Developer",
+            "New York",
+            ["JavaScript", "React"],
+            "Microsoft",
+            "Masters",
+            "Azure",
+        )
+        self._create_structured_resume(
+            self.candidate3,
+            "Full Stack Developer",
+            "Ahmedabad",
+            ["Python", "React", "AWS"],
+            "Amazon",
+            "Bachelor",
+            "GCP",
+        )
 
-    def _create_structured_resume(self, user, full_name, location, skills, company, degree, certification):
+    def _create_structured_resume(
+        self, user, full_name, location, skills, company, degree, certification
+    ):
         """Helper to create a structured resume with test data"""
         # Create resume container
         resume = Resume.objects.create(user=user)
-        
+
         # Create resume version
         version = ResumeVersion.objects.create(
             resume=resume,
@@ -1005,14 +1188,14 @@ class ResumeSearchTests(TestCase):
             version_number=1,
             is_current=True,
         )
-        
+
         # Create parsed resume
-        parsed_resume = ParsedResume.objects.create(
+        ParsedResume.objects.create(
             resume_version=version,
             raw_text="Sample resume text",
             status=ParsedResume.ParseStatus.SUCCESS,
         )
-        
+
         # Create structured resume
         structured_resume = StructuredResume.objects.create(
             resume_version=version,
@@ -1020,53 +1203,53 @@ class ResumeSearchTests(TestCase):
             email=f"{user.email}",
             location=location,
         )
-        
+
         # Add skills
         for skill_name in skills:
             ResumeSkill.objects.create(
                 structured_resume=structured_resume,
                 name=skill_name,
             )
-        
+
         # Add experience
         ResumeExperience.objects.create(
             structured_resume=structured_resume,
             company=company,
             job_title="Software Engineer",
         )
-        
+
         # Add education
         ResumeEducation.objects.create(
             structured_resume=structured_resume,
             institution="University",
             degree=degree,
         )
-        
+
         # Add project
         ResumeProject.objects.create(
             structured_resume=structured_resume,
             title="Sample Project",
         )
-        
+
         # Add certification
         ResumeCertification.objects.create(
             structured_resume=structured_resume,
             name=certification,
             issuer="Certification Authority",
         )
-        
+
         return structured_resume
 
     def test_search_by_skill(self):
         """Test searching resumes by skill"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?skill=Python")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should find 2 resumes with Python (candidate1 and candidate3)
         self.assertEqual(len(response.data["results"]), 2)
-        
+
         # Verify the results contain the expected candidates
         names = [result["candidate_name"] for result in response.data["results"]]
         self.assertIn("Python Developer", names)
@@ -1075,9 +1258,9 @@ class ResumeSearchTests(TestCase):
     def test_search_by_location(self):
         """Test searching resumes by location"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?location=Ahmedabad")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["location"], "Ahmedabad")
@@ -1085,20 +1268,22 @@ class ResumeSearchTests(TestCase):
     def test_search_by_company(self):
         """Test searching resumes by company"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?company=Google")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         # candidate1 has Google in their experience
-        self.assertEqual(response.data["results"][0]["candidate_name"], "Python Developer")
+        self.assertEqual(
+            response.data["results"][0]["candidate_name"], "Python Developer"
+        )
 
     def test_search_by_education(self):
         """Test searching resumes by education"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?education=Bachelor")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should find 2 resumes with Bachelor degree
         self.assertEqual(len(response.data["results"]), 2)
@@ -1106,20 +1291,24 @@ class ResumeSearchTests(TestCase):
     def test_search_by_certification(self):
         """Test searching resumes by certification"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?certification=AWS")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should find 1 resume with AWS certification (candidate1)
         self.assertEqual(len(response.data["results"]), 1)
-        self.assertEqual(response.data["results"][0]["candidate_name"], "Python Developer")
+        self.assertEqual(
+            response.data["results"][0]["candidate_name"], "Python Developer"
+        )
 
     def test_combined_filters(self):
         """Test searching with multiple filters"""
         self.client.force_authenticate(user=self.recruiter)
-        
-        response = self.client.get("/api/resumes/search/?skill=Python&location=Ahmedabad")
-        
+
+        response = self.client.get(
+            "/api/resumes/search/?skill=Python&location=Ahmedabad"
+        )
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["location"], "Ahmedabad")
@@ -1127,9 +1316,9 @@ class ResumeSearchTests(TestCase):
     def test_multiple_skills(self):
         """Test searching with multiple skill filters (OR logic)"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?skill=Python&skill=Django")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should find resumes with Python OR Django
         self.assertGreaterEqual(len(response.data["results"]), 1)
@@ -1137,35 +1326,35 @@ class ResumeSearchTests(TestCase):
     def test_recruiter_access_works(self):
         """Test that recruiters can access search endpoint"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("results", response.data)
 
     def test_candidate_blocked(self):
         """Test that candidates are blocked from search endpoint"""
         self.client.force_authenticate(user=self.candidate1)
-        
+
         response = self.client.get("/api/resumes/search/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_anonymous_blocked(self):
         """Test that anonymous users are blocked from search endpoint"""
         self.client.force_authenticate(user=None)
-        
+
         response = self.client.get("/api/resumes/search/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_pagination_works(self):
         """Test that pagination works"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         # Default page size is 20, we have 3 resumes so they should all fit
         response = self.client.get("/api/resumes/search/")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("count", response.data)
         self.assertIn("results", response.data)
@@ -1175,9 +1364,9 @@ class ResumeSearchTests(TestCase):
     def test_pagination_with_page_size(self):
         """Test pagination with custom page size"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?page_size=2")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)
         self.assertEqual(response.data["count"], 3)
@@ -1185,9 +1374,9 @@ class ResumeSearchTests(TestCase):
     def test_ordering_by_name(self):
         """Test ordering by name ascending"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?ordering=name")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         names = [result["candidate_name"] for result in response.data["results"]]
         # Verify ascending order
@@ -1196,9 +1385,9 @@ class ResumeSearchTests(TestCase):
     def test_ordering_by_name_desc(self):
         """Test ordering by name descending"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?ordering=-name")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         names = [result["candidate_name"] for result in response.data["results"]]
         # Verify descending order
@@ -1207,18 +1396,18 @@ class ResumeSearchTests(TestCase):
     def test_ordering_by_created_at(self):
         """Test ordering by created_at"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?ordering=created_at")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("results", response.data)
 
     def test_invalid_ordering_rejected(self):
         """Test that invalid ordering field is rejected"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?ordering=invalid_field")
-        
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Validation errors are in field-specific format
         self.assertIn("ordering", response.data)
@@ -1226,9 +1415,9 @@ class ResumeSearchTests(TestCase):
     def test_empty_result_set(self):
         """Test search with no matching results"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?skill=NonExistentSkill")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 0)
         self.assertEqual(len(response.data["results"]), 0)
@@ -1236,11 +1425,11 @@ class ResumeSearchTests(TestCase):
     def test_search_result_structure(self):
         """Test that search result has correct structure"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         response = self.client.get("/api/resumes/search/?skill=Python")
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         if len(response.data["results"]) > 0:
             result = response.data["results"][0]
             self.assertIn("resume_id", result)
@@ -1257,27 +1446,30 @@ class ResumeSearchTests(TestCase):
     def test_query_optimization(self):
         """Test that query optimization is applied (no N+1 queries)"""
         self.client.force_authenticate(user=self.recruiter)
-        
+
         # Use Django's connection queries to count queries
         from django.db import connection
         from django.test.utils import override_settings
-        
+
         # Reset query count
         connection.queries_log.clear()
-        
+
         with override_settings(DEBUG=True):
             response = self.client.get("/api/resumes/search/?skill=Python")
-            
+
             # Count queries
             query_count = len(connection.queries)
-            
+
             # With proper optimization (select_related and prefetch_related),
             # we should have a reasonable number of queries (typically < 10 for this case)
             # Without optimization, it would be much higher due to N+1 queries
-            self.assertLess(query_count, 10, 
+            self.assertLess(
+                query_count,
+                10,
                 f"Query optimization failed: {query_count} queries executed. "
-                "Expected < 10 queries with proper select_related/prefetch_related.")
-        
+                "Expected < 10 queries with proper select_related/prefetch_related.",
+            )
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_only_returns_current_versions(self):
@@ -1289,10 +1481,10 @@ class ResumeSearchTests(TestCase):
             full_name="Test Candidate",
             role=User.Roles.CANDIDATE,
         )
-        
+
         # Create resume container
         resume = Resume.objects.create(user=candidate)
-        
+
         # Create version 1 (old, not current)
         version1 = ResumeVersion.objects.create(
             resume=resume,
@@ -1303,14 +1495,14 @@ class ResumeSearchTests(TestCase):
             version_number=1,
             is_current=False,
         )
-        
+
         # Create parsed resume for version 1
-        parsed1 = ParsedResume.objects.create(
+        ParsedResume.objects.create(
             resume_version=version1,
             raw_text="Old resume text",
             status=ParsedResume.ParseStatus.SUCCESS,
         )
-        
+
         # Create structured resume for version 1 with unique skill
         structured1 = StructuredResume.objects.create(
             resume_version=version1,
@@ -1322,7 +1514,7 @@ class ResumeSearchTests(TestCase):
             structured_resume=structured1,
             name="UniqueSkillXYZ",
         )
-        
+
         # Create version 2 (old, not current)
         version2 = ResumeVersion.objects.create(
             resume=resume,
@@ -1333,14 +1525,14 @@ class ResumeSearchTests(TestCase):
             version_number=2,
             is_current=False,
         )
-        
+
         # Create parsed resume for version 2
-        parsed2 = ParsedResume.objects.create(
+        ParsedResume.objects.create(
             resume_version=version2,
             raw_text="Old resume text v2",
             status=ParsedResume.ParseStatus.SUCCESS,
         )
-        
+
         # Create structured resume for version 2 with unique skill
         structured2 = StructuredResume.objects.create(
             resume_version=version2,
@@ -1352,7 +1544,7 @@ class ResumeSearchTests(TestCase):
             structured_resume=structured2,
             name="UniqueSkillXYZ",
         )
-        
+
         # Create version 3 (current)
         version3 = ResumeVersion.objects.create(
             resume=resume,
@@ -1363,14 +1555,14 @@ class ResumeSearchTests(TestCase):
             version_number=3,
             is_current=True,
         )
-        
+
         # Create parsed resume for version 3
-        parsed3 = ParsedResume.objects.create(
+        ParsedResume.objects.create(
             resume_version=version3,
             raw_text="Current resume text",
             status=ParsedResume.ParseStatus.SUCCESS,
         )
-        
+
         # Create structured resume for version 3 with unique skill
         structured3 = StructuredResume.objects.create(
             resume_version=version3,
@@ -1382,15 +1574,19 @@ class ResumeSearchTests(TestCase):
             structured_resume=structured3,
             name="UniqueSkillXYZ",
         )
-        
+
         # Search as recruiter for the unique skill
         self.client.force_authenticate(user=self.recruiter)
         response = self.client.get("/api/resumes/search/?skill=UniqueSkillXYZ")
-        
+
         # Should only return version 3 (current), not versions 1 and 2
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
-        
+
         # Verify the returned version is the current one
-        self.assertEqual(response.data["results"][0]["resume_version_id"], str(version3.id))
-        self.assertEqual(response.data["results"][0]["candidate_name"], "Test Candidate V3")
+        self.assertEqual(
+            response.data["results"][0]["resume_version_id"], str(version3.id)
+        )
+        self.assertEqual(
+            response.data["results"][0]["candidate_name"], "Test Candidate V3"
+        )

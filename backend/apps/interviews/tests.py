@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.applications.models import Application, ApplicationStatusHistory
+from apps.applications.models import Application
 from apps.interviews.models import Interview, InterviewStatusHistory
 from apps.interviews.services.workflow import InterviewWorkflowService
 from apps.jobs.models import Job
@@ -143,9 +143,7 @@ class InterviewWorkflowServiceTests(TestCase):
         """Test 20: invalid transition blocked"""
         with self.assertRaises(ValueError):
             InterviewWorkflowService.change_status(
-                self.interview,
-                Interview.InterviewStatus.SCHEDULED,
-                self.recruiter
+                self.interview, Interview.InterviewStatus.SCHEDULED, self.recruiter
             )
 
     def test_21_completed_cannot_transition(self):
@@ -153,8 +151,7 @@ class InterviewWorkflowServiceTests(TestCase):
         self.interview.status = Interview.InterviewStatus.COMPLETED
         self.interview.save()
         result = InterviewWorkflowService.validate_transition(
-            Interview.InterviewStatus.COMPLETED,
-            Interview.InterviewStatus.SCHEDULED
+            Interview.InterviewStatus.COMPLETED, Interview.InterviewStatus.SCHEDULED
         )
         self.assertFalse(result)
 
@@ -163,8 +160,7 @@ class InterviewWorkflowServiceTests(TestCase):
         self.interview.status = Interview.InterviewStatus.CANCELLED
         self.interview.save()
         result = InterviewWorkflowService.validate_transition(
-            Interview.InterviewStatus.CANCELLED,
-            Interview.InterviewStatus.SCHEDULED
+            Interview.InterviewStatus.CANCELLED, Interview.InterviewStatus.SCHEDULED
         )
         self.assertFalse(result)
 
@@ -172,9 +168,7 @@ class InterviewWorkflowServiceTests(TestCase):
         """Test 23: history record created"""
         initial_count = InterviewStatusHistory.objects.count()
         InterviewWorkflowService.change_status(
-            self.interview,
-            Interview.InterviewStatus.COMPLETED,
-            self.recruiter
+            self.interview, Interview.InterviewStatus.COMPLETED, self.recruiter
         )
         self.assertEqual(InterviewStatusHistory.objects.count(), initial_count + 1)
         history = InterviewStatusHistory.objects.first()
@@ -373,7 +367,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_under_review.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Interview.objects.count(), 1)
@@ -390,7 +384,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_under_review.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 403)
 
@@ -405,7 +399,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_under_review.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 401)
 
@@ -421,7 +415,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_under_review.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 404)
 
@@ -437,7 +431,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_submitted.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 400)
 
@@ -453,7 +447,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_under_review.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 201)
 
@@ -469,7 +463,7 @@ class InterviewAPITests(TestCase):
         response = self.client.post(
             f"/api/applications/{self.app_shortlisted.id}/interviews/",
             data,
-            format="json"
+            format="json",
         )
         self.assertEqual(response.status_code, 201)
 
@@ -483,9 +477,7 @@ class InterviewAPITests(TestCase):
             "meeting_link": "https://zoom.us/j/123456",
         }
         response = self.client.post(
-            f"/api/applications/{self.app_rejected.id}/interviews/",
-            data,
-            format="json"
+            f"/api/applications/{self.app_rejected.id}/interviews/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
 
@@ -499,16 +491,14 @@ class InterviewAPITests(TestCase):
             "meeting_link": "https://zoom.us/j/123456",
         }
         response = self.client.post(
-            f"/api/applications/{self.app_hired.id}/interviews/",
-            data,
-            format="json"
+            f"/api/applications/{self.app_hired.id}/interviews/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
 
     def test_13_candidate_lists_own_interviews(self):
         """Test 13: candidate lists own interviews"""
         # Create an interview for candidate1
-        interview = Interview.objects.create(
+        Interview.objects.create(
             application=self.app_under_review,
             scheduled_at=timezone.now() + timezone.timedelta(days=1),
             duration_minutes=60,
@@ -526,7 +516,7 @@ class InterviewAPITests(TestCase):
     def test_14_candidate_cannot_view_another_interview(self):
         """Test 14: candidate cannot view another interview"""
         # Create an interview for candidate2
-        interview = Interview.objects.create(
+        Interview.objects.create(
             application=self.app_other_candidate,
             scheduled_at=timezone.now() + timezone.timedelta(days=1),
             duration_minutes=60,
@@ -542,7 +532,7 @@ class InterviewAPITests(TestCase):
 
     def test_15_recruiter_lists_interviews(self):
         """Test 15: recruiter lists interviews"""
-        interview = Interview.objects.create(
+        Interview.objects.create(
             application=self.app_under_review,
             scheduled_at=timezone.now() + timezone.timedelta(days=1),
             duration_minutes=60,
@@ -559,7 +549,7 @@ class InterviewAPITests(TestCase):
 
     def test_16_recruiter_cannot_access_another_recruiter_interview(self):
         """Test 16: recruiter cannot access another recruiter interview"""
-        interview = Interview.objects.create(
+        Interview.objects.create(
             application=self.app_other_recruiter,
             scheduled_at=timezone.now() + timezone.timedelta(days=1),
             duration_minutes=60,
@@ -601,9 +591,7 @@ class InterviewAPITests(TestCase):
         self.client.force_authenticate(user=self.recruiter1)
         data = {"status": Interview.InterviewStatus.COMPLETED}
         response = self.client.patch(
-            f"/api/interviews/{interview.id}/status/",
-            data,
-            format="json"
+            f"/api/interviews/{interview.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         interview.refresh_from_db()
@@ -622,9 +610,7 @@ class InterviewAPITests(TestCase):
         self.client.force_authenticate(user=self.recruiter1)
         data = {"status": Interview.InterviewStatus.CANCELLED}
         response = self.client.patch(
-            f"/api/interviews/{interview.id}/status/",
-            data,
-            format="json"
+            f"/api/interviews/{interview.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         interview.refresh_from_db()
@@ -642,15 +628,15 @@ class InterviewAPITests(TestCase):
         )
         # Change status to create history
         InterviewWorkflowService.change_status(
-            interview,
-            Interview.InterviewStatus.COMPLETED,
-            self.recruiter1
+            interview, Interview.InterviewStatus.COMPLETED, self.recruiter1
         )
         self.client.force_authenticate(user=self.recruiter1)
         response = self.client.get(f"/api/interviews/{interview.id}/history/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["new_status"], Interview.InterviewStatus.COMPLETED)
+        self.assertEqual(
+            response.data[0]["new_status"], Interview.InterviewStatus.COMPLETED
+        )
 
     def test_25_query_optimization_verified(self):
         """Test 25: query optimization verified"""
@@ -667,7 +653,9 @@ class InterviewAPITests(TestCase):
         # Test list endpoint - should use select_related to avoid N+1
         # The interviews query uses select_related for all related objects
         with self.assertNumQueries(3):
-            response = self.client.get(f"/api/applications/{self.app_under_review.id}/interviews/")
+            response = self.client.get(
+                f"/api/applications/{self.app_under_review.id}/interviews/"
+            )
             # Verify the response contains interview data
             self.assertEqual(response.status_code, 200)
 
@@ -679,9 +667,7 @@ class InterviewAPITests(TestCase):
 
         # Test history endpoint - should use select_related on changed_by
         InterviewWorkflowService.change_status(
-            interview,
-            Interview.InterviewStatus.COMPLETED,
-            self.recruiter1
+            interview, Interview.InterviewStatus.COMPLETED, self.recruiter1
         )
         with self.assertNumQueries(3):
             response = self.client.get(f"/api/interviews/{interview.id}/history/")

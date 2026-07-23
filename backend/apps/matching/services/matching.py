@@ -4,13 +4,13 @@ from django.utils import timezone
 
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
-from apps.resumes.models import Resume, ResumeVersion, StructuredResume, ResumeSkill
+from apps.resumes.models import Resume, StructuredResume, ResumeSkill
 
 
 class MatchingService:
     """
     Service layer for deterministic candidate-job matching.
-    
+
     Calculates match scores based on:
     - Skills (60% weight)
     - Experience (30% weight)
@@ -38,19 +38,23 @@ class MatchingService:
         Returns:
             JobMatch instance with calculated scores
         """
-        skills_score, matched_skills, missing_skills, matched_count, total_count = cls.calculate_skill_score(candidate, job)
-        experience_score, experience_years = cls.calculate_experience_score(candidate, job)
+        skills_score, matched_skills, missing_skills, matched_count, total_count = (
+            cls.calculate_skill_score(candidate, job)
+        )
+        experience_score, experience_years = cls.calculate_experience_score(
+            candidate, job
+        )
         education_score = cls.calculate_education_score(candidate)
 
         # Calculate final weighted score
         final_score = (
-            (skills_score * Decimal('0.60')) +
-            (experience_score * Decimal('0.30')) +
-            (education_score * Decimal('0.10'))
+            (skills_score * Decimal("0.60"))
+            + (experience_score * Decimal("0.30"))
+            + (education_score * Decimal("0.10"))
         )
 
         # Round to 2 decimal places
-        final_score = final_score.quantize(Decimal('0.01'))
+        final_score = final_score.quantize(Decimal("0.01"))
 
         # Build explanation
         explanation = cls.build_explanation(
@@ -60,20 +64,20 @@ class MatchingService:
             experience_years,
             education_score > 0,
         )
-        
+
         # Create or update JobMatch
         job_match, created = JobMatch.objects.update_or_create(
             candidate=candidate,
             job=job,
             defaults={
-                'match_score': final_score,
-                'skills_score': skills_score,
-                'experience_score': experience_score,
-                'education_score': education_score,
-                'matched_skills_count': matched_count,
-                'total_required_skills': total_count,
-                'explanation': explanation,
-            }
+                "match_score": final_score,
+                "skills_score": skills_score,
+                "experience_score": experience_score,
+                "education_score": education_score,
+                "matched_skills_count": matched_count,
+                "total_required_skills": total_count,
+                "explanation": explanation,
+            },
         )
 
         return job_match
@@ -92,7 +96,11 @@ class MatchingService:
         except User.DoesNotExist:
             return 0
 
-        jobs = Job.objects.filter(status=Job.JobStatus.ACTIVE).select_related("recruiter").iterator()
+        jobs = (
+            Job.objects.filter(status=Job.JobStatus.ACTIVE)
+            .select_related("recruiter")
+            .iterator()
+        )
         count = 0
         for job in jobs:
             cls.calculate_match(candidate, job)
@@ -110,7 +118,10 @@ class MatchingService:
         candidates = (
             StructuredResume.objects.filter(resume_version__is_current=True)
             .select_related("resume_version__resume__user")
-            .only("resume_version__resume__user__id", "resume_version__resume__user__email")
+            .only(
+                "resume_version__resume__user__id",
+                "resume_version__resume__user__email",
+            )
             .iterator()
         )
         count = 0
@@ -135,38 +146,40 @@ class MatchingService:
     def calculate_skill_score(cls, candidate, job):
         """
         Calculate skill match score.
-        
+
         Extracts required skills from job requirements text and matches against candidate's skills.
-        
+
         Returns:
             Tuple of (score, matched_skills_list, missing_skills_list, matched_count, total_count)
         """
         # Extract required skills from job requirements
         required_skills = cls._extract_skills_from_text(job.requirements)
         total_count = len(required_skills)
-        
+
         if total_count == 0:
-            return Decimal('0'), [], [], 0, 0
-        
+            return Decimal("0"), [], [], 0, 0
+
         # Get candidate's structured resume skills
         candidate_skills = cls._get_candidate_skills(candidate)
         candidate_skill_names = {skill.name.lower() for skill in candidate_skills}
-        
+
         # Match skills (case-insensitive)
         matched_skills = []
         missing_skills = []
-        
+
         for skill in required_skills:
             if skill.lower() in candidate_skill_names:
                 matched_skills.append(skill)
             else:
                 missing_skills.append(skill)
-        
+
         matched_count = len(matched_skills)
-        
+
         # Calculate percentage
-        score = Decimal(str((matched_count / total_count) * 100)).quantize(Decimal('0.01'))
-        
+        score = Decimal(str((matched_count / total_count) * 100)).quantize(
+            Decimal("0.01")
+        )
+
         return score, matched_skills, missing_skills, matched_count, total_count
 
     @classmethod
@@ -187,15 +200,17 @@ class MatchingService:
 
         # Calculate score based on experience level
         if job.experience_level == Job.ExperienceLevel.ENTRY:
-            score = Decimal('100')
+            score = Decimal("100")
         elif experience_years >= required_years:
-            score = Decimal('100')
+            score = Decimal("100")
         else:
             # Partial score based on how close they are
             if required_years > 0:
-                score = Decimal(str((experience_years / required_years) * 100)).quantize(Decimal('0.01'))
+                score = Decimal(
+                    str((experience_years / required_years) * 100)
+                ).quantize(Decimal("0.01"))
             else:
-                score = Decimal('0')
+                score = Decimal("0")
 
         return score, experience_years
 
@@ -203,17 +218,19 @@ class MatchingService:
     def calculate_education_score(cls, candidate):
         """
         Calculate education match score.
-        
+
         Simple binary check: 100 if candidate has at least one education record, 0 otherwise.
-        
+
         Returns:
             Decimal score (0 or 100)
         """
         has_education = cls._get_candidate_has_education(candidate)
-        return Decimal('100') if has_education else Decimal('0')
+        return Decimal("100") if has_education else Decimal("0")
 
     @classmethod
-    def build_explanation(cls, job, matched_skills, missing_skills, experience_years, education_found):
+    def build_explanation(
+        cls, job, matched_skills, missing_skills, experience_years, education_found
+    ):
         """
         Build explanation JSON for the match.
 
@@ -245,7 +262,7 @@ class MatchingService:
             return []
 
         skills = []
-        for skill in text.split(','):
+        for skill in text.split(","):
             skill = skill.strip()
             if skill:
                 skills.append(skill)
@@ -256,35 +273,35 @@ class MatchingService:
     def _get_candidate_skills(cls, candidate):
         """
         Get candidate's skills from their structured resume.
-        
+
         PERFORMANCE OPTIMIZATION: Use select_related and prefetch_related to reduce queries
         from 4 to 1-2 queries.
-        
+
         Returns:
             QuerySet of ResumeSkill objects
         """
         try:
             # PERFORMANCE: Use select_related for ForeignKey relationships
-            resume = Resume.objects.select_related(
-                "user"
-            ).get(user=candidate)
-            
+            resume = Resume.objects.select_related("user").get(user=candidate)
+
             # PERFORMANCE: Use select_related for OneToOne relationships
-            current_version = resume.versions.select_related(
-                "structured_resume"
-            ).filter(is_current=True).first()
-            
+            current_version = (
+                resume.versions.select_related("structured_resume")
+                .filter(is_current=True)
+                .first()
+            )
+
             if not current_version:
                 return ResumeSkill.objects.none()
-            
+
             try:
                 structured_resume = current_version.structured_resume
             except StructuredResume.DoesNotExist:
                 return ResumeSkill.objects.none()
-            
+
             if not structured_resume:
                 return ResumeSkill.objects.none()
-            
+
             # PERFORMANCE: Use prefetch_related for ManyToMany relationships
             return structured_resume.skills.all()
         except Resume.DoesNotExist:
@@ -294,51 +311,51 @@ class MatchingService:
     def _get_candidate_experience_years(cls, candidate):
         """
         Get candidate's total years of experience from start_date/end_date.
-        
+
         PERFORMANCE OPTIMIZATION: Use select_related and prefetch_related to reduce queries
         from 4 to 1-2 queries.
-        
+
         Calculates actual time worked across all experience entries.
-        
+
         Returns:
             Float: Total years of experience
         """
         try:
             # PERFORMANCE: Use select_related for ForeignKey relationships
-            resume = Resume.objects.select_related(
-                "user"
-            ).get(user=candidate)
-            
+            resume = Resume.objects.select_related("user").get(user=candidate)
+
             # PERFORMANCE: Use select_related for OneToOne relationships
-            current_version = resume.versions.select_related(
-                "structured_resume"
-            ).filter(is_current=True).first()
-            
+            current_version = (
+                resume.versions.select_related("structured_resume")
+                .filter(is_current=True)
+                .first()
+            )
+
             if not current_version:
                 return 0.0
-            
+
             try:
                 structured_resume = current_version.structured_resume
             except StructuredResume.DoesNotExist:
                 return 0.0
-            
+
             if not structured_resume:
                 return 0.0
-            
+
             # PERFORMANCE: Use prefetch_related for reverse ForeignKey relationships
             experiences = structured_resume.experience.all()
             total_days = 0
-            
+
             for exp in experiences:
                 if exp.start_date:
                     end = exp.end_date if exp.end_date else timezone.now().date()
                     delta = end - exp.start_date
                     total_days += delta.days
-            
+
             # Convert days to years
             total_years = total_days / 365.25
             return round(total_years, 2)
-            
+
         except Resume.DoesNotExist:
             return 0.0
 
@@ -346,35 +363,35 @@ class MatchingService:
     def _get_candidate_has_education(cls, candidate):
         """
         Check if candidate has at least one education record.
-        
+
         PERFORMANCE OPTIMIZATION: Use select_related and prefetch_related to reduce queries
         from 4 to 1-2 queries.
-        
+
         Returns:
             Boolean
         """
         try:
             # PERFORMANCE: Use select_related for ForeignKey relationships
-            resume = Resume.objects.select_related(
-                "user"
-            ).get(user=candidate)
-            
+            resume = Resume.objects.select_related("user").get(user=candidate)
+
             # PERFORMANCE: Use select_related for OneToOne relationships
-            current_version = resume.versions.select_related(
-                "structured_resume"
-            ).filter(is_current=True).first()
-            
+            current_version = (
+                resume.versions.select_related("structured_resume")
+                .filter(is_current=True)
+                .first()
+            )
+
             if not current_version:
                 return False
-            
+
             try:
                 structured_resume = current_version.structured_resume
             except StructuredResume.DoesNotExist:
                 return False
-            
+
             if not structured_resume:
                 return False
-            
+
             # PERFORMANCE: Use exists() instead of loading all education records
             return structured_resume.education.exists()
         except Resume.DoesNotExist:

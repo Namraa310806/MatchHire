@@ -6,7 +6,9 @@ from apps.applications.models import Application, ApplicationStatusHistory
 
 
 @receiver(post_save, sender=Application)
-def enqueue_application_submitted(sender, instance: Application, created: bool, **kwargs) -> None:
+def enqueue_application_submitted(
+    sender, instance: Application, created: bool, **kwargs
+) -> None:
     if not created:
         return
 
@@ -21,7 +23,9 @@ def enqueue_application_submitted(sender, instance: Application, created: bool, 
 
 
 @receiver(post_save, sender=ApplicationStatusHistory)
-def enqueue_application_status_changed(sender, instance: ApplicationStatusHistory, created: bool, **kwargs) -> None:
+def enqueue_application_status_changed(
+    sender, instance: ApplicationStatusHistory, created: bool, **kwargs
+) -> None:
     if not created:
         return
 

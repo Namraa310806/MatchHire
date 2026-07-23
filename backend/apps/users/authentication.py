@@ -1,8 +1,7 @@
 from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.plumbing import build_bearer_security_scheme_object
 
@@ -24,12 +23,12 @@ class CookieJWTAuthentication(JWTAuthentication):
 
 
 class CookieJWTAuthenticationExtension(OpenApiAuthenticationExtension):
-    target_class = 'apps.users.authentication.CookieJWTAuthentication'
-    name = 'CookieJWTAuthentication'
+    target_class = "apps.users.authentication.CookieJWTAuthentication"
+    name = "CookieJWTAuthentication"
 
     def get_security_definition(self, auto_schema):
         return build_bearer_security_scheme_object(
-            header_name='Authorization',
-            token_prefix='Bearer',
-            bearer_format='JWT',
+            header_name="Authorization",
+            token_prefix="Bearer",
+            bearer_format="JWT",
         )

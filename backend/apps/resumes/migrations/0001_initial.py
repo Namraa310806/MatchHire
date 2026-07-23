@@ -18,66 +18,142 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Resume',
+            name="Resume",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='resume', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="resume",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'resume',
-                'verbose_name_plural': 'resumes',
-                'db_table': 'resumes',
-                'ordering': ['-created_at'],
+                "verbose_name": "resume",
+                "verbose_name_plural": "resumes",
+                "db_table": "resumes",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ResumeVersion',
+            name="ResumeVersion",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('original_filename', models.CharField(max_length=255)),
-                ('stored_filename', models.CharField(max_length=255, unique=True)),
-                ('file', models.FileField(upload_to=apps.resumes.models.resume_version_upload_path)),
-                ('file_size', models.PositiveIntegerField()),
-                ('mime_type', models.CharField(max_length=100)),
-                ('uploaded_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('version_number', models.PositiveIntegerField()),
-                ('is_current', models.BooleanField(default=False)),
-                ('change_reason', models.CharField(blank=True, max_length=255, null=True)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('resume', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='versions', to='resumes.resume')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("original_filename", models.CharField(max_length=255)),
+                ("stored_filename", models.CharField(max_length=255, unique=True)),
+                (
+                    "file",
+                    models.FileField(
+                        upload_to=apps.resumes.models.resume_version_upload_path
+                    ),
+                ),
+                ("file_size", models.PositiveIntegerField()),
+                ("mime_type", models.CharField(max_length=100)),
+                (
+                    "uploaded_at",
+                    models.DateTimeField(default=django.utils.timezone.now),
+                ),
+                ("version_number", models.PositiveIntegerField()),
+                ("is_current", models.BooleanField(default=False)),
+                (
+                    "change_reason",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "resume",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="versions",
+                        to="resumes.resume",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'resume version',
-                'verbose_name_plural': 'resume versions',
-                'db_table': 'resume_versions',
-                'ordering': ['-version_number'],
+                "verbose_name": "resume version",
+                "verbose_name_plural": "resume versions",
+                "db_table": "resume_versions",
+                "ordering": ["-version_number"],
             },
         ),
         migrations.CreateModel(
-            name='ParsedResume',
+            name="ParsedResume",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('raw_text', models.TextField(blank=True)),
-                ('parsed_at', models.DateTimeField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('PENDING', 'Pending'), ('SUCCESS', 'Success'), ('FAILED', 'Failed')], default='PENDING', max_length=20)),
-                ('error_message', models.TextField(blank=True, null=True)),
-                ('resume_version', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='parsed_resume', to='resumes.resumeversion')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("raw_text", models.TextField(blank=True)),
+                ("parsed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("PENDING", "Pending"),
+                            ("SUCCESS", "Success"),
+                            ("FAILED", "Failed"),
+                        ],
+                        default="PENDING",
+                        max_length=20,
+                    ),
+                ),
+                ("error_message", models.TextField(blank=True, null=True)),
+                (
+                    "resume_version",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="parsed_resume",
+                        to="resumes.resumeversion",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'parsed resume',
-                'verbose_name_plural': 'parsed resumes',
-                'db_table': 'parsed_resumes',
-                'ordering': ['-parsed_at'],
+                "verbose_name": "parsed resume",
+                "verbose_name_plural": "parsed resumes",
+                "db_table": "parsed_resumes",
+                "ordering": ["-parsed_at"],
             },
         ),
         migrations.AddConstraint(
-            model_name='resume',
-            constraint=models.UniqueConstraint(fields=('user',), name='unique_resume_per_user', violation_error_message='A user can only have one resume container.'),
+            model_name="resume",
+            constraint=models.UniqueConstraint(
+                fields=("user",),
+                name="unique_resume_per_user",
+                violation_error_message="A user can only have one resume container.",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='resumeversion',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_current', True)), fields=('resume',), name='unique_current_version_per_resume', violation_error_message='A resume can only have one current version at a time.'),
+            model_name="resumeversion",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_current", True)),
+                fields=("resume",),
+                name="unique_current_version_per_resume",
+                violation_error_message="A resume can only have one current version at a time.",
+            ),
         ),
     ]

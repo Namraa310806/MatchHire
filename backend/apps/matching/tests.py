@@ -8,7 +8,14 @@ from rest_framework.test import APIClient
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
 from apps.matching.services.matching import MatchingService
-from apps.resumes.models import Resume, ResumeVersion, StructuredResume, ResumeSkill, ResumeEducation, ResumeExperience
+from apps.resumes.models import (
+    Resume,
+    ResumeVersion,
+    StructuredResume,
+    ResumeSkill,
+    ResumeEducation,
+    ResumeExperience,
+)
 
 User = get_user_model()
 
@@ -57,11 +64,11 @@ class MatchingServiceTests(TestCase):
         ResumeSkill.objects.create(structured_resume=structured_resume, name="Python")
         ResumeSkill.objects.create(structured_resume=structured_resume, name="Django")
 
-        skills_score, matched, missing, matched_count, total_count = MatchingService.calculate_skill_score(
-            self.candidate, self.job
+        skills_score, matched, missing, matched_count, total_count = (
+            MatchingService.calculate_skill_score(self.candidate, self.job)
         )
 
-        self.assertEqual(skills_score, Decimal('50.00'))
+        self.assertEqual(skills_score, Decimal("50.00"))
         self.assertEqual(matched_count, 2)
         self.assertEqual(total_count, 4)
         self.assertIn("Python", matched)
@@ -73,6 +80,7 @@ class MatchingServiceTests(TestCase):
         """Test 2: Experience score calculation with actual years"""
         # Create candidate with 5 years of experience
         from datetime import date, timedelta
+
         resume = Resume.objects.create(user=self.candidate)
         version = ResumeVersion.objects.create(
             resume=resume,
@@ -98,7 +106,7 @@ class MatchingServiceTests(TestCase):
             self.candidate, self.job
         )
 
-        self.assertEqual(experience_score, Decimal('100'))
+        self.assertEqual(experience_score, Decimal("100"))
         self.assertGreaterEqual(experience_years, 4.9)  # Approximately 5 years
 
     def test_3_education_score_calculation(self):
@@ -123,12 +131,13 @@ class MatchingServiceTests(TestCase):
 
         education_score = MatchingService.calculate_education_score(self.candidate)
 
-        self.assertEqual(education_score, Decimal('100'))
+        self.assertEqual(education_score, Decimal("100"))
 
     def test_4_final_score_calculation(self):
         """Test 4: Final score calculation with weighted formula"""
         # Create candidate with full data
         from datetime import date, timedelta
+
         resume = Resume.objects.create(user=self.candidate)
         version = ResumeVersion.objects.create(
             resume=resume,
@@ -164,18 +173,18 @@ class MatchingServiceTests(TestCase):
         # Experience: 100% * 0.30 = 30
         # Education: 100% * 0.10 = 10
         # Total: 70
-        self.assertEqual(job_match.match_score, Decimal('70.00'))
+        self.assertEqual(job_match.match_score, Decimal("70.00"))
 
     def test_5_empty_requirements_handling(self):
         """Test 5: Empty requirements handling"""
         self.job.requirements = ""
         self.job.save()
 
-        skills_score, matched, missing, matched_count, total_count = MatchingService.calculate_skill_score(
-            self.candidate, self.job
+        skills_score, matched, missing, matched_count, total_count = (
+            MatchingService.calculate_skill_score(self.candidate, self.job)
         )
 
-        self.assertEqual(skills_score, Decimal('0'))
+        self.assertEqual(skills_score, Decimal("0"))
         self.assertEqual(total_count, 0)
 
     def test_6_missing_structured_resume_handling(self):
@@ -192,23 +201,29 @@ class MatchingServiceTests(TestCase):
             is_current=True,
         )
 
-        skills_score, _, _, _, _ = MatchingService.calculate_skill_score(self.candidate, self.job)
-        experience_score, experience_years = MatchingService.calculate_experience_score(self.candidate, self.job)
+        skills_score, _, _, _, _ = MatchingService.calculate_skill_score(
+            self.candidate, self.job
+        )
+        experience_score, experience_years = MatchingService.calculate_experience_score(
+            self.candidate, self.job
+        )
         education_score = MatchingService.calculate_education_score(self.candidate)
 
-        self.assertEqual(skills_score, Decimal('0'))
-        self.assertEqual(experience_score, Decimal('0'))
+        self.assertEqual(skills_score, Decimal("0"))
+        self.assertEqual(experience_score, Decimal("0"))
         self.assertEqual(experience_years, 0.0)
-        self.assertEqual(education_score, Decimal('0'))
+        self.assertEqual(education_score, Decimal("0"))
 
     def test_7_entry_level_experience(self):
         """Test 7: Entry level experience always returns 100"""
         self.job.experience_level = Job.ExperienceLevel.ENTRY
         self.job.save()
 
-        experience_score, _ = MatchingService.calculate_experience_score(self.candidate, self.job)
+        experience_score, _ = MatchingService.calculate_experience_score(
+            self.candidate, self.job
+        )
 
-        self.assertEqual(experience_score, Decimal('100'))
+        self.assertEqual(experience_score, Decimal("100"))
 
     def test_8_junior_experience_requirement(self):
         """Test 8: Junior experience requirement (1 year)"""
@@ -226,13 +241,13 @@ class MatchingServiceTests(TestCase):
             version_number=1,
             is_current=True,
         )
-        structured_resume = StructuredResume.objects.create(resume_version=version)
+        StructuredResume.objects.create(resume_version=version)
 
         experience_score, experience_years = MatchingService.calculate_experience_score(
             self.candidate, self.job
         )
 
-        self.assertEqual(experience_score, Decimal('0'))
+        self.assertEqual(experience_score, Decimal("0"))
         self.assertEqual(experience_years, 0.0)
 
     def test_9_explanation_json_created(self):
@@ -342,7 +357,9 @@ class MatchingAPITests(TestCase):
     def test_13_recruiter_candidate_search_works(self):
         """Test 13: Recruiter candidate search works"""
         self.authenticate(self.recruiter)
-        response = self.client.get(f"/api/matching/recruiter/candidates/?job_id={self.job.id}")
+        response = self.client.get(
+            f"/api/matching/recruiter/candidates/?job_id={self.job.id}"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.data, list)
 
@@ -357,13 +374,17 @@ class MatchingAPITests(TestCase):
         response = self.client.get("/api/matching/jobs/recommendations/")
         self.assertEqual(response.status_code, 401)
 
-        response = self.client.get(f"/api/matching/recruiter/candidates/?job_id={self.job.id}")
+        response = self.client.get(
+            f"/api/matching/recruiter/candidates/?job_id={self.job.id}"
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_15_candidate_cannot_access_recruiter_endpoint(self):
         """Test 15: Candidate cannot access recruiter endpoint"""
         self.authenticate(self.candidate)
-        response = self.client.get(f"/api/matching/recruiter/candidates/?job_id={self.job.id}")
+        response = self.client.get(
+            f"/api/matching/recruiter/candidates/?job_id={self.job.id}"
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_16_recruiter_cannot_access_candidate_endpoint(self):
@@ -378,27 +399,29 @@ class MatchingAPITests(TestCase):
     def test_17_recruiter_ownership_enforced(self):
         """Test 17: Recruiter ownership enforced"""
         self.authenticate(self.recruiter2)
-        response = self.client.get(f"/api/matching/recruiter/candidates/?job_id={self.job.id}")
+        response = self.client.get(
+            f"/api/matching/recruiter/candidates/?job_id={self.job.id}"
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_18_match_updates_existing_jobmatch(self):
         """Test 18: Match updates existing JobMatch"""
         self.authenticate(self.candidate)
-        
+
         # First match
         response1 = self.client.post(f"/api/jobs/{self.job.id}/match/")
         match_id = response1.data["id"]
-        
+
         # Second match (should update)
         response2 = self.client.post(f"/api/jobs/{self.job.id}/match/")
-        
+
         self.assertEqual(response2.data["id"], match_id)
         self.assertEqual(JobMatch.objects.count(), 1)
 
     def test_19_recommendation_ordering_works(self):
         """Test 19: Recommendation ordering works"""
         # Create another job with different requirements
-        job2 = Job.objects.create(
+        Job.objects.create(
             recruiter=self.recruiter,
             title="Junior Developer",
             company_name="Tech Corp",
@@ -419,6 +442,10 @@ class MatchingAPITests(TestCase):
 
     def test_20_only_active_jobs_recommended(self):
         """Test 20: Only ACTIVE jobs recommended"""
+        # Create match records for both jobs
+        MatchingService.calculate_match(self.candidate, self.job)
+        MatchingService.calculate_match(self.candidate, self.draft_job)
+
         self.authenticate(self.candidate)
         response = self.client.get("/api/matching/jobs/recommendations/")
 
@@ -479,15 +506,20 @@ class MatchingAPITests(TestCase):
         ResumeSkill.objects.create(structured_resume=structured2, name="Python")
         ResumeSkill.objects.create(structured_resume=structured2, name="Django")
 
+        # Create match records for both candidates
+        MatchingService.calculate_match(self.candidate, self.job)
+        MatchingService.calculate_match(self.candidate2, self.job)
+
         self.authenticate(self.recruiter)
-        response = self.client.get(f"/api/matching/recruiter/candidates/?job_id={self.job.id}")
+        response = self.client.get(
+            f"/api/matching/recruiter/candidates/?job_id={self.job.id}"
+        )
 
         # candidate2 should rank higher (more skills matched)
         self.assertEqual(len(response.data), 2)
         if response.data[0]["candidate_email"] == self.candidate2.email:
             self.assertGreaterEqual(
-                response.data[0]["match_score"],
-                response.data[1]["match_score"]
+                response.data[0]["match_score"], response.data[1]["match_score"]
             )
 
     def test_25_query_optimization(self):
@@ -497,7 +529,9 @@ class MatchingAPITests(TestCase):
         # This test verifies the implementation uses query optimization
         with self.assertNumQueries(1):
             # The query should be optimized with select_related
-            active_jobs = Job.objects.filter(status=Job.JobStatus.ACTIVE).select_related("recruiter")
+            active_jobs = Job.objects.filter(
+                status=Job.JobStatus.ACTIVE
+            ).select_related("recruiter")
             list(active_jobs)  # Force evaluation
 
 
@@ -536,8 +570,12 @@ class CandidateDiscoveryTests(TestCase):
             email="candidate@example.com",
             location="San Francisco",
         )
-        ResumeSkill.objects.create(structured_resume=self.structured_resume, name="Python")
-        ResumeSkill.objects.create(structured_resume=self.structured_resume, name="Django")
+        ResumeSkill.objects.create(
+            structured_resume=self.structured_resume, name="Python"
+        )
+        ResumeSkill.objects.create(
+            structured_resume=self.structured_resume, name="Django"
+        )
 
     def authenticate(self, user):
         self.client.force_authenticate(user=user)
@@ -561,6 +599,7 @@ class CandidateDiscoveryTests(TestCase):
     def test_28_candidate_profile_404_for_nonexistent(self):
         """Test 28: Candidate profile returns 404 for non-existent candidate"""
         from uuid import uuid4
+
         fake_id = uuid4()
         self.authenticate(self.recruiter)
         response = self.client.get(f"/api/resumes/candidates/{fake_id}/")
@@ -591,7 +630,9 @@ class CandidateDiscoveryTests(TestCase):
     def test_32_candidate_search_filters_by_location(self):
         """Test 32: Candidate search filters by location"""
         self.authenticate(self.recruiter)
-        response = self.client.get("/api/resumes/candidates/search/?location=San Francisco")
+        response = self.client.get(
+            "/api/resumes/candidates/search/?location=San Francisco"
+        )
         self.assertEqual(response.status_code, 200)
         # Should return candidate in San Francisco
         self.assertEqual(len(response.data), 1)
@@ -612,7 +653,9 @@ class CandidateDiscoveryTests(TestCase):
     def test_34_candidate_search_invalid_experience_min(self):
         """Test 34: Candidate search validates experience_min parameter"""
         self.authenticate(self.recruiter)
-        response = self.client.get("/api/resumes/candidates/search/?experience_min=invalid")
+        response = self.client.get(
+            "/api/resumes/candidates/search/?experience_min=invalid"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("experience_min must be a number", response.data["detail"])
 
@@ -624,6 +667,7 @@ class CandidateDiscoveryTests(TestCase):
             degree="Bachelor",
         )
         from datetime import date, timedelta
+
         start_date = date.today() - timedelta(days=365)
         ResumeExperience.objects.create(
             structured_resume=self.structured_resume,
@@ -643,5 +687,3 @@ class CandidateDiscoveryTests(TestCase):
         self.assertEqual(len(structured["skills"]), 2)
         self.assertEqual(len(structured["education"]), 1)
         self.assertEqual(len(structured["experience"]), 1)
-
-

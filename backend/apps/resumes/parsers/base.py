@@ -1,7 +1,6 @@
 """Base parser for resume text extraction."""
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 
 
 class BaseResumeParser(ABC):

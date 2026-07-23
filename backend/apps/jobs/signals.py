@@ -8,7 +8,9 @@ from apps.jobs.models import Job
 @receiver(post_save, sender=Job)
 def enqueue_job_refresh(sender, instance: Job, created: bool, **kwargs) -> None:
     should_recalculate = (
-        instance.status == Job.JobStatus.ACTIVE if created else instance.async_matching_fields_changed()
+        instance.status == Job.JobStatus.ACTIVE
+        if created
+        else instance.async_matching_fields_changed()
     )
     should_refresh_analytics = instance.status == Job.JobStatus.CLOSED and (
         created or instance._async_original_values.get("status") != Job.JobStatus.CLOSED

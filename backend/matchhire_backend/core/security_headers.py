@@ -3,13 +3,12 @@ Security headers middleware for MatchHire backend.
 
 Adds additional security headers beyond Django's built-in security middleware.
 """
-from django.conf import settings
 
 
 class SecurityHeadersMiddleware:
     """
     Middleware to add additional security headers to all responses.
-    
+
     Adds:
     - Content-Security-Policy: Controls resources the browser can load
     - Permissions-Policy: Controls browser features access
@@ -21,7 +20,7 @@ class SecurityHeadersMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        
+
         # Add Content-Security-Policy header
         # This prevents XSS by controlling which resources can be loaded
         csp = (
@@ -36,8 +35,8 @@ class SecurityHeadersMiddleware:
             "base-uri 'self'; "
             "manifest-src 'self';"
         )
-        response['Content-Security-Policy'] = csp
-        
+        response["Content-Security-Policy"] = csp
+
         # Add Permissions-Policy header (formerly Feature-Policy)
         # Controls which browser features can be used
         permissions_policy = (
@@ -54,13 +53,14 @@ class SecurityHeadersMiddleware:
             "fullscreen=(self), "
             "picture-in-picture=(self)"
         )
-        response['Permissions-Policy'] = permissions_policy
-        
+        response["Permissions-Policy"] = permissions_policy
+
         # Add X-Permitted-Cross-Domain-Policies
         # Restricts cross-domain policy files
-        response['X-Permitted-Cross-Domain-Policies'] = 'none'
-        
+        response["X-Permitted-Cross-Domain-Policies"] = "none"
+
         # Remove server information
-        response.pop('Server', None)
-        
+        if "Server" in response:
+            del response["Server"]
+
         return response

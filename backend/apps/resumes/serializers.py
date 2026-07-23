@@ -1,5 +1,4 @@
 import mimetypes
-from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
@@ -57,6 +56,7 @@ class ResumeUploadSerializer(serializers.Serializer):
 
 class ResumeListSerializer(serializers.ModelSerializer):
     """Serializer for listing resumes (shows current version data)"""
+
     current_version = serializers.SerializerMethodField()
 
     class Meta:
@@ -72,15 +72,15 @@ class ResumeListSerializer(serializers.ModelSerializer):
     def get_current_version(self, obj):
         """
         Get the current version data.
-        
+
         PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
         The view should prefetch current versions with Prefetch object.
         """
         # Check if data was prefetched by the view
-        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+        if hasattr(obj, "current_version_prefetch") and obj.current_version_prefetch:
             current_version = obj.current_version_prefetch[0]
             return ResumeVersionSerializer(current_version).data
-        
+
         # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
@@ -91,6 +91,7 @@ class ResumeListSerializer(serializers.ModelSerializer):
 
 class ResumeDetailSerializer(serializers.ModelSerializer):
     """Serializer for resume detail view (shows current version data)"""
+
     current_version = serializers.SerializerMethodField()
 
     class Meta:
@@ -106,15 +107,15 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
     def get_current_version(self, obj):
         """
         Get the current version data.
-        
+
         PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
         The view should prefetch current versions with Prefetch object.
         """
         # Check if data was prefetched by the view
-        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+        if hasattr(obj, "current_version_prefetch") and obj.current_version_prefetch:
             current_version = obj.current_version_prefetch[0]
             return ResumeVersionSerializer(current_version).data
-        
+
         # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
@@ -125,6 +126,7 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
 
 class ResumeActivationSerializer(serializers.ModelSerializer):
     """Serializer for resume activation response (shows current version data)"""
+
     current_version = serializers.SerializerMethodField()
 
     class Meta:
@@ -139,15 +141,15 @@ class ResumeActivationSerializer(serializers.ModelSerializer):
     def get_current_version(self, obj: Resume) -> dict:
         """
         Get the current version data.
-        
+
         PERFORMANCE OPTIMIZATION: Use prefetched data if available to avoid N+1 queries.
         The view should prefetch current versions with Prefetch object.
         """
         # Check if data was prefetched by the view
-        if hasattr(obj, 'current_version_prefetch') and obj.current_version_prefetch:
+        if hasattr(obj, "current_version_prefetch") and obj.current_version_prefetch:
             current_version = obj.current_version_prefetch[0]
             return ResumeVersionSerializer(current_version).data
-        
+
         # Fallback to query (should not happen with proper optimization)
         try:
             current_version = obj.versions.get(is_current=True)
@@ -158,9 +160,14 @@ class ResumeActivationSerializer(serializers.ModelSerializer):
 
 class ParsedResumeSerializer(serializers.ModelSerializer):
     """Serializer for parsed resume data (without full raw text)"""
-    resume_version_id = serializers.UUIDField(source="resume_version.id", read_only=True)
+
+    resume_version_id = serializers.UUIDField(
+        source="resume_version.id", read_only=True
+    )
     resume_id = serializers.UUIDField(source="resume_version.resume.id", read_only=True)
-    version_number = serializers.IntegerField(source="resume_version.version_number", read_only=True)
+    version_number = serializers.IntegerField(
+        source="resume_version.version_number", read_only=True
+    )
     text_length = serializers.SerializerMethodField()
 
     class Meta:
@@ -173,7 +180,14 @@ class ParsedResumeSerializer(serializers.ModelSerializer):
             "text_length",
             "parsed_at",
         )
-        read_only_fields = ("resume_version_id", "resume_id", "version_number", "status", "text_length", "parsed_at")
+        read_only_fields = (
+            "resume_version_id",
+            "resume_id",
+            "version_number",
+            "status",
+            "text_length",
+            "parsed_at",
+        )
 
     def get_text_length(self, obj):
         """Get the length of the raw text"""
@@ -182,6 +196,7 @@ class ParsedResumeSerializer(serializers.ModelSerializer):
 
 class ParseResumeResponseSerializer(serializers.Serializer):
     """Serializer for parse resume endpoint response"""
+
     resume_version_id = serializers.UUIDField()
     resume_id = serializers.UUIDField()
     status = serializers.CharField()
@@ -190,8 +205,11 @@ class ParseResumeResponseSerializer(serializers.Serializer):
 
 class ResumeVersionSerializer(serializers.ModelSerializer):
     """Serializer for resume version data"""
+
     resume_id = serializers.UUIDField(source="resume.id", read_only=True)
-    parsed_resume_id = serializers.UUIDField(source="parsed_resume.id", read_only=True, allow_null=True)
+    parsed_resume_id = serializers.UUIDField(
+        source="parsed_resume.id", read_only=True, allow_null=True
+    )
     filename = serializers.CharField(source="original_filename", read_only=True)
 
     class Meta:
@@ -225,12 +243,14 @@ class ResumeVersionSerializer(serializers.ModelSerializer):
 
 class RollbackResponseSerializer(serializers.Serializer):
     """Serializer for rollback endpoint response"""
+
     resume_id = serializers.UUIDField()
     current_version = serializers.IntegerField()
 
 
 class ResumeSkillSerializer(serializers.ModelSerializer):
     """Serializer for resume skill"""
+
     class Meta:
         model = ResumeSkill
         fields = (
@@ -242,6 +262,7 @@ class ResumeSkillSerializer(serializers.ModelSerializer):
 
 class ResumeEducationSerializer(serializers.ModelSerializer):
     """Serializer for resume education"""
+
     class Meta:
         model = ResumeEducation
         fields = (
@@ -258,6 +279,7 @@ class ResumeEducationSerializer(serializers.ModelSerializer):
 
 class ResumeExperienceSerializer(serializers.ModelSerializer):
     """Serializer for resume experience"""
+
     class Meta:
         model = ResumeExperience
         fields = (
@@ -273,6 +295,7 @@ class ResumeExperienceSerializer(serializers.ModelSerializer):
 
 class ResumeProjectSerializer(serializers.ModelSerializer):
     """Serializer for resume project"""
+
     class Meta:
         model = ResumeProject
         fields = (
@@ -287,6 +310,7 @@ class ResumeProjectSerializer(serializers.ModelSerializer):
 
 class ResumeCertificationSerializer(serializers.ModelSerializer):
     """Serializer for resume certification"""
+
     class Meta:
         model = ResumeCertification
         fields = (
@@ -300,9 +324,14 @@ class ResumeCertificationSerializer(serializers.ModelSerializer):
 
 class StructuredResumeSerializer(serializers.ModelSerializer):
     """Serializer for structured resume"""
-    resume_version_id = serializers.UUIDField(source="resume_version.id", read_only=True)
+
+    resume_version_id = serializers.UUIDField(
+        source="resume_version.id", read_only=True
+    )
     resume_id = serializers.UUIDField(source="resume_version.resume.id", read_only=True)
-    version_number = serializers.IntegerField(source="resume_version.version_number", read_only=True)
+    version_number = serializers.IntegerField(
+        source="resume_version.version_number", read_only=True
+    )
     skills = ResumeSkillSerializer(many=True, read_only=True)
     education = ResumeEducationSerializer(many=True, read_only=True)
     experience = ResumeExperienceSerializer(many=True, read_only=True)
@@ -344,6 +373,7 @@ class StructuredResumeSerializer(serializers.ModelSerializer):
 
 class ExtractResumeResponseSerializer(serializers.Serializer):
     """Serializer for extract resume endpoint response"""
+
     structured_resume_id = serializers.UUIDField()
     resume_version_id = serializers.UUIDField()
     resume_id = serializers.UUIDField()
@@ -352,8 +382,11 @@ class ExtractResumeResponseSerializer(serializers.Serializer):
 
 class ResumeSearchResultSerializer(serializers.Serializer):
     """Serializer for resume search results"""
+
     resume_id = serializers.UUIDField(source="resume_version.resume.id", read_only=True)
-    resume_version_id = serializers.UUIDField(source="resume_version.id", read_only=True)
+    resume_version_id = serializers.UUIDField(
+        source="resume_version.id", read_only=True
+    )
     candidate_name = serializers.CharField(source="full_name", read_only=True)
     location = serializers.CharField(read_only=True)
     skills = serializers.SerializerMethodField()
@@ -365,7 +398,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_skills(self, obj):
         """
         Get list of skill names.
-        
+
         PERFORMANCE NOTE: This method requires prefetch_related('skills') on the queryset
         to avoid N+1 queries. The ResumeSearchService already includes this optimization.
         """
@@ -374,7 +407,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_experience_count(self, obj):
         """
         Get count of experience entries.
-        
+
         PERFORMANCE NOTE: This method requires prefetch_related('experience') on the queryset
         to avoid N+1 queries. The ResumeSearchService already includes this optimization.
         """
@@ -383,7 +416,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_education_count(self, obj):
         """
         Get count of education entries.
-        
+
         PERFORMANCE NOTE: This method requires prefetch_related('education') on the queryset
         to avoid N+1 queries. The ResumeSearchService already includes this optimization.
         """
@@ -392,7 +425,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_project_count(self, obj):
         """
         Get count of project entries.
-        
+
         PERFORMANCE NOTE: This method requires prefetch_related('projects') on the queryset
         to avoid N+1 queries. The ResumeSearchService already includes this optimization.
         """
@@ -401,7 +434,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
     def get_certification_count(self, obj):
         """
         Get count of certification entries.
-        
+
         PERFORMANCE NOTE: This method requires prefetch_related('certifications') on the queryset
         to avoid N+1 queries. The ResumeSearchService already includes this optimization.
         """
@@ -410,6 +443,7 @@ class ResumeSearchResultSerializer(serializers.Serializer):
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
     """Serializer for candidate profile with current resume data"""
+
     candidate_id = serializers.UUIDField(source="user.id", read_only=True)
     candidate_email = serializers.EmailField(source="user.email", read_only=True)
     candidate_name = serializers.CharField(source="user.full_name", read_only=True)
@@ -436,4 +470,3 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
                 return None
         except ResumeVersion.DoesNotExist:
             return None
-

@@ -1,13 +1,8 @@
-from django.db.models import Q, Count, Prefetch
-from typing import List, Optional, Dict, Any
+from django.db.models import Q
+from typing import List, Optional
 
 from ..models import (
     StructuredResume,
-    ResumeSkill,
-    ResumeEducation,
-    ResumeExperience,
-    ResumeCertification,
-    ResumeVersion,
 )
 
 
@@ -20,103 +15,103 @@ class ResumeSearchService:
 
     # Valid ordering fields
     VALID_ORDERING_FIELDS = {
-        'name': 'full_name',
-        '-name': '-full_name',
-        'created_at': 'resume_version__resume__created_at',
-        '-created_at': '-resume_version__resume__created_at',
+        "name": "full_name",
+        "-name": "-full_name",
+        "created_at": "resume_version__resume__created_at",
+        "-created_at": "-resume_version__resume__created_at",
     }
 
     @classmethod
     def search_by_skill(cls, skill: str) -> List[StructuredResume]:
         """
         Search resumes by skill name (case-insensitive partial match).
-        
+
         Query optimization:
         - Uses prefetch_related for skills to avoid N+1 queries
         - Filters at database level
         - Only searches current resume versions
         """
-        return StructuredResume.objects.filter(
-            resume_version__is_current=True,
-            skills__name__icontains=skill
-        ).prefetch_related(
-            'skills'
-        ).distinct()
+        return (
+            StructuredResume.objects.filter(
+                resume_version__is_current=True, skills__name__icontains=skill
+            )
+            .prefetch_related("skills")
+            .distinct()
+        )
 
     @classmethod
     def search_by_location(cls, location: str) -> List[StructuredResume]:
         """
         Search resumes by location (case-insensitive partial match).
-        
+
         Query optimization:
         - Uses prefetch_related for related fields
         - Only searches current resume versions
         """
-        return StructuredResume.objects.filter(
-            resume_version__is_current=True,
-            location__icontains=location
-        ).prefetch_related(
-            'skills',
-            'education',
-            'experience',
-            'projects',
-            'certifications'
-        ).distinct()
+        return (
+            StructuredResume.objects.filter(
+                resume_version__is_current=True, location__icontains=location
+            )
+            .prefetch_related(
+                "skills", "education", "experience", "projects", "certifications"
+            )
+            .distinct()
+        )
 
     @classmethod
     def search_by_company(cls, company: str) -> List[StructuredResume]:
         """
         Search resumes by company name (case-insensitive partial match).
-        
+
         Query optimization:
         - Uses prefetch_related for experience to avoid N+1 queries
         - Only searches current resume versions
         """
-        return StructuredResume.objects.filter(
-            resume_version__is_current=True,
-            experience__company__icontains=company
-        ).prefetch_related(
-            'experience',
-            'skills'
-        ).distinct()
+        return (
+            StructuredResume.objects.filter(
+                resume_version__is_current=True, experience__company__icontains=company
+            )
+            .prefetch_related("experience", "skills")
+            .distinct()
+        )
 
     @classmethod
     def search_by_education(cls, education: str) -> List[StructuredResume]:
         """
         Search resumes by education degree or institution (case-insensitive partial match).
-        
+
         Query optimization:
         - Uses prefetch_related for education to avoid N+1 queries
         - Only searches current resume versions
         """
-        return StructuredResume.objects.filter(
-            resume_version__is_current=True
-        ).filter(
-            Q(education__degree__icontains=education) |
-            Q(education__institution__icontains=education)
-        ).prefetch_related(
-            'education',
-            'skills'
-        ).distinct()
+        return (
+            StructuredResume.objects.filter(resume_version__is_current=True)
+            .filter(
+                Q(education__degree__icontains=education)
+                | Q(education__institution__icontains=education)
+            )
+            .prefetch_related("education", "skills")
+            .distinct()
+        )
 
     @classmethod
     def search_by_certification(cls, certification: str) -> List[StructuredResume]:
         """
         Search resumes by certification name or issuer (case-insensitive partial match).
-        
+
         Query optimization:
         - Uses prefetch_related for certifications to avoid N+1 queries
         - Only searches current resume versions
         """
-        return StructuredResume.objects.filter(
-            resume_version__is_current=True
-        ).filter(
-            Q(certifications__name__icontains=certification) |
-            Q(certifications__issuer__icontains=certification)
-        ).prefetch_related(
-            'certifications',
-            'skills'
-        ).distinct()
+        return (
+            StructuredResume.objects.filter(resume_version__is_current=True)
+            .filter(
+                Q(certifications__name__icontains=certification)
+                | Q(certifications__issuer__icontains=certification)
+            )
+            .prefetch_related("certifications", "skills")
+            .distinct()
+        )
 
     @classmethod
     def search(
@@ -126,11 +121,11 @@ class ResumeSearchService:
         company: Optional[str] = None,
         education: Optional[str] = None,
         certification: Optional[str] = None,
-        ordering: Optional[str] = None
+        ordering: Optional[str] = None,
     ) -> List[StructuredResume]:
         """
         Combined search with multiple filters.
-        
+
         Args:
             skills: List of skill names (OR logic - resumes with any of the skills)
             location: Location string
@@ -138,10 +133,10 @@ class ResumeSearchService:
             education: Education degree or institution
             certification: Certification name or issuer
             ordering: Ordering field (e.g., 'name', '-name', 'created_at', '-created_at')
-        
+
         Returns:
             QuerySet of StructuredResume objects with optimized prefetching
-        
+
         Query optimization strategy:
         1. Build all filters in a single query using Q objects
         2. Use select_related for ForeignKey relationships (resume_version, resume_version__resume)
@@ -151,9 +146,7 @@ class ResumeSearchService:
         6. Apply ordering at database level
         """
         # Start with base queryset - only search current resume versions
-        queryset = StructuredResume.objects.filter(
-            resume_version__is_current=True
-        )
+        queryset = StructuredResume.objects.filter(resume_version__is_current=True)
 
         # Apply skill filters (OR logic - resumes with ANY of the specified skills)
         if skills:
@@ -174,15 +167,15 @@ class ResumeSearchService:
         # Apply education filter (degree OR institution)
         if education:
             queryset = queryset.filter(
-                Q(education__degree__icontains=education) |
-                Q(education__institution__icontains=education)
+                Q(education__degree__icontains=education)
+                | Q(education__institution__icontains=education)
             )
 
         # Apply certification filter (name OR issuer)
         if certification:
             queryset = queryset.filter(
-                Q(certifications__name__icontains=certification) |
-                Q(certifications__issuer__icontains=certification)
+                Q(certifications__name__icontains=certification)
+                | Q(certifications__issuer__icontains=certification)
             )
 
         # Apply distinct to avoid duplicates from joins
@@ -194,26 +187,26 @@ class ResumeSearchService:
                 queryset = queryset.order_by(cls.VALID_ORDERING_FIELDS[ordering])
             else:
                 # If invalid ordering, default to created_at desc
-                queryset = queryset.order_by('-resume_version__resume__created_at')
+                queryset = queryset.order_by("-resume_version__resume__created_at")
         else:
             # Default ordering
-            queryset = queryset.order_by('-resume_version__resume__created_at')
+            queryset = queryset.order_by("-resume_version__resume__created_at")
 
         # Apply select_related for ForeignKey relationships
         # This reduces queries from N+1 to 1 for foreign keys
         queryset = queryset.select_related(
-            'resume_version',
-            'resume_version__resume',
+            "resume_version",
+            "resume_version__resume",
         )
 
         # Apply prefetch_related for reverse ForeignKey and ManyToMany relationships
         # This loads related objects in a single query
         queryset = queryset.prefetch_related(
-            'skills',
-            'education',
-            'experience',
-            'projects',
-            'certifications',
+            "skills",
+            "education",
+            "experience",
+            "projects",
+            "certifications",
         )
 
         return queryset
@@ -222,7 +215,7 @@ class ResumeSearchService:
     def validate_ordering(cls, ordering: Optional[str]) -> bool:
         """
         Validate ordering field.
-        
+
         Returns True if ordering is valid, False otherwise.
         """
         if ordering is None:

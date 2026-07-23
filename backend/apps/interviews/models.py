@@ -2,7 +2,6 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils import timezone
 
 from apps.applications.models import Application
 from apps.users.models import User

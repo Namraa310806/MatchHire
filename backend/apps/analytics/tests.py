@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from django.db import connection
 from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
@@ -18,7 +17,7 @@ User = get_user_model()
 class AnalyticsAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        
+
         # Create recruiters
         self.recruiter1 = User.objects.create_user(
             email="recruiter1@example.com",
@@ -32,7 +31,7 @@ class AnalyticsAPITests(TestCase):
             full_name="Recruiter Two",
             role=User.Roles.RECRUITER,
         )
-        
+
         # Create candidates
         self.candidate1 = User.objects.create_user(
             email="candidate1@example.com",
@@ -64,14 +63,14 @@ class AnalyticsAPITests(TestCase):
             full_name="Candidate Five",
             role=User.Roles.CANDIDATE,
         )
-        
+
         # Create resume containers for candidates
         self.resume_container1 = Resume.objects.create(user=self.candidate1)
         self.resume_container2 = Resume.objects.create(user=self.candidate2)
         self.resume_container3 = Resume.objects.create(user=self.candidate3)
         self.resume_container4 = Resume.objects.create(user=self.candidate4)
         self.resume_container5 = Resume.objects.create(user=self.candidate5)
-        
+
         # Create resume versions for candidates
         self.resume1 = ResumeVersion.objects.create(
             resume=self.resume_container1,
@@ -123,7 +122,7 @@ class AnalyticsAPITests(TestCase):
             version_number=1,
             is_current=True,
         )
-        
+
         # Create jobs for recruiter1
         self.job1 = Job.objects.create(
             recruiter=self.recruiter1,
@@ -157,7 +156,7 @@ class AnalyticsAPITests(TestCase):
             description="We need a senior engineer",
             status=Job.JobStatus.ACTIVE,
         )
-        
+
         # Create job for recruiter2
         self.job4 = Job.objects.create(
             recruiter=self.recruiter2,
@@ -167,7 +166,7 @@ class AnalyticsAPITests(TestCase):
             description="We need a devops engineer",
             status=Job.JobStatus.ACTIVE,
         )
-        
+
         # Create applications for job1 (using unique candidates to avoid constraint violation)
         self.app1 = Application.objects.create(
             job=self.job1,
@@ -199,7 +198,7 @@ class AnalyticsAPITests(TestCase):
             resume_version=self.resume5,
             status=Application.ApplicationStatus.HIRED,
         )
-        
+
         # Create applications for job2
         self.app6 = Application.objects.create(
             job=self.job2,
@@ -207,7 +206,7 @@ class AnalyticsAPITests(TestCase):
             resume_version=self.resume2,
             status=Application.ApplicationStatus.SUBMITTED,
         )
-        
+
         # Create additional applications for candidate1 to test candidate dashboard
         self.app7 = Application.objects.create(
             job=self.job2,
@@ -221,7 +220,7 @@ class AnalyticsAPITests(TestCase):
             resume_version=self.resume1,
             status=Application.ApplicationStatus.HIRED,
         )
-        
+
         # Create interviews
         self.interview1 = Interview.objects.create(
             application=self.app1,
@@ -241,7 +240,7 @@ class AnalyticsAPITests(TestCase):
             duration_minutes=60,
             status=Interview.InterviewStatus.CANCELLED,
         )
-        
+
         # Create job matches
         self.match1 = JobMatch.objects.create(
             candidate=self.candidate1,
@@ -386,7 +385,9 @@ class AnalyticsAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         # (85.50 + 65.00 + 78.00) / 3 = 76.17
         expected_avg = (85.50 + 65.00 + 78.00) / 3
-        self.assertAlmostEqual(response.data["average_match_score"], expected_avg, places=2)
+        self.assertAlmostEqual(
+            response.data["average_match_score"], expected_avg, places=2
+        )
 
     def test_13_job_analytics_works(self):
         """Test 13: Job analytics works"""
@@ -415,18 +416,24 @@ class AnalyticsAPITests(TestCase):
     def test_16_top_candidates_endpoint_works(self):
         """Test 16: Top candidates endpoint works"""
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+        response = self.client.get(
+            f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.data, list)
 
     def test_17_top_candidates_ordering_correct(self):
         """Test 17: Top candidates ordering correct"""
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+        response = self.client.get(
+            f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+        )
         self.assertEqual(response.status_code, 200)
         # Should be ordered by match_score DESC
         self.assertEqual(len(response.data), 2)
-        self.assertGreater(response.data[0]["match_score"], response.data[1]["match_score"])
+        self.assertGreater(
+            response.data[0]["match_score"], response.data[1]["match_score"]
+        )
         self.assertEqual(str(response.data[0]["candidate_id"]), str(self.candidate1.id))
         self.assertEqual(str(response.data[1]["candidate_id"]), str(self.candidate2.id))
 
@@ -492,7 +499,9 @@ class AnalyticsAPITests(TestCase):
         self.authenticate(self.recruiter1)
         # Should execute exactly 2 queries (1 job fetch + 1 select_related query)
         with self.assertNumQueries(2):
-            response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+            response = self.client.get(
+                f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+            )
         self.assertEqual(response.status_code, 200)
 
     def test_24_serializer_output_correct(self):
@@ -502,10 +511,18 @@ class AnalyticsAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         # Check all expected fields are present
         expected_fields = [
-            "total_jobs", "active_jobs", "closed_jobs",
-            "total_applications", "submitted_applications", "under_review_applications",
-            "shortlisted_applications", "rejected_applications", "hired_applications",
-            "scheduled_interviews", "completed_interviews", "cancelled_interviews",
+            "total_jobs",
+            "active_jobs",
+            "closed_jobs",
+            "total_applications",
+            "submitted_applications",
+            "under_review_applications",
+            "shortlisted_applications",
+            "rejected_applications",
+            "hired_applications",
+            "scheduled_interviews",
+            "completed_interviews",
+            "cancelled_interviews",
         ]
         for field in expected_fields:
             self.assertIn(field, response.data)
@@ -565,11 +582,13 @@ class AnalyticsAPITests(TestCase):
                 role=User.Roles.CANDIDATE,
             )
             resume_container = Resume.objects.create(user=candidate)
-            resume_version = ResumeVersion.objects.create(
+            ResumeVersion.objects.create(
                 resume=resume_container,
                 original_filename=f"limit_test_resume{i}.pdf",
                 stored_filename=f"limit_test_resume{i}_v1.pdf",
-                file=SimpleUploadedFile(f"limit_test_resume{i}.pdf", b"fake pdf content"),
+                file=SimpleUploadedFile(
+                    f"limit_test_resume{i}.pdf", b"fake pdf content"
+                ),
                 file_size=100,
                 mime_type="application/pdf",
                 version_number=1,
@@ -585,9 +604,11 @@ class AnalyticsAPITests(TestCase):
                 matched_skills_count=5,
                 total_required_skills=10,
             )
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+        response = self.client.get(
+            f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+        )
         self.assertEqual(response.status_code, 200)
         # Should return exactly TOP_CANDIDATES_LIMIT candidates
         self.assertEqual(len(response.data), TOP_CANDIDATES_LIMIT)
@@ -616,7 +637,9 @@ class AnalyticsAPITests(TestCase):
     def test_32_candidate_cannot_access_top_candidates(self):
         """Test 32: Candidate cannot access top candidates"""
         self.authenticate(self.candidate1)
-        response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+        response = self.client.get(
+            f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_33_empty_data_returns_zero_not_null(self):
@@ -655,7 +678,7 @@ class AnalyticsAPITests(TestCase):
             role=User.Roles.CANDIDATE,
         )
         resume_container_a = Resume.objects.create(user=candidate_a)
-        resume_version_a = ResumeVersion.objects.create(
+        ResumeVersion.objects.create(
             resume=resume_container_a,
             original_filename="resume_a.pdf",
             stored_filename="resume_a_v1.pdf",
@@ -686,7 +709,7 @@ class AnalyticsAPITests(TestCase):
             role=User.Roles.CANDIDATE,
         )
         resume_container_b = Resume.objects.create(user=candidate_b)
-        resume_version_b = ResumeVersion.objects.create(
+        ResumeVersion.objects.create(
             resume=resume_container_b,
             original_filename="resume_b.pdf",
             stored_filename="resume_b_v1.pdf",
@@ -696,7 +719,7 @@ class AnalyticsAPITests(TestCase):
             version_number=1,
             is_current=True,
         )
-        match_b = JobMatch.objects.create(
+        JobMatch.objects.create(
             candidate=candidate_b,
             job=self.job1,
             match_score=90.0,
@@ -709,13 +732,19 @@ class AnalyticsAPITests(TestCase):
         # match_b has newer calculated_at by default
 
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/")
+        response = self.client.get(
+            f"/api/analytics/recruiter/jobs/{self.job1.id}/top-candidates/"
+        )
         self.assertEqual(response.status_code, 200)
-        
+
         # Find candidates with 90.0 score
         candidates_with_90 = [c for c in response.data if c["match_score"] == 90.0]
         self.assertEqual(len(candidates_with_90), 2)
-        
+
         # candidate_b (newer calculated_at) should come before candidate_a (older)
-        self.assertEqual(str(candidates_with_90[0]["candidate_id"]), str(candidate_b.id))
-        self.assertEqual(str(candidates_with_90[1]["candidate_id"]), str(candidate_a.id))
+        self.assertEqual(
+            str(candidates_with_90[0]["candidate_id"]), str(candidate_b.id)
+        )
+        self.assertEqual(
+            str(candidates_with_90[1]["candidate_id"]), str(candidate_a.id)
+        )

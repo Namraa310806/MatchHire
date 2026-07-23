@@ -1,10 +1,9 @@
 from django.http import Http404
-from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from .models import Notification
 from .serializers import NotificationSerializer
@@ -17,12 +16,14 @@ class NotificationPagination(PageNumberPagination):
 
 
 @extend_schema(
-	tags=["Notifications"],
-	summary="List notifications",
-	description="List notifications for the authenticated user. Paginated (20 per page, max 100). Ordered newest first.",
-	responses={
-		200: OpenApiResponse(description="Notifications retrieved successfully with pagination.")
-	}
+    tags=["Notifications"],
+    summary="List notifications",
+    description="List notifications for the authenticated user. Paginated (20 per page, max 100). Ordered newest first.",
+    responses={
+        200: OpenApiResponse(
+            description="Notifications retrieved successfully with pagination."
+        )
+    },
 )
 class NotificationListView(APIView):
     """
@@ -35,15 +36,18 @@ class NotificationListView(APIView):
     Ordered newest first.
     Paginated (20 per page, max 100).
     """
+
     permission_classes = (IsAuthenticated,)
     pagination_class = NotificationPagination
-    throttle_scope = 'notification'
+    throttle_scope = "notification"
 
     def get(self, request):
         """List all notifications for the current user"""
-        notifications = Notification.objects.filter(
-            recipient=request.user
-        ).select_related("recipient").order_by("-created_at")
+        notifications = (
+            Notification.objects.filter(recipient=request.user)
+            .select_related("recipient")
+            .order_by("-created_at")
+        )
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(notifications, request)
@@ -52,13 +56,13 @@ class NotificationListView(APIView):
 
 
 @extend_schema(
-	tags=["Notifications"],
-	summary="Mark notification as read",
-	description="Mark a specific notification as read. Owner only.",
-	responses={
-		200: NotificationSerializer,
-		404: OpenApiResponse(description="Notification not found.")
-	}
+    tags=["Notifications"],
+    summary="Mark notification as read",
+    description="Mark a specific notification as read. Owner only.",
+    responses={
+        200: NotificationSerializer,
+        404: OpenApiResponse(description="Notification not found."),
+    },
 )
 class MarkAsReadView(APIView):
     """
@@ -68,8 +72,9 @@ class MarkAsReadView(APIView):
 
     Authentication required. Owner only.
     """
+
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'notification'
+    throttle_scope = "notification"
     serializer_class = NotificationSerializer
 
     def get_object(self, request, id):
@@ -82,19 +87,22 @@ class MarkAsReadView(APIView):
 
     def patch(self, request, id):
         """Mark notification as read"""
-        notification = self.get_object(request, id)
+        self.get_object(request, id)
         updated_notification = NotificationService.mark_as_read(id, request.user)
         serializer = NotificationSerializer(updated_notification)
         return Response(serializer.data)
 
 
 @extend_schema(
-	tags=["Notifications"],
-	summary="Mark all notifications as read",
-	description="Mark all unread notifications as read for the authenticated user.",
-	responses={
-		200: OpenApiResponse(description="All notifications marked as read successfully.", response={'updated_count': 0})
-	}
+    tags=["Notifications"],
+    summary="Mark all notifications as read",
+    description="Mark all unread notifications as read for the authenticated user.",
+    responses={
+        200: OpenApiResponse(
+            description="All notifications marked as read successfully.",
+            response={"updated_count": 0},
+        )
+    },
 )
 class MarkAllAsReadView(APIView):
     """
@@ -104,8 +112,9 @@ class MarkAllAsReadView(APIView):
 
     Authentication required.
     """
+
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'notification'
+    throttle_scope = "notification"
     serializer_class = NotificationSerializer
 
     def post(self, request):
@@ -115,12 +124,12 @@ class MarkAllAsReadView(APIView):
 
 
 @extend_schema(
-	tags=["Notifications"],
-	summary="Get unread count",
-	description="Get unread notification count for the authenticated user.",
-	responses={
-		200: OpenApiResponse(description="Unread count retrieved successfully.")
-	}
+    tags=["Notifications"],
+    summary="Get unread count",
+    description="Get unread notification count for the authenticated user.",
+    responses={
+        200: OpenApiResponse(description="Unread count retrieved successfully.")
+    },
 )
 class UnreadCountView(APIView):
     """
@@ -130,8 +139,9 @@ class UnreadCountView(APIView):
 
     Authentication required.
     """
+
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'notification'
+    throttle_scope = "notification"
 
     def get(self, request):
         """Get unread notification count"""

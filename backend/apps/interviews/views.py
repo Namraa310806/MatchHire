@@ -4,52 +4,56 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 
 from apps.applications.models import Application
-from apps.users.permissions import IsCandidate, IsRecruiter
+from apps.users.permissions import IsRecruiter
+from matchhire_backend.core.metrics import track_interview_scheduled
+from matchhire_backend.core.validators import validate_uuid
 from .models import Interview
 from .serializers import (
     InterviewCreateSerializer,
     InterviewDetailSerializer,
     InterviewListSerializer,
-    InterviewStatusUpdateSerializer,
     InterviewStatusHistorySerializer,
+    InterviewStatusUpdateSerializer,
 )
 from .services.workflow import InterviewWorkflowService
-from matchhire_backend.core.validators import validate_uuid
-from matchhire_backend.core.metrics import track_interview_scheduled
 
 User = get_user_model()
 
 
 @extend_schema(
-	tags=["Interviews"],
-	summary="List application interviews",
-	description="List interviews for a specific application. Candidates can view own application interviews. Recruiters can view interviews for their jobs.",
-	responses={
-		200: OpenApiResponse(description="Interviews retrieved successfully."),
-		404: OpenApiResponse(description="Application not found.")
-	}
+    tags=["Interviews"],
+    summary="List application interviews",
+    description="List interviews for a specific application. Candidates can view own application interviews. Recruiters can view interviews for their jobs.",
+    responses={
+        200: OpenApiResponse(description="Interviews retrieved successfully."),
+        404: OpenApiResponse(description="Application not found."),
+    },
 )
 @extend_schema(
-	tags=["Interviews"],
-	summary="Schedule interview",
-	description="Schedule an interview for an application. Recruiter only. Application must be under review or shortlisted.",
-	request={"application/json": {}},
-	responses={
-		201: OpenApiResponse(description="Interview scheduled successfully."),
-		400: OpenApiResponse(description="Invalid application status or input."),
-		403: OpenApiResponse(description="Only recruiters can schedule interviews."),
-		404: OpenApiResponse(description="Application not found.")
-	},
-	examples=[
-		OpenApiExample(
-			"Schedule interview",
-			value={"scheduled_at": "2024-01-15T10:00:00Z", "interview_type": "video", "location": "Zoom"},
-			response_only=False,
-		),
-	]
+    tags=["Interviews"],
+    summary="Schedule interview",
+    description="Schedule an interview for an application. Recruiter only. Application must be under review or shortlisted.",
+    request={"application/json": {}},
+    responses={
+        201: OpenApiResponse(description="Interview scheduled successfully."),
+        400: OpenApiResponse(description="Invalid application status or input."),
+        403: OpenApiResponse(description="Only recruiters can schedule interviews."),
+        404: OpenApiResponse(description="Application not found."),
+    },
+    examples=[
+        OpenApiExample(
+            "Schedule interview",
+            value={
+                "scheduled_at": "2024-01-15T10:00:00Z",
+                "interview_type": "video",
+                "location": "Zoom",
+            },
+            response_only=False,
+        ),
+    ],
 )
 class ApplicationInterviewsListView(APIView):
     """
@@ -64,16 +68,14 @@ class ApplicationInterviewsListView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'interview_schedule'
+    throttle_scope = "interview_schedule"
 
     def get_object(self, request, application_id):
         """Get application with access control"""
         validate_uuid(application_id, "application_id")
         try:
             application = Application.objects.select_related(
-                "job",
-                "candidate",
-                "resume_version"
+                "job", "candidate", "resume_version"
             ).get(id=application_id)
         except Application.DoesNotExist:
             raise Http404("Application not found")
@@ -153,13 +155,13 @@ class ApplicationInterviewsListView(APIView):
 
 
 @extend_schema(
-	tags=["Interviews"],
-	summary="Get interview details",
-	description="Retrieve a specific interview. Candidates can view own interviews. Recruiters can view interviews for their jobs.",
-	responses={
-		200: OpenApiResponse(description="Interview details retrieved successfully."),
-		404: OpenApiResponse(description="Interview not found.")
-	}
+    tags=["Interviews"],
+    summary="Get interview details",
+    description="Retrieve a specific interview. Candidates can view own interviews. Recruiters can view interviews for their jobs.",
+    responses={
+        200: OpenApiResponse(description="Interview details retrieved successfully."),
+        404: OpenApiResponse(description="Interview not found."),
+    },
 )
 class InterviewDetailView(APIView):
     """
@@ -173,7 +175,7 @@ class InterviewDetailView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, interview_id):
         """Get interview with access control"""
@@ -211,16 +213,18 @@ class InterviewDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Interviews"],
-	summary="Update interview status",
-	description="Update interview status. Recruiter only. Recruiter must own the job.",
-	request={"application/json": {}},
-	responses={
-		200: OpenApiResponse(description="Interview status updated successfully."),
-		400: OpenApiResponse(description="Invalid status transition."),
-		403: OpenApiResponse(description="Only recruiters can update interview status."),
-		404: OpenApiResponse(description="Interview not found.")
-	}
+    tags=["Interviews"],
+    summary="Update interview status",
+    description="Update interview status. Recruiter only. Recruiter must own the job.",
+    request={"application/json": {}},
+    responses={
+        200: OpenApiResponse(description="Interview status updated successfully."),
+        400: OpenApiResponse(description="Invalid status transition."),
+        403: OpenApiResponse(
+            description="Only recruiters can update interview status."
+        ),
+        404: OpenApiResponse(description="Interview not found."),
+    },
 )
 class InterviewStatusUpdateView(APIView):
     """
@@ -233,7 +237,7 @@ class InterviewStatusUpdateView(APIView):
     """
 
     permission_classes = (IsAuthenticated, IsRecruiter)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, interview_id):
         """Get interview if job is owned by current recruiter"""
@@ -259,18 +263,14 @@ class InterviewStatusUpdateView(APIView):
         interview = self.get_object(request, interview_id)
 
         serializer = InterviewStatusUpdateSerializer(
-            interview,
-            data=request.data,
-            partial=True
+            interview, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
 
         # Use service layer to change status
         try:
             updated_interview = InterviewWorkflowService.change_status(
-                interview,
-                serializer.validated_data["status"],
-                request.user
+                interview, serializer.validated_data["status"], request.user
             )
         except ValueError as e:
             return Response(
@@ -283,13 +283,13 @@ class InterviewStatusUpdateView(APIView):
 
 
 @extend_schema(
-	tags=["Interviews"],
-	summary="Get interview history",
-	description="Retrieve interview status history. Candidates can view own interview history. Recruiters can view history for their jobs.",
-	responses={
-		200: OpenApiResponse(description="Interview history retrieved successfully."),
-		404: OpenApiResponse(description="Interview not found.")
-	}
+    tags=["Interviews"],
+    summary="Get interview history",
+    description="Retrieve interview status history. Candidates can view own interview history. Recruiters can view history for their jobs.",
+    responses={
+        200: OpenApiResponse(description="Interview history retrieved successfully."),
+        404: OpenApiResponse(description="Interview not found."),
+    },
 )
 class InterviewHistoryView(APIView):
     """
@@ -303,7 +303,7 @@ class InterviewHistoryView(APIView):
     """
 
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, interview_id):
         """Get interview with access control"""
@@ -336,9 +336,9 @@ class InterviewHistoryView(APIView):
         """Retrieve interview status history"""
         interview = self.get_object(request, interview_id)
 
-        history = interview.status_history.select_related(
-            "changed_by"
-        ).order_by("changed_at")
+        history = interview.status_history.select_related("changed_by").order_by(
+            "changed_at"
+        )
 
         serializer = InterviewStatusHistorySerializer(history, many=True)
         return Response(serializer.data)

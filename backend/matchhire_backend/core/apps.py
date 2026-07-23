@@ -2,7 +2,7 @@ import os
 import sys
 
 from django.apps import AppConfig
-from django.core.checks import register, Error, WARNING
+from django.core.checks import register, Error
 
 
 class CoreConfig(AppConfig):
@@ -16,6 +16,7 @@ class CoreConfig(AppConfig):
         # Initialize Prometheus metrics
         try:
             from .metrics import init_metrics
+
             init_metrics()
         except Exception:
             # Don't fail startup if metrics initialization fails
@@ -34,13 +35,13 @@ def check_production_configuration(app_configs, **kwargs):
     Skips during tests to avoid test environment issues.
     """
     # Skip during tests
-    if 'test' in sys.argv:
+    if "test" in sys.argv:
         return []
-    
+
     from .startup_checks import validate_startup_configuration
-    
+
     errors = []
-    
+
     try:
         validate_startup_configuration()
     except Exception as e:
@@ -51,5 +52,5 @@ def check_production_configuration(app_configs, **kwargs):
                 id="matchhire.E001",
             )
         )
-    
+
     return errors

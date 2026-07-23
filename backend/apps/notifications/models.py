@@ -8,7 +8,10 @@ from apps.users.models import User
 class Notification(models.Model):
     class NotificationType(models.TextChoices):
         APPLICATION_SUBMITTED = "application_submitted", "Application Submitted"
-        APPLICATION_STATUS_CHANGED = "application_status_changed", "Application Status Changed"
+        APPLICATION_STATUS_CHANGED = (
+            "application_status_changed",
+            "Application Status Changed",
+        )
         INTERVIEW_SCHEDULED = "interview_scheduled", "Interview Scheduled"
         INTERVIEW_COMPLETED = "interview_completed", "Interview Completed"
         INTERVIEW_CANCELLED = "interview_cancelled", "Interview Cancelled"
