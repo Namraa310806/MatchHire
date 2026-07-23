@@ -67,10 +67,12 @@ class ApplicationStatusUpdateSerializer(serializers.Serializer):
         if self.instance:
             old_status = self.instance.status
             new_status = attrs["status"]
-            
-            if not ApplicationWorkflowService.validate_transition(old_status, new_status):
+
+            if not ApplicationWorkflowService.validate_transition(
+                old_status, new_status
+            ):
                 raise serializers.ValidationError("Invalid status transition.")
-        
+
         return attrs
 
 

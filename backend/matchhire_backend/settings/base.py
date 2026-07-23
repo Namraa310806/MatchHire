@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+import sys
 
 from decouple import Csv
 
@@ -15,8 +16,7 @@ DEBUG = get_env("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = get_env("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
 # Use SQLite for tests
-import sys
-TESTING = 'test' in sys.argv
+TESTING = "test" in sys.argv
 
 if TESTING:
     DATABASES = {
@@ -60,12 +60,14 @@ INSTALLED_APPS = [
     "apps.admin.apps.AdminConfig",
 ]
 
-# Performance profiling tools (only in development)
-if DEBUG:
-    INSTALLED_APPS.extend([
-        "debug_toolbar",
-        "querycount",
-    ])
+# Performance profiling tools (only in development, not in tests)
+if DEBUG and not TESTING:
+    INSTALLED_APPS.extend(
+        [
+            "debug_toolbar",
+            "querycount",
+        ]
+    )
 
 AUTH_USER_MODEL = "users.User"
 
@@ -83,8 +85,8 @@ MIDDLEWARE = [
     "matchhire_backend.core.security_headers.SecurityHeadersMiddleware",
 ]
 
-# Add Django Debug Toolbar middleware in development
-if DEBUG:
+# Add Django Debug Toolbar middleware in development (not in tests)
+if DEBUG and not TESTING:
     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "matchhire_backend.urls"
@@ -108,7 +110,9 @@ WSGI_APPLICATION = "matchhire_backend.wsgi.application"
 ASGI_APPLICATION = "matchhire_backend.asgi.application"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -130,14 +134,14 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "apps.users.authentication.CookieJWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_THROTTLE_CLASSES": (
-        "matchhire_backend.core.throttling.AuthenticatedRateThrottle",
-    ) if not TESTING else (),
+        ("matchhire_backend.core.throttling.AuthenticatedRateThrottle",)
+        if not TESTING
+        else ()
+    ),
     "DEFAULT_THROTTLE_RATES": {
         "anonymous": "100/day",
         "authenticated": "1000/day",
@@ -202,14 +206,26 @@ SPECTACULAR_SETTINGS = {
         "UserRole": "apps.users.models.User.Roles",
     },
     "TAGS": [
-        {"name": "Authentication", "description": "User authentication and authorization endpoints"},
+        {
+            "name": "Authentication",
+            "description": "User authentication and authorization endpoints",
+        },
         {"name": "Users", "description": "User management endpoints"},
         {"name": "Profiles", "description": "User profile management endpoints"},
-        {"name": "Resumes", "description": "Resume upload, parsing, and management endpoints"},
+        {
+            "name": "Resumes",
+            "description": "Resume upload, parsing, and management endpoints",
+        },
         {"name": "Jobs", "description": "Job posting and management endpoints"},
         {"name": "Applications", "description": "Job application management endpoints"},
-        {"name": "Matching", "description": "AI-powered candidate-job matching endpoints"},
-        {"name": "Interviews", "description": "Interview scheduling and management endpoints"},
+        {
+            "name": "Matching",
+            "description": "AI-powered candidate-job matching endpoints",
+        },
+        {
+            "name": "Interviews",
+            "description": "Interview scheduling and management endpoints",
+        },
         {"name": "Notifications", "description": "Notification management endpoints"},
         {"name": "Analytics", "description": "Dashboard and analytics endpoints"},
         {"name": "Admin", "description": "Admin moderation and management endpoints"},
@@ -230,8 +246,8 @@ configure_logging(ENVIRONMENT)
 # Initialize Sentry for error monitoring
 init_sentry()
 
-# Performance profiling configuration (only in development)
-if DEBUG:
+# Performance profiling configuration (only in development, not in tests)
+if DEBUG and not TESTING:
     # Django Debug Toolbar
     INTERNAL_IPS = get_env("INTERNAL_IPS", default="127.0.0.1,localhost", cast=Csv())
     DEBUG_TOOLBAR_CONFIG = {
@@ -240,7 +256,7 @@ if DEBUG:
         "SHOW_COOKIES": True,
         "SHOW_HEADERS": True,
     }
-    
+
     # django-querycount
     QUERYCOUNT = {
         "DISPLAY": True,
@@ -256,4 +272,3 @@ if DEBUG:
             r"SELECT.*FROM django_migrations",
         ],
     }
-

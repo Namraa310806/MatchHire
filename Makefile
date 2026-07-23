@@ -8,8 +8,8 @@ help: ## Show this help message
 
 setup: ## Set up development environment
 	@echo "Setting up development environment..."
-	@cp .env.development .env
-	@echo "Environment file created from .env.development"
+	@cp .env.example .env
+	@echo "Environment file created from .env.example"
 	@echo "Run 'make install' to install pre-commit hooks"
 
 install: ## Install pre-commit hooks

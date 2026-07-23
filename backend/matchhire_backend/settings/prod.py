@@ -1,6 +1,7 @@
 from matchhire_backend.core.env import get_env, validate_production_env
+from matchhire_backend.core.logging_config import configure_logging
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F401,F403,F405
 
 
 DEBUG = False
@@ -8,7 +9,7 @@ ENVIRONMENT = "production"
 _production_env = validate_production_env()
 
 SECRET_KEY = _production_env["SECRET_KEY"]
-DATABASES["default"] = {
+DATABASES["default"] = {  # noqa: F405
     "ENGINE": "django.db.backends.postgresql",
     "NAME": _production_env["DB_NAME"],
     "USER": _production_env["DB_USER"],
@@ -35,11 +36,10 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Connection pooling for database
-DATABASES["default"]["CONN_MAX_AGE"] = 600
-DATABASES["default"]["OPTIONS"] = {
+DATABASES["default"]["CONN_MAX_AGE"] = 600  # noqa: F405
+DATABASES["default"]["OPTIONS"] = {  # noqa: F405
     "connect_timeout": 10,
 }
 
 # Reconfigure logging for production (JSON format)
-from matchhire_backend.core.logging_config import configure_logging
 configure_logging("production")

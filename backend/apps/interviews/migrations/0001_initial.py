@@ -11,66 +11,142 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('applications', '0002_applicationstatushistory'),
+        ("applications", "0003_applicationstatushistory"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Interview',
+            name="Interview",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('scheduled_at', models.DateTimeField()),
-                ('duration_minutes', models.PositiveIntegerField()),
-                ('interview_type', models.CharField(choices=[('phone', 'Phone'), ('video', 'Video'), ('onsite', 'On-site')], default='video', max_length=32)),
-                ('meeting_link', models.URLField(blank=True)),
-                ('location', models.CharField(blank=True, max_length=255)),
-                ('notes', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('scheduled', 'Scheduled'), ('completed', 'Completed'), ('cancelled', 'Cancelled')], default='scheduled', max_length=32)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('application', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interviews', to='applications.application')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_interviews', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("scheduled_at", models.DateTimeField()),
+                ("duration_minutes", models.PositiveIntegerField()),
+                (
+                    "interview_type",
+                    models.CharField(
+                        choices=[
+                            ("phone", "Phone"),
+                            ("video", "Video"),
+                            ("onsite", "On-site"),
+                        ],
+                        default="video",
+                        max_length=32,
+                    ),
+                ),
+                ("meeting_link", models.URLField(blank=True)),
+                ("location", models.CharField(blank=True, max_length=255)),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("scheduled", "Scheduled"),
+                            ("completed", "Completed"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="scheduled",
+                        max_length=32,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "application",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="interviews",
+                        to="applications.application",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="created_interviews",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'interviews',
-                'ordering': ['scheduled_at'],
+                "db_table": "interviews",
+                "ordering": ["scheduled_at"],
             },
         ),
         migrations.CreateModel(
-            name='InterviewStatusHistory',
+            name="InterviewStatusHistory",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('old_status', models.CharField(blank=True, max_length=32)),
-                ('new_status', models.CharField(max_length=32)),
-                ('changed_at', models.DateTimeField(auto_now_add=True)),
-                ('notes', models.TextField(blank=True)),
-                ('changed_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='interview_status_changes', to=settings.AUTH_USER_MODEL)),
-                ('interview', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='status_history', to='interviews.interview')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("old_status", models.CharField(blank=True, max_length=32)),
+                ("new_status", models.CharField(max_length=32)),
+                ("changed_at", models.DateTimeField(auto_now_add=True)),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="interview_status_changes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "interview",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="status_history",
+                        to="interviews.interview",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'interview_status_history',
-                'ordering': ['changed_at'],
+                "db_table": "interview_status_history",
+                "ordering": ["changed_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='interview',
-            index=models.Index(fields=['application'], name='interviews_applica_5d9c27_idx'),
+            model_name="interview",
+            index=models.Index(
+                fields=["application"], name="interviews_applica_5d9c27_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='interview',
-            index=models.Index(fields=['scheduled_at'], name='interviews_schedul_3fb753_idx'),
+            model_name="interview",
+            index=models.Index(
+                fields=["scheduled_at"], name="interviews_schedul_3fb753_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='interview',
-            index=models.Index(fields=['status'], name='interviews_status_d52ded_idx'),
+            model_name="interview",
+            index=models.Index(fields=["status"], name="interviews_status_d52ded_idx"),
         ),
         migrations.AddIndex(
-            model_name='interviewstatushistory',
-            index=models.Index(fields=['interview'], name='interview_s_intervi_c123ea_idx'),
+            model_name="interviewstatushistory",
+            index=models.Index(
+                fields=["interview"], name="interview_s_intervi_c123ea_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='interviewstatushistory',
-            index=models.Index(fields=['changed_at'], name='interview_s_changed_8fe30c_idx'),
+            model_name="interviewstatushistory",
+            index=models.Index(
+                fields=["changed_at"], name="interview_s_changed_8fe30c_idx"
+            ),
         ),
     ]

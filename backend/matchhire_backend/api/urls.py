@@ -1,14 +1,25 @@
 from django.urls import include, path
 from django.http import HttpResponse
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 
-from .views import health_check, health_live, health_ready, health_detailed, version_info
+from .views import (
+    health_check,
+    health_live,
+    health_ready,
+    health_detailed,
+    version_info,
+)
 
 
 def metrics_view(request):
     """Prometheus metrics endpoint."""
     from matchhire_backend.core.metrics import get_metrics
-    return HttpResponse(get_metrics(), content_type='text/plain')
+
+    return HttpResponse(get_metrics(), content_type="text/plain")
 
 
 urlpatterns = [

@@ -33,7 +33,9 @@ class InterviewWorkflowService:
         return new_status in allowed_transitions
 
     @classmethod
-    def change_status(cls, interview: Interview, new_status: str, changed_by) -> Interview:
+    def change_status(
+        cls, interview: Interview, new_status: str, changed_by
+    ) -> Interview:
         """
         Change interview status with validation.
 

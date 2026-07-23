@@ -4,62 +4,66 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 
 from apps.jobs.models import Job
 from apps.resumes.models import ResumeVersion
 from apps.users.permissions import IsCandidate, IsRecruiter
+from matchhire_backend.core.metrics import track_application_submission
+from matchhire_backend.core.validators import validate_uuid
 from .models import Application
 from .serializers import (
     ApplicationCreateSerializer,
-    ApplicationListSerializer,
     ApplicationDetailSerializer,
-    ApplicationStatusUpdateSerializer,
+    ApplicationListSerializer,
     ApplicationStatusHistorySerializer,
+    ApplicationStatusUpdateSerializer,
 )
 from .services.workflow import ApplicationWorkflowService
-from matchhire_backend.core.validators import validate_uuid
-from matchhire_backend.core.metrics import track_application_submission
 
 User = get_user_model()
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="Apply to job",
-	description="Apply to a job with a specific resume version. Authentication required. Candidate only.",
-	request={
-		"application/json": {
-			"type": "object",
-			"properties": {
-				"resume_version_id": {"type": "string", "format": "uuid"}
-			},
-			"required": ["resume_version_id"]
-		}
-	},
-	responses={
-		201: OpenApiResponse(description="Application created successfully."),
-		400: OpenApiResponse(description="Invalid request or already applied."),
-		404: OpenApiResponse(description="Job or resume version not found.")
-	},
-	examples=[
-		OpenApiExample(
-			"Apply to job",
-			value={"resume_version_id": "123e4567-e89b-12d3-a456-426614174000"},
-			response_only=False,
-		),
-	]
+    tags=["Applications"],
+    summary="Apply to job",
+    description="Apply to a job with a specific resume version. Authentication required. Candidate only.",
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {"resume_version_id": {"type": "string", "format": "uuid"}},
+            "required": ["resume_version_id"],
+        }
+    },
+    responses={
+        201: OpenApiResponse(description="Application created successfully."),
+        400: OpenApiResponse(description="Invalid request or already applied."),
+        404: OpenApiResponse(description="Job or resume version not found."),
+    },
+    examples=[
+        OpenApiExample(
+            "Apply to job",
+            value={"resume_version_id": "123e4567-e89b-12d3-a456-426614174000"},
+            response_only=False,
+        ),
+    ],
 )
 class JobApplyView(APIView):
     """
     Apply to a job.
-    
+
     POST /api/jobs/<job_id>/apply/
-    
+
     Authentication required. Candidate only.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'job_apply'
+    throttle_scope = "job_apply"
 
     def post(self, request, job_id):
         """Apply to a job with a specific resume version"""
@@ -129,70 +133,70 @@ class JobApplyView(APIView):
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="List my applications",
-	description="List all applications for the current candidate. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Applications retrieved successfully."),
-		403: OpenApiResponse(description="Only candidates can view their applications.")
-	}
+    tags=["Applications"],
+    summary="List my applications",
+    description="List all applications for the current candidate. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Applications retrieved successfully."),
+        403: OpenApiResponse(
+            description="Only candidates can view their applications."
+        ),
+    },
 )
 class MyApplicationsListView(APIView):
     """
     List applications for the current candidate.
-    
+
     GET /api/applications/my/
-    
+
     Authentication required. Candidate only.
     Returns only applications belonging to request.user.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get(self, request):
         """List all applications for the current candidate"""
-        applications = Application.objects.filter(
-            candidate=request.user
-        ).select_related(
-            "job",
-            "candidate",
-            "resume_version"
-        ).order_by("-created_at")
+        applications = (
+            Application.objects.filter(candidate=request.user)
+            .select_related("job", "candidate", "resume_version")
+            .order_by("-created_at")
+        )
         serializer = ApplicationListSerializer(applications, many=True)
         return Response(serializer.data)
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="Get application details",
-	description="Retrieve a specific application. Candidates can view own applications. Recruiters can view applications for their jobs.",
-	responses={
-		200: OpenApiResponse(description="Application details retrieved successfully."),
-		404: OpenApiResponse(description="Application not found.")
-	}
+    tags=["Applications"],
+    summary="Get application details",
+    description="Retrieve a specific application. Candidates can view own applications. Recruiters can view applications for their jobs.",
+    responses={
+        200: OpenApiResponse(description="Application details retrieved successfully."),
+        404: OpenApiResponse(description="Application not found."),
+    },
 )
 class ApplicationDetailView(APIView):
     """
     Retrieve a specific application.
-    
+
     GET /api/applications/<id>/
-    
+
     Authentication required.
     - Candidate: can view own application
     - Recruiter: can view application only if application.job.recruiter == request.user
     - Everyone else: denied
     """
+
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, id):
         """Get application with access control"""
         validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
-                "job",
-                "candidate",
-                "resume_version"
+                "job", "candidate", "resume_version"
             ).get(id=id)
         except Application.DoesNotExist:
             raise Http404("Application not found")
@@ -220,31 +224,37 @@ class ApplicationDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="List job applications",
-	description="List all applications for a specific job. Recruiter owner only. Supports status filtering.",
-	parameters=[
-		OpenApiParameter(name='status', description='Filter by application status', required=False, type=str),
-	],
-	responses={
-		200: OpenApiResponse(description="Applications retrieved successfully."),
-		400: OpenApiResponse(description="Invalid status filter."),
-		403: OpenApiResponse(description="Only recruiters can view job applications."),
-		404: OpenApiResponse(description="Job not found.")
-	}
+    tags=["Applications"],
+    summary="List job applications",
+    description="List all applications for a specific job. Recruiter owner only. Supports status filtering.",
+    parameters=[
+        OpenApiParameter(
+            name="status",
+            description="Filter by application status",
+            required=False,
+            type=str,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(description="Applications retrieved successfully."),
+        400: OpenApiResponse(description="Invalid status filter."),
+        403: OpenApiResponse(description="Only recruiters can view job applications."),
+        404: OpenApiResponse(description="Job not found."),
+    },
 )
 class JobApplicationsListView(APIView):
     """
     List applications for a specific job.
-    
+
     GET /api/jobs/<job_id>/applications/
-    
+
     Authentication required. Recruiter owner only.
     Returns all applications for that job.
     Supports ?status= filtering.
     """
+
     permission_classes = (IsAuthenticated, IsRecruiter)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, job_id):
         """Get job if owned by current recruiter"""
@@ -258,75 +268,76 @@ class JobApplicationsListView(APIView):
     def get(self, request, job_id):
         """List all applications for the job with optional status filtering"""
         job = self.get_object(request, job_id)
-        
+
         # Get status filter from query params
         status_filter = request.query_params.get("status")
-        
+
         # Validate status filter
         if status_filter:
-            valid_statuses = [choice[0] for choice in Application.ApplicationStatus.choices]
+            valid_statuses = [
+                choice[0] for choice in Application.ApplicationStatus.choices
+            ]
             if status_filter not in valid_statuses:
                 return Response(
                     {"detail": "Invalid status."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        
+
         # Build queryset
         applications = Application.objects.filter(job=job)
-        
+
         # Apply status filter if provided
         if status_filter:
             applications = applications.filter(status=status_filter)
-        
+
         applications = applications.select_related(
-            "job",
-            "candidate",
-            "resume_version"
+            "job", "candidate", "resume_version"
         ).order_by("-created_at")
-        
+
         serializer = ApplicationListSerializer(applications, many=True)
         return Response(serializer.data)
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="Update application status",
-	description="Update application status. Recruiter only. Recruiter must own the job.",
-	request={"application/json": {}},
-	responses={
-		200: OpenApiResponse(description="Application status updated successfully."),
-		400: OpenApiResponse(description="Invalid status transition."),
-		403: OpenApiResponse(description="Only recruiters can update application status."),
-		404: OpenApiResponse(description="Application not found.")
-	},
-	examples=[
-		OpenApiExample(
-			"Update application status",
-			value={"status": "shortlisted"},
-			response_only=False,
-		),
-	]
+    tags=["Applications"],
+    summary="Update application status",
+    description="Update application status. Recruiter only. Recruiter must own the job.",
+    request={"application/json": {}},
+    responses={
+        200: OpenApiResponse(description="Application status updated successfully."),
+        400: OpenApiResponse(description="Invalid status transition."),
+        403: OpenApiResponse(
+            description="Only recruiters can update application status."
+        ),
+        404: OpenApiResponse(description="Application not found."),
+    },
+    examples=[
+        OpenApiExample(
+            "Update application status",
+            value={"status": "shortlisted"},
+            response_only=False,
+        ),
+    ],
 )
 class ApplicationStatusUpdateView(APIView):
     """
     Update application status.
-    
+
     PATCH /api/applications/<id>/status/
-    
+
     Authentication required. Recruiter only.
     Recruiter must own the job attached to the application.
     """
+
     permission_classes = (IsAuthenticated, IsRecruiter)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, id):
         """Get application if job is owned by current recruiter"""
         validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
-                "job",
-                "candidate",
-                "resume_version"
+                "job", "candidate", "resume_version"
             ).get(id=id)
         except Application.DoesNotExist:
             raise Http404("Application not found")
@@ -340,61 +351,56 @@ class ApplicationStatusUpdateView(APIView):
     def patch(self, request, id):
         """Update application status"""
         application = self.get_object(request, id)
-        
+
         serializer = ApplicationStatusUpdateSerializer(
-            application,
-            data=request.data,
-            partial=True
+            application, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
-        
+
         # Use service layer to change status
         try:
             updated_application = ApplicationWorkflowService.change_status(
-                application,
-                serializer.validated_data["status"],
-                request.user
+                application, serializer.validated_data["status"], request.user
             )
         except ValueError as e:
             return Response(
                 {"detail": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         response_serializer = ApplicationDetailSerializer(updated_application)
         return Response(response_serializer.data)
 
 
 @extend_schema(
-	tags=["Applications"],
-	summary="Get application history",
-	description="Retrieve application status history. Candidates can view own application history. Recruiters can view history for their jobs.",
-	responses={
-		200: OpenApiResponse(description="Application history retrieved successfully."),
-		404: OpenApiResponse(description="Application not found.")
-	}
+    tags=["Applications"],
+    summary="Get application history",
+    description="Retrieve application status history. Candidates can view own application history. Recruiters can view history for their jobs.",
+    responses={
+        200: OpenApiResponse(description="Application history retrieved successfully."),
+        404: OpenApiResponse(description="Application not found."),
+    },
 )
 class ApplicationHistoryView(APIView):
     """
     Retrieve application status history.
-    
+
     GET /api/applications/<id>/history/
-    
+
     Authentication required.
     - Candidate: can view history of own application only.
     - Recruiter: can view history only if they own the job.
     """
+
     permission_classes = (IsAuthenticated,)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, id):
         """Get application with access control"""
         validate_uuid(id, "id")
         try:
             application = Application.objects.select_related(
-                "job",
-                "candidate",
-                "resume_version"
+                "job", "candidate", "resume_version"
             ).get(id=id)
         except Application.DoesNotExist:
             raise Http404("Application not found")
@@ -417,10 +423,10 @@ class ApplicationHistoryView(APIView):
     def get(self, request, id):
         """Retrieve application status history"""
         application = self.get_object(request, id)
-        
-        history = application.status_history.select_related(
-            "changed_by"
-        ).order_by("-changed_at")
-        
+
+        history = application.status_history.select_related("changed_by").order_by(
+            "-changed_at"
+        )
+
         serializer = ApplicationStatusHistorySerializer(history, many=True)
         return Response(serializer.data)

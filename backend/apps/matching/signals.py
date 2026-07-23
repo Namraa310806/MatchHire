@@ -6,7 +6,9 @@ from apps.matching.models import JobMatch
 
 
 @receiver(post_save, sender=JobMatch)
-def enqueue_match_notification(sender, instance: JobMatch, created: bool, **kwargs) -> None:
+def enqueue_match_notification(
+    sender, instance: JobMatch, created: bool, **kwargs
+) -> None:
     if not created:
         return
 

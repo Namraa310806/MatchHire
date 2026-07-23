@@ -45,8 +45,12 @@ class InterviewCreateSerializer(serializers.ModelSerializer):
 
 
 class InterviewListSerializer(serializers.ModelSerializer):
-    candidate_name = serializers.CharField(source="application.candidate.full_name", read_only=True)
-    candidate_email = serializers.CharField(source="application.candidate.email", read_only=True)
+    candidate_name = serializers.CharField(
+        source="application.candidate.full_name", read_only=True
+    )
+    candidate_email = serializers.CharField(
+        source="application.candidate.email", read_only=True
+    )
     job_title = serializers.CharField(source="application.job.title", read_only=True)
 
     class Meta:
@@ -69,9 +73,15 @@ class InterviewListSerializer(serializers.ModelSerializer):
 
 
 class InterviewDetailSerializer(serializers.ModelSerializer):
-    candidate_name = serializers.CharField(source="application.candidate.full_name", read_only=True)
-    candidate_email = serializers.CharField(source="application.candidate.email", read_only=True)
-    candidate_id = serializers.UUIDField(source="application.candidate.id", read_only=True)
+    candidate_name = serializers.CharField(
+        source="application.candidate.full_name", read_only=True
+    )
+    candidate_email = serializers.CharField(
+        source="application.candidate.email", read_only=True
+    )
+    candidate_id = serializers.UUIDField(
+        source="application.candidate.id", read_only=True
+    )
     job_title = serializers.CharField(source="application.job.title", read_only=True)
     job_id = serializers.UUIDField(source="application.job.id", read_only=True)
     created_by_email = serializers.CharField(source="created_by.email", read_only=True)

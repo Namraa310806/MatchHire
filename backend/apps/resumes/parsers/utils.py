@@ -18,14 +18,14 @@ def normalize_resume_text(text: str) -> str:
     """
     if not text:
         return ""
-    
+
     # Normalize whitespace (tabs, multiple spaces to single space)
     text = re.sub(r"[ \t]+", " ", text)
-    
+
     # Collapse repeated blank lines (more than 2 newlines to 2 newlines)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    
+
     # Trim leading and trailing whitespace
     text = text.strip()
-    
+
     return text

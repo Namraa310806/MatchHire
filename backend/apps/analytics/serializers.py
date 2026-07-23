@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 class RecruiterDashboardSerializer(serializers.Serializer):
     """Serializer for recruiter dashboard analytics"""
+
     total_jobs = serializers.IntegerField()
     active_jobs = serializers.IntegerField()
     closed_jobs = serializers.IntegerField()
@@ -19,6 +20,7 @@ class RecruiterDashboardSerializer(serializers.Serializer):
 
 class CandidateDashboardSerializer(serializers.Serializer):
     """Serializer for candidate dashboard analytics"""
+
     total_applications = serializers.IntegerField()
     submitted = serializers.IntegerField()
     under_review = serializers.IntegerField()
@@ -34,6 +36,7 @@ class CandidateDashboardSerializer(serializers.Serializer):
 
 class JobAnalyticsSerializer(serializers.Serializer):
     """Serializer for job analytics"""
+
     job_id = serializers.UUIDField()
     total_applications = serializers.IntegerField()
     submitted = serializers.IntegerField()
@@ -46,6 +49,7 @@ class JobAnalyticsSerializer(serializers.Serializer):
 
 class TopCandidateSerializer(serializers.Serializer):
     """Serializer for top matched candidates"""
+
     candidate_id = serializers.UUIDField()
     candidate_name = serializers.CharField()
     match_score = serializers.FloatField()

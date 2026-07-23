@@ -16,21 +16,62 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=255)),
-                ('message', models.TextField()),
-                ('notification_type', models.CharField(choices=[('application_submitted', 'Application Submitted'), ('application_status_changed', 'Application Status Changed'), ('interview_scheduled', 'Interview Scheduled'), ('interview_completed', 'Interview Completed'), ('interview_cancelled', 'Interview Cancelled'), ('match_created', 'Match Created')], max_length=32)),
-                ('is_read', models.BooleanField(default=False)),
-                ('metadata', models.JSONField(default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=255)),
+                ("message", models.TextField()),
+                (
+                    "notification_type",
+                    models.CharField(
+                        choices=[
+                            ("application_submitted", "Application Submitted"),
+                            (
+                                "application_status_changed",
+                                "Application Status Changed",
+                            ),
+                            ("interview_scheduled", "Interview Scheduled"),
+                            ("interview_completed", "Interview Completed"),
+                            ("interview_cancelled", "Interview Cancelled"),
+                            ("match_created", "Match Created"),
+                        ],
+                        max_length=32,
+                    ),
+                ),
+                ("is_read", models.BooleanField(default=False)),
+                ("metadata", models.JSONField(default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'notifications',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['recipient'], name='notificatio_recipie_1dd18d_idx'), models.Index(fields=['is_read'], name='notificatio_is_read_3f8c44_idx'), models.Index(fields=['created_at'], name='notificatio_created_e4c995_idx')],
+                "db_table": "notifications",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["recipient"], name="notificatio_recipie_1dd18d_idx"
+                    ),
+                    models.Index(
+                        fields=["is_read"], name="notificatio_is_read_3f8c44_idx"
+                    ),
+                    models.Index(
+                        fields=["created_at"], name="notificatio_created_e4c995_idx"
+                    ),
+                ],
             },
         ),
     ]

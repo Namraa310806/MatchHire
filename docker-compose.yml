@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:15-alpine
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     environment:
       POSTGRES_DB: ${DB_NAME:-matchhire}
       POSTGRES_USER: ${DB_USER:-matchhire}
@@ -19,7 +19,7 @@ services:
   redis:
     image: redis:7-alpine
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     restart: unless-stopped
 
   web:
@@ -27,7 +27,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     environment:
       - PYTHONPATH=/app/backend
     volumes:
@@ -50,7 +50,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     environment:
       - PYTHONPATH=/app/backend
     volumes:
@@ -71,7 +71,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     environment:
       - PYTHONPATH=/app/backend
     volumes:
@@ -92,7 +92,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.nginx
     env_file:
-      - ${ENV_FILE:-.env.development}
+      - ${ENV_FILE:-.env}
     ports:
       - "80:80"
     depends_on:

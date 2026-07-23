@@ -4,11 +4,10 @@ Structured logging configuration for MatchHire backend.
 Provides JSON-formatted logging suitable for containerized deployments
 with correlation IDs, user context, and structured fields.
 """
+
 import logging
 import logging.config
-import os
 import sys
-import time
 from datetime import datetime
 from typing import Any
 
@@ -20,7 +19,7 @@ from matchhire_backend.core.env import get_env
 class JsonFormatter(jsonlogger.JsonFormatter):
     """
     Custom JSON formatter with additional context fields.
-    
+
     Adds standard fields for observability:
     - timestamp
     - level
@@ -35,27 +34,32 @@ class JsonFormatter(jsonlogger.JsonFormatter):
     - lineno
     """
 
-    def add_fields(self, log_record: dict[str, Any], record: logging.LogRecord, message_dict: dict[str, Any]) -> None:
+    def add_fields(
+        self,
+        log_record: dict[str, Any],
+        record: logging.LogRecord,
+        message_dict: dict[str, Any],
+    ) -> None:
         """Add custom fields to log record."""
         super().add_fields(log_record, record, message_dict)
-        
+
         # Add timestamp in ISO format
         log_record["timestamp"] = datetime.utcnow().isoformat() + "Z"
-        
+
         # Add standard fields
         log_record["level"] = record.levelname
         log_record["logger"] = record.name
         log_record["service"] = "matchhire-backend"
         log_record["environment"] = get_env("ENVIRONMENT", default="development")
-        
+
         # Add request_id if available (from middleware)
         if hasattr(record, "request_id") and record.request_id:
             log_record["request_id"] = record.request_id
-        
+
         # Add user_id if available (from middleware or context)
         if hasattr(record, "user_id") and record.user_id:
             log_record["user_id"] = record.user_id
-        
+
         # Add module/function context
         log_record["module"] = record.module
         log_record["function"] = record.funcName
@@ -66,7 +70,7 @@ class JsonFormatter(jsonlogger.JsonFormatter):
 class ContextFilter(logging.Filter):
     """
     Filter to inject additional context into log records.
-    
+
     This filter adds user_id and organization_id to log records
     when available from the request context.
     """
@@ -84,16 +88,16 @@ class ContextFilter(logging.Filter):
 def get_logging_config(environment: str = "production") -> dict[str, Any]:
     """
     Get logging configuration based on environment.
-    
+
     Args:
         environment: Environment name (development, production, test)
-    
+
     Returns:
         Logging configuration dictionary
     """
     is_production = environment == "production"
     is_development = environment == "development"
-    
+
     if is_production:
         # Production: JSON logging to stdout
         return {
@@ -249,7 +253,7 @@ def get_logging_config(environment: str = "production") -> dict[str, Any]:
 def configure_logging(environment: str = "production") -> None:
     """
     Configure logging for the application.
-    
+
     Args:
         environment: Environment name (development, production, test)
     """
@@ -260,10 +264,10 @@ def configure_logging(environment: str = "production") -> None:
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance with the specified name.
-    
+
     Args:
         name: Logger name (typically __name__)
-    
+
     Returns:
         Logger instance
     """

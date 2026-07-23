@@ -30,13 +30,13 @@ class ResumeParserFactory:
             UnsupportedResumeType: If the MIME type is not supported
         """
         parser_class = cls.PARSER_MAPPING.get(mime_type)
-        
+
         if parser_class is None:
             raise UnsupportedResumeType(
                 f"Unsupported resume MIME type: {mime_type}. "
                 f"Supported types: {', '.join(cls.PARSER_MAPPING.keys())}"
             )
-        
+
         return parser_class()
 
     @classmethod

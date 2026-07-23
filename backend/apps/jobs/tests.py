@@ -509,7 +509,9 @@ class JobAPITests(TestCase):
         )
 
         self.authenticate(self.candidate)
-        response = self.client.patch(f"/api/jobs/{active_job.id}/", {"title": "Hacked"}, format="json")
+        response = self.client.patch(
+            f"/api/jobs/{active_job.id}/", {"title": "Hacked"}, format="json"
+        )
         self.assertEqual(response.status_code, 403)
         active_job.refresh_from_db()
         self.assertEqual(active_job.title, "Active Job")
@@ -517,7 +519,7 @@ class JobAPITests(TestCase):
 
 class JobSearchAndFilteringTests(TestCase):
     """Tests for job search and filtering functionality"""
-    
+
     def setUp(self):
         self.client = APIClient()
         self.recruiter = User.objects.create_user(
@@ -532,7 +534,7 @@ class JobSearchAndFilteringTests(TestCase):
             full_name="Candidate One",
             role=User.Roles.CANDIDATE,
         )
-        
+
         # Create test jobs
         self.job1 = Job.objects.create(
             recruiter=self.recruiter,
@@ -548,7 +550,7 @@ class JobSearchAndFilteringTests(TestCase):
             is_remote=True,
             status=Job.JobStatus.ACTIVE,
         )
-        
+
         self.job2 = Job.objects.create(
             recruiter=self.recruiter,
             title="Java Engineer",
@@ -563,7 +565,7 @@ class JobSearchAndFilteringTests(TestCase):
             is_remote=False,
             status=Job.JobStatus.ACTIVE,
         )
-        
+
         self.job3 = Job.objects.create(
             recruiter=self.recruiter,
             title="Frontend Developer",
@@ -578,7 +580,7 @@ class JobSearchAndFilteringTests(TestCase):
             is_remote=True,
             status=Job.JobStatus.ACTIVE,
         )
-        
+
         self.draft_job = Job.objects.create(
             recruiter=self.recruiter,
             title="Draft Job",
@@ -587,7 +589,7 @@ class JobSearchAndFilteringTests(TestCase):
             description="This is a draft",
             status=Job.JobStatus.DRAFT,
         )
-        
+
         self.closed_job = Job.objects.create(
             recruiter=self.recruiter,
             title="Closed Job",
@@ -597,10 +599,10 @@ class JobSearchAndFilteringTests(TestCase):
             status=Job.JobStatus.CLOSED,
             closed_at=timezone.now(),
         )
-    
+
     def authenticate(self, user):
         self.client.force_authenticate(user=user)
-    
+
     def test_search_by_title(self):
         """Test 1: Search by title"""
         self.authenticate(self.candidate)
@@ -610,7 +612,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_search_by_company(self):
         """Test 2: Search by company"""
         self.authenticate(self.candidate)
@@ -620,7 +622,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job1.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_search_by_description(self):
         """Test 3: Search by description"""
         self.authenticate(self.candidate)
@@ -630,7 +632,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_filter_by_location(self):
         """Test 4: Filter by location"""
         self.authenticate(self.candidate)
@@ -640,7 +642,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job3.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
-    
+
     def test_filter_by_employment_type(self):
         """Test 5: Filter by employment type"""
         self.authenticate(self.candidate)
@@ -650,7 +652,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_filter_by_experience_level(self):
         """Test 6: Filter by experience level"""
         self.authenticate(self.candidate)
@@ -660,7 +662,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_filter_by_remote(self):
         """Test 7: Filter by remote"""
         self.authenticate(self.candidate)
@@ -670,7 +672,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job3.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
-    
+
     def test_filter_by_salary_min(self):
         """Test 8: Filter by salary_min (jobs where salary_max >= requested_salary_min)"""
         self.authenticate(self.candidate)
@@ -683,7 +685,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job2.id), job_ids)
         self.assertNotIn(str(self.job3.id), job_ids)
-    
+
     def test_filter_by_salary_max(self):
         """Test 9: Filter by salary_max (jobs where salary_min <= requested_salary_max)"""
         self.authenticate(self.candidate)
@@ -696,7 +698,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertNotIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job2.id), job_ids)
         self.assertIn(str(self.job3.id), job_ids)
-    
+
     def test_combined_filters(self):
         """Test 10: Combined filters"""
         self.authenticate(self.candidate)
@@ -706,7 +708,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn(str(self.job1.id), job_ids)
         self.assertIn(str(self.job3.id), job_ids)
         self.assertNotIn(str(self.job2.id), job_ids)
-    
+
     def test_pagination_works(self):
         """Test 11: Pagination works"""
         self.authenticate(self.candidate)
@@ -717,7 +719,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertIn("previous", response.data)
         self.assertIn("results", response.data)
         self.assertEqual(len(response.data["results"]), 2)
-    
+
     def test_ordering_created_at(self):
         """Test 12: Ordering by created_at"""
         self.authenticate(self.candidate)
@@ -730,7 +732,7 @@ class JobSearchAndFilteringTests(TestCase):
         # Extract created_at timestamps and verify they are in descending order
         created_ats = [job["created_at"] for job in results]
         self.assertEqual(created_ats, sorted(created_ats, reverse=True))
-    
+
     def test_ordering_salary(self):
         """Test 13: Ordering by salary"""
         self.authenticate(self.candidate)
@@ -740,7 +742,7 @@ class JobSearchAndFilteringTests(TestCase):
         # Should be ordered by salary_min descending
         self.assertEqual(results[0]["id"], str(self.job1.id))
         self.assertEqual(results[-1]["id"], str(self.job3.id))
-    
+
     def test_invalid_ordering_returns_400(self):
         """Test 14: Invalid ordering returns 400"""
         self.authenticate(self.candidate)
@@ -748,7 +750,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertEqual(response.status_code, 400)
         # Validation errors are in field-specific format
         self.assertIn("ordering", response.data)
-    
+
     def test_draft_jobs_hidden(self):
         """Test 15: Draft jobs hidden"""
         self.authenticate(self.candidate)
@@ -756,7 +758,7 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertEqual(response.status_code, 200)
         job_ids = [job["id"] for job in response.data["results"]]
         self.assertNotIn(str(self.draft_job.id), job_ids)
-    
+
     def test_closed_jobs_hidden(self):
         """Test 16: Closed jobs hidden"""
         self.authenticate(self.candidate)
@@ -764,12 +766,12 @@ class JobSearchAndFilteringTests(TestCase):
         self.assertEqual(response.status_code, 200)
         job_ids = [job["id"] for job in response.data["results"]]
         self.assertNotIn(str(self.closed_job.id), job_ids)
-    
+
     def test_anonymous_blocked(self):
         """Test 17: Anonymous blocked"""
         response = self.client.get("/api/jobs/")
         self.assertEqual(response.status_code, 401)
-    
+
     def test_query_optimization(self):
         """Test 18: Query optimization with select_related"""
         self.authenticate(self.candidate)

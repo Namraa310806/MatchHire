@@ -25,42 +25,44 @@ class ApplicationWorkflowService:
     def validate_transition(cls, old_status: str, new_status: str) -> bool:
         """
         Validate if a status transition is allowed.
-        
+
         Args:
             old_status: Current status of the application
             new_status: Desired new status
-            
+
         Returns:
             True if transition is valid, False otherwise
         """
         if old_status == new_status:
             return False
-        
+
         allowed_transitions = cls.VALID_TRANSITIONS.get(old_status, [])
         return new_status in allowed_transitions
 
     @classmethod
-    def change_status(cls, application: Application, new_status: str, changed_by) -> Application:
+    def change_status(
+        cls, application: Application, new_status: str, changed_by
+    ) -> Application:
         """
         Change application status with validation.
-        
+
         Args:
             application: Application instance to update
             new_status: New status to set
             changed_by: User who is making the change
-            
+
         Returns:
             Updated application instance
-            
+
         Raises:
             ValueError: If transition is invalid
         """
         old_status = application.status
-        
+
         # Validate transition
         if not cls.validate_transition(old_status, new_status):
             raise ValueError("Invalid status transition.")
-        
+
         # Update status
         application.status = new_status
         application.save(update_fields=["status", "updated_at"])
@@ -81,14 +83,14 @@ class ApplicationWorkflowService:
     ) -> ApplicationStatusHistory:
         """
         Create a history record for status change.
-        
+
         Args:
             application: Application instance
             old_status: Previous status
             new_status: New status
             changed_by: User who made the change
             notes: Optional notes for the change
-            
+
         Returns:
             Created ApplicationStatusHistory instance
         """

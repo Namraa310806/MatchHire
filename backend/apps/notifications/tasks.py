@@ -28,7 +28,9 @@ def notify_match_created(job_match_id: str):
 
 @shared_task(**TASK_RETRY_OPTIONS)
 def notify_application_submitted(application_id: str):
-    application = Application.objects.select_related("job__recruiter", "candidate").get(id=application_id)
+    application = Application.objects.select_related("job__recruiter", "candidate").get(
+        id=application_id
+    )
     return str(
         NotificationService.notify_application_submitted(
             recruiter=application.job.recruiter,
@@ -41,7 +43,9 @@ def notify_application_submitted(application_id: str):
 
 @shared_task(**TASK_RETRY_OPTIONS)
 def notify_application_status_changed(history_id: str):
-    history = ApplicationStatusHistory.objects.select_related("application__candidate").get(id=history_id)
+    history = ApplicationStatusHistory.objects.select_related(
+        "application__candidate"
+    ).get(id=history_id)
     return str(
         NotificationService.notify_application_status_changed(
             candidate=history.application.candidate,
@@ -54,7 +58,9 @@ def notify_application_status_changed(history_id: str):
 
 @shared_task(**TASK_RETRY_OPTIONS)
 def notify_interview_scheduled(interview_id: str):
-    interview = Interview.objects.select_related("application__candidate").get(id=interview_id)
+    interview = Interview.objects.select_related("application__candidate").get(
+        id=interview_id
+    )
     return str(
         NotificationService.notify_interview_scheduled(
             candidate=interview.application.candidate,
@@ -66,7 +72,9 @@ def notify_interview_scheduled(interview_id: str):
 
 @shared_task(**TASK_RETRY_OPTIONS)
 def notify_interview_completed(history_id: str):
-    history = InterviewStatusHistory.objects.select_related("interview__application__candidate").get(id=history_id)
+    history = InterviewStatusHistory.objects.select_related(
+        "interview__application__candidate"
+    ).get(id=history_id)
     return str(
         NotificationService.notify_interview_completed(
             candidate=history.interview.application.candidate,
@@ -78,7 +86,9 @@ def notify_interview_completed(history_id: str):
 
 @shared_task(**TASK_RETRY_OPTIONS)
 def notify_interview_cancelled(history_id: str):
-    history = InterviewStatusHistory.objects.select_related("interview__application__candidate").get(id=history_id)
+    history = InterviewStatusHistory.objects.select_related(
+        "interview__application__candidate"
+    ).get(id=history_id)
     return str(
         NotificationService.notify_interview_cancelled(
             candidate=history.interview.application.candidate,

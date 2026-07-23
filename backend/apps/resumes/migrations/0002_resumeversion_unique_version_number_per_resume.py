@@ -6,12 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('resumes', '0001_initial'),
+        ("resumes", "0001_initial"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='resumeversion',
-            constraint=models.UniqueConstraint(fields=('resume', 'version_number'), name='unique_version_number_per_resume', violation_error_message='A resume cannot have duplicate version numbers.'),
+            model_name="resumeversion",
+            constraint=models.UniqueConstraint(
+                fields=("resume", "version_number"),
+                name="unique_version_number_per_resume",
+                violation_error_message="A resume cannot have duplicate version numbers.",
+            ),
         ),
     ]

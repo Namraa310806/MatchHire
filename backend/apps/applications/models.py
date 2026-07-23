@@ -1,7 +1,6 @@
 import uuid
 
 from django.db import models
-from django.utils import timezone
 
 from apps.jobs.models import Job
 from apps.resumes.models import ResumeVersion

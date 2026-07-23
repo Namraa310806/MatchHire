@@ -13,7 +13,7 @@ urlpatterns = [
     # Version endpoint
     path("version/", version_info, name="version-info"),
     # Admin
-    path("admin/", admin.site.urls),
+    path("admin/", admin.site.urls, name="django-admin"),
     # API endpoints
     path("api/v1/", include("matchhire_backend.api.urls")),
     path("api/", include("matchhire_backend.api.urls")),  # Backward compatibility
@@ -22,4 +22,5 @@ urlpatterns = [
 # Django Debug Toolbar (only in development)
 if settings.DEBUG:
     import debug_toolbar
+
     urlpatterns.insert(0, path("__debug__/", include(debug_toolbar.urls)))

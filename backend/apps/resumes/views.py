@@ -1,65 +1,111 @@
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db.models import Prefetch
 from django.http import Http404
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.pagination import PageNumberPagination
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 
 from apps.users.permissions import IsCandidate, IsRecruiter
-from .models import Resume, ParsedResume, ResumeVersion, StructuredResume
-from .parsers import UnsupportedResumeType, CorruptedResumeError
+from matchhire_backend.core.metrics import track_resume_upload
+from matchhire_backend.core.validators import (
+    validate_ordering,
+    validate_search_length,
+    validate_uuid,
+)
+from .models import ParsedResume, Resume, ResumeVersion, StructuredResume
+from .parsers import CorruptedResumeError, UnsupportedResumeType
 from .serializers import (
-    ResumeListSerializer,
-    ResumeDetailSerializer,
-    ResumeUploadSerializer,
-    ResumeActivationSerializer,
+    CandidateProfileSerializer,
+    ExtractResumeResponseSerializer,
     ParsedResumeSerializer,
     ParseResumeResponseSerializer,
+    ResumeActivationSerializer,
+    ResumeDetailSerializer,
+    ResumeListSerializer,
+    ResumeSearchResultSerializer,
+    ResumeUploadSerializer,
     ResumeVersionSerializer,
     RollbackResponseSerializer,
     StructuredResumeSerializer,
-    ExtractResumeResponseSerializer,
-    ResumeSearchResultSerializer,
-    CandidateProfileSerializer,
 )
-from .services.parser_service import ResumeParserService
-from .services.versioning import ResumeVersioningService
 from .services.extraction_service import ResumeExtractionService
+from .services.parser_service import ResumeParserService
 from .services.search_service import ResumeSearchService
-from matchhire_backend.core.validators import validate_uuid, validate_ordering, validate_search_length
-from matchhire_backend.core.metrics import track_resume_upload
+from .services.versioning import ResumeVersioningService
 
 User = get_user_model()
 
 
 class ResumeSearchPagination(PageNumberPagination):
     """Pagination for resume search results"""
+
     page_size = 20
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Search resumes",
-	description="Search and filter structured resume data. Authentication required. Recruiter only.",
-	parameters=[
-		OpenApiParameter(name='skill', description='Filter by skill name (can be multiple)', required=False, type=str),
-		OpenApiParameter(name='location', description='Filter by location', required=False, type=str),
-		OpenApiParameter(name='company', description='Filter by company name', required=False, type=str),
-		OpenApiParameter(name='education', description='Filter by education degree or institution', required=False, type=str),
-		OpenApiParameter(name='certification', description='Filter by certification name or issuer', required=False, type=str),
-		OpenApiParameter(name='ordering', description='Order results (name, -name, created_at, -created_at)', required=False, type=str),
-		OpenApiParameter(name='page', description='Page number', required=False, type=int),
-		OpenApiParameter(name='page_size', description='Results per page (default: 20, max: 100)', required=False, type=int),
-	],
-	responses={
-		200: OpenApiResponse(description="Resumes retrieved successfully with pagination."),
-		403: OpenApiResponse(description="Only recruiters can search resumes.")
-	}
+    tags=["Resumes"],
+    summary="Search resumes",
+    description="Search and filter structured resume data. Authentication required. Recruiter only.",
+    parameters=[
+        OpenApiParameter(
+            name="skill",
+            description="Filter by skill name (can be multiple)",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="location", description="Filter by location", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="company",
+            description="Filter by company name",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="education",
+            description="Filter by education degree or institution",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="certification",
+            description="Filter by certification name or issuer",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="ordering",
+            description="Order results (name, -name, created_at, -created_at)",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="page", description="Page number", required=False, type=int
+        ),
+        OpenApiParameter(
+            name="page_size",
+            description="Results per page (default: 20, max: 100)",
+            required=False,
+            type=int,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Resumes retrieved successfully with pagination."
+        ),
+        403: OpenApiResponse(description="Only recruiters can search resumes."),
+    },
 )
 class ResumeSearchView(APIView):
     """
@@ -82,24 +128,25 @@ class ResumeSearchView(APIView):
     Example:
     /api/resumes/search/?skill=Python&skill=Django&location=Ahmedabad&ordering=name
     """
+
     permission_classes = (IsAuthenticated, IsRecruiter)
     pagination_class = ResumeSearchPagination
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get(self, request):
         """Search resumes with filters"""
         # Extract query parameters
-        skills = request.query_params.getlist('skill', None)
-        location = request.query_params.get('location', None)
-        company = request.query_params.get('company', None)
-        education = request.query_params.get('education', None)
-        certification = request.query_params.get('certification', None)
-        ordering = request.query_params.get('ordering', None)
-        
+        skills = request.query_params.getlist("skill", None)
+        location = request.query_params.get("location", None)
+        company = request.query_params.get("company", None)
+        education = request.query_params.get("education", None)
+        certification = request.query_params.get("certification", None)
+        ordering = request.query_params.get("ordering", None)
+
         # Validate ordering
-        valid_ordering_fields = ['name', '-name', 'created_at', '-created_at']
+        valid_ordering_fields = ["name", "-name", "created_at", "-created_at"]
         validate_ordering(ordering, valid_ordering_fields)
-        
+
         # Validate search length
         for field in [location, company, education, certification]:
             if field:
@@ -118,7 +165,7 @@ class ResumeSearchView(APIView):
         # Paginate results
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request)
-        
+
         if page is not None:
             serializer = ResumeSearchResultSerializer(page, many=True)
             return paginator.get_paginated_response(serializer.data)
@@ -129,45 +176,44 @@ class ResumeSearchView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Upload resume",
-	description="Upload a resume file (PDF or DOCX). Maximum file size: 10 MB. Authentication required. Candidate only.",
-	request={
-		"multipart/form-data": {
-			"type": "object",
-			"properties": {
-				"file": {"type": "string", "format": "binary"}
-			},
-			"required": ["file"]
-		}
-	},
-	responses={
-		201: OpenApiResponse(description="Resume uploaded successfully."),
-		400: OpenApiResponse(description="Invalid file type or size."),
-		403: OpenApiResponse(description="Only candidates can upload resumes.")
-	},
-	examples=[
-		OpenApiExample(
-			"Resume upload",
-			value={"file": "resume.pdf"},
-			response_only=False,
-		),
-	]
+    tags=["Resumes"],
+    summary="Upload resume",
+    description="Upload a resume file (PDF or DOCX). Maximum file size: 10 MB. Authentication required. Candidate only.",
+    request={
+        "multipart/form-data": {
+            "type": "object",
+            "properties": {"file": {"type": "string", "format": "binary"}},
+            "required": ["file"],
+        }
+    },
+    responses={
+        201: OpenApiResponse(description="Resume uploaded successfully."),
+        400: OpenApiResponse(description="Invalid file type or size."),
+        403: OpenApiResponse(description="Only candidates can upload resumes."),
+    },
+    examples=[
+        OpenApiExample(
+            "Resume upload",
+            value={"file": "resume.pdf"},
+            response_only=False,
+        ),
+    ],
 )
 class ResumeUploadView(APIView):
     """
     Upload a resume file.
-    
+
     POST /api/resumes/upload/
-    
+
     Authentication required. Candidate only.
     Multipart form-data with 'file' field.
-    
+
     Supported file types: PDF, DOCX
     Maximum file size: 10 MB
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'resume_upload'
+    throttle_scope = "resume_upload"
 
     def post(self, request):
         serializer = ResumeUploadSerializer(
@@ -192,83 +238,83 @@ class ResumeUploadView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="List my resumes",
-	description="List all resumes for the current user. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Resumes retrieved successfully."),
-		403: OpenApiResponse(description="Only candidates can view their resumes.")
-	}
+    tags=["Resumes"],
+    summary="List my resumes",
+    description="List all resumes for the current user. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Resumes retrieved successfully."),
+        403: OpenApiResponse(description="Only candidates can view their resumes."),
+    },
 )
 class ResumeListView(APIView):
     """
     List resumes for the current user.
-    
+
     GET /api/resumes/
-    
+
     Authentication required. Candidate only.
     Returns resumes ordered newest first.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get(self, request):
         """List all resumes for the current user"""
         # PERFORMANCE OPTIMIZATION: Use prefetch_related with Prefetch to fetch current versions
         # This eliminates N+1 queries in ResumeListSerializer.get_current_version()
-        from django.db.models import Prefetch
-        
+
         current_version_prefetch = Prefetch(
-            'versions',
+            "versions",
             queryset=ResumeVersion.objects.filter(is_current=True).select_related(
-                'parsed_resume',
-                'structured_resume'
+                "parsed_resume", "structured_resume"
             ),
-            to_attr='current_version_prefetch'
+            to_attr="current_version_prefetch",
         )
-        
-        resumes = Resume.objects.filter(
-            user=request.user
-        ).prefetch_related(
-            current_version_prefetch
-        ).order_by("-created_at")
-        
+
+        resumes = (
+            Resume.objects.filter(user=request.user)
+            .prefetch_related(current_version_prefetch)
+            .order_by("-created_at")
+        )
+
         serializer = ResumeListSerializer(resumes, many=True)
         return Response(serializer.data)
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get resume details",
-	description="Retrieve a specific resume. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Resume details retrieved successfully."),
-		404: OpenApiResponse(description="Resume not found."),
-		403: OpenApiResponse(description="Only candidates can view their resumes.")
-	}
+    tags=["Resumes"],
+    summary="Get resume details",
+    description="Retrieve a specific resume. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Resume details retrieved successfully."),
+        404: OpenApiResponse(description="Resume not found."),
+        403: OpenApiResponse(description="Only candidates can view their resumes."),
+    },
 )
 @extend_schema(
-	tags=["Resumes"],
-	summary="Delete resume",
-	description="Delete a resume and all its versions. Authentication required. Candidate only.",
-	responses={
-		204: OpenApiResponse(description="Resume deleted successfully."),
-		404: OpenApiResponse(description="Resume not found."),
-		403: OpenApiResponse(description="Only candidates can delete their resumes.")
-	}
+    tags=["Resumes"],
+    summary="Delete resume",
+    description="Delete a resume and all its versions. Authentication required. Candidate only.",
+    responses={
+        204: OpenApiResponse(description="Resume deleted successfully."),
+        404: OpenApiResponse(description="Resume not found."),
+        403: OpenApiResponse(description="Only candidates can delete their resumes."),
+    },
 )
 class ResumeDetailView(APIView):
     """
     Retrieve a specific resume.
-    
+
     GET /api/resumes/<id>/
     DELETE /api/resumes/<id>/
-    
+
     Authentication required. Candidate only.
     Only owner can access their resumes.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get_object(self, request, id):
         """Get resume if owned by current user"""
@@ -301,14 +347,14 @@ class ResumeDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get active resume",
-	description="Get the current resume with its current version. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Active resume retrieved successfully."),
-		404: OpenApiResponse(description="No resume or current version found."),
-		403: OpenApiResponse(description="Only candidates can access their resume.")
-	}
+    tags=["Resumes"],
+    summary="Get active resume",
+    description="Get the current resume with its current version. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Active resume retrieved successfully."),
+        404: OpenApiResponse(description="No resume or current version found."),
+        403: OpenApiResponse(description="Only candidates can access their resume."),
+    },
 )
 class ActiveResumeView(APIView):
     """
@@ -319,8 +365,9 @@ class ActiveResumeView(APIView):
     Authentication required. Candidate only.
     Returns 404 if no resume or current version exists.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
 
     def get(self, request):
         """Get the resume with current version for the current user"""
@@ -336,14 +383,16 @@ class ActiveResumeView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Activate resume version",
-	description="Activate a specific resume version. Authentication required. Candidate only.",
-	responses={
-		200: ResumeActivationSerializer,
-		404: OpenApiResponse(description="Resume or version not found."),
-		403: OpenApiResponse(description="Only candidates can activate their resume versions.")
-	}
+    tags=["Resumes"],
+    summary="Activate resume version",
+    description="Activate a specific resume version. Authentication required. Candidate only.",
+    responses={
+        200: ResumeActivationSerializer,
+        404: OpenApiResponse(description="Resume or version not found."),
+        403: OpenApiResponse(
+            description="Only candidates can activate their resume versions."
+        ),
+    },
 )
 class ResumeActivateView(APIView):
     """
@@ -354,8 +403,9 @@ class ResumeActivateView(APIView):
     Authentication required. Candidate only.
     Transactional - deactivates current version and activates selected one.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'authenticated'
+    throttle_scope = "authenticated"
     serializer_class = ResumeActivationSerializer
 
     def get_resume(self, request, id):
@@ -372,9 +422,7 @@ class ResumeActivateView(APIView):
 
         try:
             # Perform rollback to activate the version
-            current_version = ResumeVersioningService.rollback_version(
-                resume, version_id
-            )
+            ResumeVersioningService.rollback_version(resume, version_id)
 
             serializer = ResumeActivationSerializer(resume)
             return Response(serializer.data)
@@ -387,16 +435,16 @@ class ResumeActivateView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Parse resume",
-	description="Parse a resume to extract raw text. Authentication required. Candidate only.",
-	request=None,
-	responses={
-		200: OpenApiResponse(description="Resume parsed successfully."),
-		400: OpenApiResponse(description="Unsupported file type or corrupted file."),
-		404: OpenApiResponse(description="Resume not found."),
-		403: OpenApiResponse(description="Only candidates can parse their resumes.")
-	}
+    tags=["Resumes"],
+    summary="Parse resume",
+    description="Parse a resume to extract raw text. Authentication required. Candidate only.",
+    request=None,
+    responses={
+        200: OpenApiResponse(description="Resume parsed successfully."),
+        400: OpenApiResponse(description="Unsupported file type or corrupted file."),
+        404: OpenApiResponse(description="Resume not found."),
+        403: OpenApiResponse(description="Only candidates can parse their resumes."),
+    },
 )
 class ParseResumeView(APIView):
     """
@@ -407,8 +455,9 @@ class ParseResumeView(APIView):
     Authentication required. Candidate only.
     Only owner can parse their resumes.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'resume_parsing'
+    throttle_scope = "resume_parsing"
 
     def get_object(self, request, id):
         """Get resume if owned by current user"""
@@ -434,7 +483,9 @@ class ParseResumeView(APIView):
                 "resume_version_id": str(parsed_resume.resume_version.id),
                 "resume_id": str(parsed_resume.resume_version.resume.id),
                 "status": parsed_resume.status,
-                "text_length": len(parsed_resume.raw_text) if parsed_resume.raw_text else 0,
+                "text_length": (
+                    len(parsed_resume.raw_text) if parsed_resume.raw_text else 0
+                ),
             }
             serializer = ParseResumeResponseSerializer(response_data)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -468,14 +519,16 @@ class ParseResumeView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get parsed resume",
-	description="Retrieve parsed resume information. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Parsed resume retrieved successfully."),
-		404: OpenApiResponse(description="Resume or parsed resume not found."),
-		403: OpenApiResponse(description="Only candidates can access their parsed resume.")
-	}
+    tags=["Resumes"],
+    summary="Get parsed resume",
+    description="Retrieve parsed resume information. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Parsed resume retrieved successfully."),
+        404: OpenApiResponse(description="Resume or parsed resume not found."),
+        403: OpenApiResponse(
+            description="Only candidates can access their parsed resume."
+        ),
+    },
 )
 class ParsedResumeDetailView(APIView):
     """
@@ -487,6 +540,7 @@ class ParsedResumeDetailView(APIView):
     Only owner can access their parsed resume data.
     Does NOT return full raw text.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_object(self, request, id):
@@ -494,7 +548,9 @@ class ParsedResumeDetailView(APIView):
         try:
             resume = Resume.objects.get(id=id, user=request.user)
             resume_version = ResumeVersioningService.get_current_version(resume)
-            return ParsedResume.objects.select_related("resume_version").get(resume_version=resume_version)
+            return ParsedResume.objects.select_related("resume_version").get(
+                resume_version=resume_version
+            )
         except Resume.DoesNotExist:
             raise Http404("Resume not found")
         except ResumeVersion.DoesNotExist:
@@ -510,14 +566,16 @@ class ParsedResumeDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get resume version history",
-	description="Get version history for a resume. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Version history retrieved successfully."),
-		404: OpenApiResponse(description="Resume not found."),
-		403: OpenApiResponse(description="Only candidates can access their resume history.")
-	}
+    tags=["Resumes"],
+    summary="Get resume version history",
+    description="Get version history for a resume. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Version history retrieved successfully."),
+        404: OpenApiResponse(description="Resume not found."),
+        403: OpenApiResponse(
+            description="Only candidates can access their resume history."
+        ),
+    },
 )
 class ResumeVersionHistoryView(APIView):
     """
@@ -528,6 +586,7 @@ class ResumeVersionHistoryView(APIView):
     Authentication required. Candidate only.
     Returns versions ordered newest first.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_object(self, request, id):
@@ -540,25 +599,29 @@ class ResumeVersionHistoryView(APIView):
     def get(self, request, id):
         """Get version history for the resume"""
         resume = self.get_object(request, id)
-        
+
         # Get version history with optimization
-        versions = ResumeVersion.objects.filter(resume=resume).select_related(
-            "parsed_resume"
-        ).order_by("-version_number")
-        
+        versions = (
+            ResumeVersion.objects.filter(resume=resume)
+            .select_related("parsed_resume")
+            .order_by("-version_number")
+        )
+
         serializer = ResumeVersionSerializer(versions, many=True)
         return Response(serializer.data)
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get current resume version",
-	description="Get the current version of a resume. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Current version retrieved successfully."),
-		404: OpenApiResponse(description="Resume or current version not found."),
-		403: OpenApiResponse(description="Only candidates can access their resume versions.")
-	}
+    tags=["Resumes"],
+    summary="Get current resume version",
+    description="Get the current version of a resume. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(description="Current version retrieved successfully."),
+        404: OpenApiResponse(description="Resume or current version not found."),
+        403: OpenApiResponse(
+            description="Only candidates can access their resume versions."
+        ),
+    },
 )
 class CurrentResumeVersionView(APIView):
     """
@@ -569,6 +632,7 @@ class CurrentResumeVersionView(APIView):
     Authentication required. Candidate only.
     Returns 404 if no current version exists.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_object(self, request, id):
@@ -581,12 +645,14 @@ class CurrentResumeVersionView(APIView):
     def get(self, request, id):
         """Get the current version of the resume"""
         resume = self.get_object(request, id)
-        
+
         try:
-            current_version = ResumeVersion.objects.filter(
-                resume=resume, is_current=True
-            ).select_related("parsed_resume").get()
-            
+            current_version = (
+                ResumeVersion.objects.filter(resume=resume, is_current=True)
+                .select_related("parsed_resume")
+                .get()
+            )
+
             serializer = ResumeVersionSerializer(current_version)
             return Response(serializer.data)
         except ResumeVersion.DoesNotExist:
@@ -597,15 +663,17 @@ class CurrentResumeVersionView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Rollback resume version",
-	description="Rollback to a specific version of a resume. Authentication required. Candidate only.",
-	request=None,
-	responses={
-		200: OpenApiResponse(description="Rollback successful."),
-		404: OpenApiResponse(description="Resume or version not found."),
-		403: OpenApiResponse(description="Only candidates can rollback their resume versions.")
-	}
+    tags=["Resumes"],
+    summary="Rollback resume version",
+    description="Rollback to a specific version of a resume. Authentication required. Candidate only.",
+    request=None,
+    responses={
+        200: OpenApiResponse(description="Rollback successful."),
+        404: OpenApiResponse(description="Resume or version not found."),
+        403: OpenApiResponse(
+            description="Only candidates can rollback their resume versions."
+        ),
+    },
 )
 class RollbackResumeVersionView(APIView):
     """
@@ -616,6 +684,7 @@ class RollbackResumeVersionView(APIView):
     Authentication required. Candidate only.
     Transactional - deactivates current version and activates selected one.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_resume(self, request, id):
@@ -651,16 +720,18 @@ class RollbackResumeVersionView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Parse resume version",
-	description="Parse a specific resume version to extract raw text. Authentication required. Candidate only.",
-	request=None,
-	responses={
-		200: OpenApiResponse(description="Resume version parsed successfully."),
-		400: OpenApiResponse(description="Unsupported file type or corrupted file."),
-		404: OpenApiResponse(description="Resume version not found."),
-		403: OpenApiResponse(description="Only candidates can parse their resume versions.")
-	}
+    tags=["Resumes"],
+    summary="Parse resume version",
+    description="Parse a specific resume version to extract raw text. Authentication required. Candidate only.",
+    request=None,
+    responses={
+        200: OpenApiResponse(description="Resume version parsed successfully."),
+        400: OpenApiResponse(description="Unsupported file type or corrupted file."),
+        404: OpenApiResponse(description="Resume version not found."),
+        403: OpenApiResponse(
+            description="Only candidates can parse their resume versions."
+        ),
+    },
 )
 class ParseResumeVersionView(APIView):
     """
@@ -671,8 +742,9 @@ class ParseResumeVersionView(APIView):
     Authentication required. Candidate only.
     Only owner can parse their resume versions.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'resume_parsing'
+    throttle_scope = "resume_parsing"
 
     def get_object(self, request, version_id):
         """Get resume version if owned by current user"""
@@ -697,7 +769,9 @@ class ParseResumeVersionView(APIView):
                 "resume_version_id": str(parsed_resume.resume_version.id),
                 "resume_id": str(parsed_resume.resume_version.resume.id),
                 "status": parsed_resume.status,
-                "text_length": len(parsed_resume.raw_text) if parsed_resume.raw_text else 0,
+                "text_length": (
+                    len(parsed_resume.raw_text) if parsed_resume.raw_text else 0
+                ),
             }
             serializer = ParseResumeResponseSerializer(response_data)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -726,14 +800,18 @@ class ParseResumeVersionView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get parsed resume version",
-	description="Retrieve parsed resume information for a specific version. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Parsed resume version retrieved successfully."),
-		404: OpenApiResponse(description="Resume version or parsed resume not found."),
-		403: OpenApiResponse(description="Only candidates can access their parsed resume.")
-	}
+    tags=["Resumes"],
+    summary="Get parsed resume version",
+    description="Retrieve parsed resume information for a specific version. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(
+            description="Parsed resume version retrieved successfully."
+        ),
+        404: OpenApiResponse(description="Resume version or parsed resume not found."),
+        403: OpenApiResponse(
+            description="Only candidates can access their parsed resume."
+        ),
+    },
 )
 class ParsedResumeVersionDetailView(APIView):
     """
@@ -745,6 +823,7 @@ class ParsedResumeVersionDetailView(APIView):
     Only owner can access their parsed resume data.
     Does NOT return full raw text.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_object(self, request, version_id):
@@ -769,16 +848,20 @@ class ParsedResumeVersionDetailView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Extract structured resume data",
-	description="Extract structured resume data from a parsed resume version. Authentication required. Candidate only.",
-	request=None,
-	responses={
-		200: OpenApiResponse(description="Structured data extracted successfully."),
-		400: OpenApiResponse(description="Resume must be successfully parsed before extraction."),
-		404: OpenApiResponse(description="Resume version or parsed resume not found."),
-		403: OpenApiResponse(description="Only candidates can extract structured data from their resume.")
-	}
+    tags=["Resumes"],
+    summary="Extract structured resume data",
+    description="Extract structured resume data from a parsed resume version. Authentication required. Candidate only.",
+    request=None,
+    responses={
+        200: OpenApiResponse(description="Structured data extracted successfully."),
+        400: OpenApiResponse(
+            description="Resume must be successfully parsed before extraction."
+        ),
+        404: OpenApiResponse(description="Resume version or parsed resume not found."),
+        403: OpenApiResponse(
+            description="Only candidates can extract structured data from their resume."
+        ),
+    },
 )
 class ExtractResumeVersionView(APIView):
     """
@@ -789,8 +872,9 @@ class ExtractResumeVersionView(APIView):
     Authentication required. Candidate only.
     Only owner can extract structured data from their resume versions.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
-    throttle_scope = 'structured_extraction'
+    throttle_scope = "structured_extraction"
 
     def get_object(self, request, version_id):
         """Get parsed resume if owned by current user"""
@@ -836,7 +920,7 @@ class ExtractResumeVersionView(APIView):
                 {"detail": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
+        except Exception:
             return Response(
                 {"detail": "Failed to extract structured resume data"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -844,14 +928,20 @@ class ExtractResumeVersionView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get structured resume data",
-	description="Retrieve structured resume data for a specific version. Authentication required. Candidate only.",
-	responses={
-		200: OpenApiResponse(description="Structured resume data retrieved successfully."),
-		404: OpenApiResponse(description="Resume version or structured resume not found."),
-		403: OpenApiResponse(description="Only candidates can access their structured resume data.")
-	}
+    tags=["Resumes"],
+    summary="Get structured resume data",
+    description="Retrieve structured resume data for a specific version. Authentication required. Candidate only.",
+    responses={
+        200: OpenApiResponse(
+            description="Structured resume data retrieved successfully."
+        ),
+        404: OpenApiResponse(
+            description="Resume version or structured resume not found."
+        ),
+        403: OpenApiResponse(
+            description="Only candidates can access their structured resume data."
+        ),
+    },
 )
 class StructuredResumeVersionView(APIView):
     """
@@ -862,6 +952,7 @@ class StructuredResumeVersionView(APIView):
     Authentication required. Candidate only.
     Only owner can access their structured resume data.
     """
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     def get_object(self, request, version_id):
@@ -886,14 +977,16 @@ class StructuredResumeVersionView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Get candidate profile",
-	description="Get candidate profile with structured resume data. Authentication required. Recruiter only.",
-	responses={
-		200: OpenApiResponse(description="Candidate profile retrieved successfully."),
-		404: OpenApiResponse(description="Candidate or resume not found."),
-		403: OpenApiResponse(description="Only recruiters can access candidate profiles.")
-	}
+    tags=["Resumes"],
+    summary="Get candidate profile",
+    description="Get candidate profile with structured resume data. Authentication required. Recruiter only.",
+    responses={
+        200: OpenApiResponse(description="Candidate profile retrieved successfully."),
+        404: OpenApiResponse(description="Candidate or resume not found."),
+        403: OpenApiResponse(
+            description="Only recruiters can access candidate profiles."
+        ),
+    },
 )
 class CandidateProfileView(APIView):
     """
@@ -904,6 +997,7 @@ class CandidateProfileView(APIView):
     Authentication required. Recruiter only.
     Returns candidate's current resume data including skills, experience, education, projects, certifications.
     """
+
     permission_classes = (IsAuthenticated, IsRecruiter)
 
     def get_object(self, request, candidate_id):
@@ -928,21 +1022,48 @@ class CandidateProfileView(APIView):
 
 
 @extend_schema(
-	tags=["Resumes"],
-	summary="Search candidates",
-	description="Search candidates with filters. Authentication required. Recruiter only.",
-	parameters=[
-		OpenApiParameter(name='skills', description='Filter by skill name (comma-separated)', required=False, type=str),
-		OpenApiParameter(name='location', description='Filter by location', required=False, type=str),
-		OpenApiParameter(name='experience_min', description='Minimum years of experience', required=False, type=float),
-		OpenApiParameter(name='education', description='Filter by education level (bachelor, master, phd)', required=False, type=str),
-		OpenApiParameter(name='match_score', description='Filter by minimum match score (requires job_id)', required=False, type=float),
-		OpenApiParameter(name='job_id', description='Job ID for match score filtering', required=False, type=str),
-	],
-	responses={
-		200: OpenApiResponse(description="Candidates retrieved successfully."),
-		403: OpenApiResponse(description="Only recruiters can search candidates.")
-	}
+    tags=["Resumes"],
+    summary="Search candidates",
+    description="Search candidates with filters. Authentication required. Recruiter only.",
+    parameters=[
+        OpenApiParameter(
+            name="skills",
+            description="Filter by skill name (comma-separated)",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="location", description="Filter by location", required=False, type=str
+        ),
+        OpenApiParameter(
+            name="experience_min",
+            description="Minimum years of experience",
+            required=False,
+            type=float,
+        ),
+        OpenApiParameter(
+            name="education",
+            description="Filter by education level (bachelor, master, phd)",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="match_score",
+            description="Filter by minimum match score (requires job_id)",
+            required=False,
+            type=float,
+        ),
+        OpenApiParameter(
+            name="job_id",
+            description="Job ID for match score filtering",
+            required=False,
+            type=str,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(description="Candidates retrieved successfully."),
+        403: OpenApiResponse(description="Only recruiters can search candidates."),
+    },
 )
 class CandidateSearchView(APIView):
     """
@@ -960,6 +1081,7 @@ class CandidateSearchView(APIView):
 
     Authentication required. Recruiter only.
     """
+
     permission_classes = (IsAuthenticated, IsRecruiter)
 
     def get(self, request):
@@ -975,30 +1097,39 @@ class CandidateSearchView(APIView):
         if skills:
             skill_list = [s.strip() for s in skills.split(",")]
             # Get resumes that have current versions with matching skills
-            resume_ids = Resume.objects.filter(
-                versions__is_current=True,
-                versions__structured_resume__skills__name__in=skill_list
-            ).values_list("id", flat=True).distinct()
+            resume_ids = (
+                Resume.objects.filter(
+                    versions__is_current=True,
+                    versions__structured_resume__skills__name__in=skill_list,
+                )
+                .values_list("id", flat=True)
+                .distinct()
+            )
             resumes = resumes.filter(id__in=resume_ids)
 
         # Filter by location
         location = request.query_params.get("location")
         if location:
-            resume_ids = Resume.objects.filter(
-                versions__is_current=True,
-                versions__structured_resume__location__icontains=location
-            ).values_list("id", flat=True).distinct()
+            resume_ids = (
+                Resume.objects.filter(
+                    versions__is_current=True,
+                    versions__structured_resume__location__icontains=location,
+                )
+                .values_list("id", flat=True)
+                .distinct()
+            )
             resumes = resumes.filter(id__in=resume_ids)
 
         # Filter by experience (years)
         experience_min = request.query_params.get("experience_min")
         if experience_min:
             try:
-                min_years = float(experience_min)
+                float(experience_min)
                 # Filter candidates with at least min_years of experience
                 # This requires calculating actual years from start_date/end_date
                 # For now, we'll filter by experience count as a proxy
-                # TODO: Implement actual years calculation in query
+                # Note: Experience filtering is currently limited to count-based filtering
+                # Future enhancement: Implement date-based years calculation in database query
                 pass
             except ValueError:
                 return Response(
@@ -1011,22 +1142,34 @@ class CandidateSearchView(APIView):
         if education:
             education = education.lower()
             if education == "bachelor":
-                resume_ids = Resume.objects.filter(
-                    versions__is_current=True,
-                    versions__structured_resume__education__degree__icontains="bachelor"
-                ).values_list("id", flat=True).distinct()
+                resume_ids = (
+                    Resume.objects.filter(
+                        versions__is_current=True,
+                        versions__structured_resume__education__degree__icontains="bachelor",
+                    )
+                    .values_list("id", flat=True)
+                    .distinct()
+                )
                 resumes = resumes.filter(id__in=resume_ids)
             elif education == "master":
-                resume_ids = Resume.objects.filter(
-                    versions__is_current=True,
-                    versions__structured_resume__education__degree__icontains="master"
-                ).values_list("id", flat=True).distinct()
+                resume_ids = (
+                    Resume.objects.filter(
+                        versions__is_current=True,
+                        versions__structured_resume__education__degree__icontains="master",
+                    )
+                    .values_list("id", flat=True)
+                    .distinct()
+                )
                 resumes = resumes.filter(id__in=resume_ids)
             elif education == "phd":
-                resume_ids = Resume.objects.filter(
-                    versions__is_current=True,
-                    versions__structured_resume__education__degree__icontains="phd"
-                ).values_list("id", flat=True).distinct()
+                resume_ids = (
+                    Resume.objects.filter(
+                        versions__is_current=True,
+                        versions__structured_resume__education__degree__icontains="phd",
+                    )
+                    .values_list("id", flat=True)
+                    .distinct()
+                )
                 resumes = resumes.filter(id__in=resume_ids)
 
         # Filter by match score (requires job_id)
@@ -1050,8 +1193,7 @@ class CandidateSearchView(APIView):
 
                 # Filter candidates by match score
                 candidate_ids = JobMatch.objects.filter(
-                    job=job,
-                    match_score__gte=min_score
+                    job=job, match_score__gte=min_score
                 ).values_list("candidate_id", flat=True)
 
                 resumes = resumes.filter(user__in=candidate_ids)
@@ -1062,4 +1204,3 @@ class CandidateSearchView(APIView):
         # Serialize results
         serializer = CandidateProfileSerializer(resumes, many=True)
         return Response(serializer.data)
-

@@ -8,7 +8,6 @@ from django.utils import timezone
 
 from apps.applications.models import Application, ApplicationStatusHistory
 from apps.analytics.services import AnalyticsRefreshService
-from apps.analytics.tasks import refresh_recruiter_analytics
 from apps.interviews.models import Interview, InterviewStatusHistory
 from apps.jobs.models import Job
 from apps.matching.models import JobMatch
@@ -52,8 +51,12 @@ class AsyncWorkflowTests(TestCase):
             version_number=1,
             is_current=True,
         )
-        self.structured_resume = StructuredResume.objects.create(resume_version=self.version)
-        ResumeSkill.objects.create(structured_resume=self.structured_resume, name="Python")
+        self.structured_resume = StructuredResume.objects.create(
+            resume_version=self.version
+        )
+        ResumeSkill.objects.create(
+            structured_resume=self.structured_resume, name="Python"
+        )
         self.job = Job.objects.create(
             recruiter=self.recruiter,
             title="Backend Engineer",
@@ -132,12 +135,22 @@ class AsyncWorkflowTests(TestCase):
     def test_match_notification_task(self):
         match = MatchingService.calculate_match(self.candidate, self.job)
         notify_match_created(str(match.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.MATCH_CREATED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.MATCH_CREATED
+            ).count(),
+            1,
+        )
 
     def test_application_submitted_notification_task(self):
         application = self.create_application()
         notify_application_submitted(str(application.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.APPLICATION_SUBMITTED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.APPLICATION_SUBMITTED
+            ).count(),
+            1,
+        )
 
     def test_status_changed_notification_task(self):
         application = self.create_application()
@@ -148,12 +161,22 @@ class AsyncWorkflowTests(TestCase):
             changed_by=self.recruiter,
         )
         notify_application_status_changed(str(history.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.APPLICATION_STATUS_CHANGED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.APPLICATION_STATUS_CHANGED
+            ).count(),
+            1,
+        )
 
     def test_interview_scheduled_notification_task(self):
         interview = self.create_interview()
         notify_interview_scheduled(str(interview.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.INTERVIEW_SCHEDULED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.INTERVIEW_SCHEDULED
+            ).count(),
+            1,
+        )
 
     def test_interview_completed_notification_task(self):
         interview = self.create_interview()
@@ -164,7 +187,12 @@ class AsyncWorkflowTests(TestCase):
             changed_by=self.recruiter,
         )
         notify_interview_completed(str(history.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.INTERVIEW_COMPLETED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.INTERVIEW_COMPLETED
+            ).count(),
+            1,
+        )
 
     def test_interview_cancelled_notification_task(self):
         interview = self.create_interview()
@@ -175,7 +203,12 @@ class AsyncWorkflowTests(TestCase):
             changed_by=self.recruiter,
         )
         notify_interview_cancelled(str(history.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.INTERVIEW_CANCELLED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.INTERVIEW_CANCELLED
+            ).count(),
+            1,
+        )
 
     def test_transaction_on_commit_used_for_resume_signal(self):
         with patch("django.db.transaction.on_commit") as on_commit:
@@ -190,18 +223,27 @@ class AsyncWorkflowTests(TestCase):
         application = self.create_application()
         notify_application_submitted(str(application.id))
         notify_application_submitted(str(application.id))
-        self.assertEqual(Notification.objects.filter(notification_type=Notification.NotificationType.APPLICATION_SUBMITTED).count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                notification_type=Notification.NotificationType.APPLICATION_SUBMITTED
+            ).count(),
+            1,
+        )
 
     def test_matching_task_idempotent(self):
         recalculate_job_matches(str(self.job.id))
         recalculate_job_matches(str(self.job.id))
-        self.assertEqual(JobMatch.objects.filter(candidate=self.candidate, job=self.job).count(), 1)
+        self.assertEqual(
+            JobMatch.objects.filter(candidate=self.candidate, job=self.job).count(), 1
+        )
 
     def test_multiple_rapid_updates_safe(self):
         recalculate_candidate_matches(str(self.candidate.id))
         recalculate_candidate_matches(str(self.candidate.id))
         recalculate_candidate_matches(str(self.candidate.id))
-        self.assertEqual(JobMatch.objects.filter(candidate=self.candidate, job=self.job).count(), 1)
+        self.assertEqual(
+            JobMatch.objects.filter(candidate=self.candidate, job=self.job).count(), 1
+        )
 
     def test_concurrent_execution_safe(self):
         MatchingService.calculate_match(self.candidate, self.job)
@@ -235,44 +277,63 @@ class AsyncWorkflowTests(TestCase):
 
     def test_dashboard_values_remain_correct(self):
         self.create_application()
-        data = AnalyticsRefreshService.refresh_recruiter_dashboard(str(self.recruiter.id))
+        data = AnalyticsRefreshService.refresh_recruiter_dashboard(
+            str(self.recruiter.id)
+        )
         self.assertEqual(data["total_applications"], 1)
 
     def test_signals_enqueue_celery_tasks(self):
-        with patch("apps.notifications.tasks.notify_application_submitted.delay") as delay:
+        with patch(
+            "apps.notifications.tasks.notify_application_submitted.delay"
+        ) as delay:
             with self.captureOnCommitCallbacks(execute=True):
                 with transaction.atomic():
                     self.create_application()
             self.assertTrue(delay.called)
 
     def test_signals_contain_no_matching_business_logic(self):
-        with patch("apps.matching.services.matching.MatchingService.recalculate_for_job") as service:
+        with patch(
+            "apps.matching.services.matching.MatchingService.recalculate_for_job"
+        ) as service:
             with self.captureOnCommitCallbacks(execute=True):
                 with transaction.atomic():
                     self.job.save(update_fields=["updated_at"])
             service.assert_not_called()
 
     def test_tasks_call_service_layer(self):
-        with patch("apps.matching.tasks.MatchingService.recalculate_for_job", return_value=0) as service:
+        with patch(
+            "apps.matching.tasks.MatchingService.recalculate_for_job", return_value=0
+        ) as service:
             recalculate_job_matches(str(self.job.id))
             service.assert_called_once_with(str(self.job.id))
 
     def test_matching_service_invoked(self):
-        with patch("apps.matching.services.matching.MatchingService.calculate_match", wraps=MatchingService.calculate_match) as service:
+        with patch(
+            "apps.matching.services.matching.MatchingService.calculate_match",
+            wraps=MatchingService.calculate_match,
+        ) as service:
             recalculate_job_matches(str(self.job.id))
             self.assertTrue(service.called)
 
     def test_notification_service_invoked(self):
         application = self.create_application()
-        with patch("apps.notifications.tasks.NotificationService.notify_application_submitted") as service:
+        with patch(
+            "apps.notifications.tasks.NotificationService.notify_application_submitted"
+        ) as service:
             notify_application_submitted(str(application.id))
             self.assertTrue(service.called)
 
     def test_query_optimization_uses_iterator(self):
-        with patch("apps.matching.services.matching.StructuredResume.objects") as manager:
-            manager.filter.return_value.select_related.return_value.only.return_value.iterator.return_value = []
+        with patch(
+            "apps.matching.services.matching.StructuredResume.objects"
+        ) as manager:
+            manager.filter.return_value.select_related.return_value.only.return_value.iterator.return_value = (
+                []
+            )
             MatchingService.recalculate_for_job(str(self.job.id))
-            self.assertTrue(manager.filter.return_value.select_related.return_value.only.return_value.iterator.called)
+            self.assertTrue(
+                manager.filter.return_value.select_related.return_value.only.return_value.iterator.called
+            )
 
     def test_bulk_processing_returns_processed_count(self):
         self.assertEqual(MatchingService.recalculate_for_job(str(self.job.id)), 1)

@@ -30,7 +30,11 @@ def get_required_env(key: str, cast: Any = None) -> Any:
 
 
 def validate_production_env() -> dict[str, Any]:
-    missing = [key for key in PRODUCTION_REQUIRED_ENV_VARS if get_env(key, default="") in (None, "")]
+    missing = [
+        key
+        for key in PRODUCTION_REQUIRED_ENV_VARS
+        if get_env(key, default="") in (None, "")
+    ]
     if missing:
         raise ImproperlyConfigured(
             "Missing required production environment variables: " + ", ".join(missing)

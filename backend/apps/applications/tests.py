@@ -159,10 +159,14 @@ class ApplicationAPITests(TestCase):
         """Test 1: Candidate applies successfully"""
         self.authenticate(self.candidate1)
         data = {"resume_version_id": str(self.resume_version1.id)}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Application.objects.count(), 1)
-        self.assertEqual(response.data["status"], Application.ApplicationStatus.SUBMITTED)
+        self.assertEqual(
+            response.data["status"], Application.ApplicationStatus.SUBMITTED
+        )
         self.assertEqual(str(response.data["job_id"]), str(self.active_job.id))
         self.assertEqual(str(response.data["candidate_id"]), str(self.candidate1.id))
 
@@ -170,20 +174,26 @@ class ApplicationAPITests(TestCase):
         """Test 2: Recruiter cannot apply"""
         self.authenticate(self.recruiter1)
         data = {"resume_version_id": str(self.resume_version1.id)}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_3_anonymous_blocked(self):
         """Test 3: Anonymous blocked"""
         data = {"resume_version_id": str(self.resume_version1.id)}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_4_cannot_apply_to_draft_job(self):
         """Test 4: Cannot apply to draft job"""
         self.authenticate(self.candidate1)
         data = {"resume_version_id": str(self.resume_version1.id)}
-        response = self.client.post(f"/api/jobs/{self.draft_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.draft_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Cannot apply to draft or closed jobs", response.data["detail"])
 
@@ -191,7 +201,9 @@ class ApplicationAPITests(TestCase):
         """Test 5: Cannot apply to closed job"""
         self.authenticate(self.candidate1)
         data = {"resume_version_id": str(self.resume_version1.id)}
-        response = self.client.post(f"/api/jobs/{self.closed_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.closed_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Cannot apply to draft or closed jobs", response.data["detail"])
 
@@ -199,13 +211,17 @@ class ApplicationAPITests(TestCase):
         """Test 6: Cannot apply twice"""
         self.authenticate(self.candidate1)
         data = {"resume_version_id": str(self.resume_version1.id)}
-        
+
         # First application
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 201)
-        
+
         # Second application
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("already applied", response.data["detail"])
 
@@ -214,7 +230,9 @@ class ApplicationAPITests(TestCase):
         self.authenticate(self.candidate1)
         # Try to apply with candidate2's resume version
         data = {"resume_version_id": str(self.resume_version2.id)}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("does not belong to you", response.data["detail"])
 
@@ -304,7 +322,9 @@ class ApplicationAPITests(TestCase):
         """Test: resume_version_id is required"""
         self.authenticate(self.candidate1)
         data = {}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("resume_version_id", response.data["detail"])
 
@@ -312,7 +332,9 @@ class ApplicationAPITests(TestCase):
         """Test: Invalid resume_version_id returns error"""
         self.authenticate(self.candidate1)
         data = {"resume_version_id": "00000000-0000-0000-0000-000000000000"}
-        response = self.client.post(f"/api/jobs/{self.active_job.id}/apply/", data, format="json")
+        response = self.client.post(
+            f"/api/jobs/{self.active_job.id}/apply/", data, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Resume version not found", response.data["detail"])
 
@@ -340,7 +362,7 @@ class ApplicationAPITests(TestCase):
     def test_applications_ordered_newest_first(self):
         """Test: Applications are ordered newest first"""
         import time
-        
+
         # Create applications with time delay
         app1 = Application.objects.create(
             job=self.active_job,
@@ -473,60 +495,58 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter1)
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "under_review")
         self.application1.refresh_from_db()
-        self.assertEqual(self.application1.status, Application.ApplicationStatus.UNDER_REVIEW)
+        self.assertEqual(
+            self.application1.status, Application.ApplicationStatus.UNDER_REVIEW
+        )
 
     def test_status_update_under_review_to_shortlisted(self):
         """Test: Recruiter moves UNDER_REVIEW → SHORTLISTED"""
         self.application1.status = Application.ApplicationStatus.UNDER_REVIEW
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "shortlisted"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "shortlisted")
         self.application1.refresh_from_db()
-        self.assertEqual(self.application1.status, Application.ApplicationStatus.SHORTLISTED)
+        self.assertEqual(
+            self.application1.status, Application.ApplicationStatus.SHORTLISTED
+        )
 
     def test_status_update_under_review_to_rejected(self):
         """Test: Recruiter moves UNDER_REVIEW → REJECTED"""
         self.application1.status = Application.ApplicationStatus.UNDER_REVIEW
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "rejected"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "rejected")
         self.application1.refresh_from_db()
-        self.assertEqual(self.application1.status, Application.ApplicationStatus.REJECTED)
+        self.assertEqual(
+            self.application1.status, Application.ApplicationStatus.REJECTED
+        )
 
     def test_status_update_shortlisted_to_hired(self):
         """Test: Recruiter moves SHORTLISTED → HIRED"""
         self.application1.status = Application.ApplicationStatus.SHORTLISTED
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "hired"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "hired")
@@ -537,27 +557,25 @@ class ApplicationWorkflowTests(TestCase):
         """Test: Recruiter moves SHORTLISTED → REJECTED"""
         self.application1.status = Application.ApplicationStatus.SHORTLISTED
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "rejected"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "rejected")
         self.application1.refresh_from_db()
-        self.assertEqual(self.application1.status, Application.ApplicationStatus.REJECTED)
+        self.assertEqual(
+            self.application1.status, Application.ApplicationStatus.REJECTED
+        )
 
     def test_status_update_invalid_transition(self):
         """Test: Invalid transition rejected (SUBMITTED → HIRED)"""
         self.authenticate(self.recruiter1)
         data = {"status": "hired"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status transition", str(response.data))
@@ -567,9 +585,7 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter1)
         data = {"status": "rejected"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status transition", str(response.data))
@@ -578,13 +594,11 @@ class ApplicationWorkflowTests(TestCase):
         """Test: HIRED status cannot be changed"""
         self.application1.status = Application.ApplicationStatus.HIRED
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "rejected"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status transition", str(response.data))
@@ -593,13 +607,11 @@ class ApplicationWorkflowTests(TestCase):
         """Test: REJECTED status cannot be changed"""
         self.application1.status = Application.ApplicationStatus.REJECTED
         self.application1.save()
-        
+
         self.authenticate(self.recruiter1)
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status transition", str(response.data))
@@ -611,9 +623,7 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.candidate1)
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 403)
 
@@ -621,9 +631,7 @@ class ApplicationWorkflowTests(TestCase):
         """Test: Anonymous blocked from status update"""
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 401)
 
@@ -632,9 +640,7 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter2)
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 404)
 
@@ -645,16 +651,16 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter1)
         data = {"status": "under_review"}
         response = self.client.patch(
-            f"/api/applications/{self.application1.id}/status/",
-            data,
-            format="json"
+            f"/api/applications/{self.application1.id}/status/", data, format="json"
         )
         self.assertEqual(response.status_code, 200)
-        
+
         # Check history was created
-        history_count = ApplicationStatusHistory.objects.filter(application=self.application1).count()
+        history_count = ApplicationStatusHistory.objects.filter(
+            application=self.application1
+        ).count()
         self.assertEqual(history_count, 1)
-        
+
         history = ApplicationStatusHistory.objects.get(application=self.application1)
         self.assertEqual(history.old_status, "submitted")
         self.assertEqual(history.new_status, "under_review")
@@ -669,7 +675,7 @@ class ApplicationWorkflowTests(TestCase):
             new_status="under_review",
             changed_by=self.recruiter1,
         )
-        
+
         self.authenticate(self.candidate1)
         response = self.client.get(f"/api/applications/{self.application1.id}/history/")
         self.assertEqual(response.status_code, 200)
@@ -693,7 +699,7 @@ class ApplicationWorkflowTests(TestCase):
             new_status="under_review",
             changed_by=self.recruiter1,
         )
-        
+
         self.authenticate(self.recruiter1)
         response = self.client.get(f"/api/applications/{self.application1.id}/history/")
         self.assertEqual(response.status_code, 200)
@@ -716,9 +722,11 @@ class ApplicationWorkflowTests(TestCase):
         """Test: Filter submitted applications"""
         self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
         self.application2.save()
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=submitted")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=submitted"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.application1.id))
@@ -729,9 +737,11 @@ class ApplicationWorkflowTests(TestCase):
         self.application1.save()
         self.application2.status = Application.ApplicationStatus.SHORTLISTED
         self.application2.save()
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=under_review")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=under_review"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.application1.id))
@@ -742,9 +752,11 @@ class ApplicationWorkflowTests(TestCase):
         self.application1.save()
         self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
         self.application2.save()
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=shortlisted")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=shortlisted"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.application1.id))
@@ -755,9 +767,11 @@ class ApplicationWorkflowTests(TestCase):
         self.application1.save()
         self.application2.status = Application.ApplicationStatus.UNDER_REVIEW
         self.application2.save()
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=rejected")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=rejected"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.application1.id))
@@ -768,9 +782,11 @@ class ApplicationWorkflowTests(TestCase):
         self.application1.save()
         self.application2.status = Application.ApplicationStatus.SHORTLISTED
         self.application2.save()
-        
+
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=hired")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=hired"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], str(self.application1.id))
@@ -778,7 +794,9 @@ class ApplicationWorkflowTests(TestCase):
     def test_invalid_status_filter_returns_400(self):
         """Test: Invalid status filter returns 400"""
         self.authenticate(self.recruiter1)
-        response = self.client.get(f"/api/jobs/{self.job1.id}/applications/?status=invalid_status")
+        response = self.client.get(
+            f"/api/jobs/{self.job1.id}/applications/?status=invalid_status"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid status", response.data["detail"])
 
@@ -814,7 +832,7 @@ class ApplicationWorkflowTests(TestCase):
             new_status="under_review",
             changed_by=self.recruiter1,
         )
-        
+
         self.authenticate(self.recruiter1)
         # Should be 3 queries: 1 for application with select_related, 1 for history with select_related, 1 for auth
         with self.assertNumQueries(3):
@@ -825,9 +843,9 @@ class ApplicationWorkflowTests(TestCase):
         self.authenticate(self.recruiter1)
         data = {"status": "under_review"}
         # Should be optimized queries
-        with self.assertNumQueries(4):  # get application, validate, update, create history; notification is async
+        with self.assertNumQueries(
+            4
+        ):  # get application, validate, update, create history; notification is async
             self.client.patch(
-                f"/api/applications/{self.application1.id}/status/",
-                data,
-                format="json"
+                f"/api/applications/{self.application1.id}/status/", data, format="json"
             )

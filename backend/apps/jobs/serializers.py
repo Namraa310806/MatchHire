@@ -1,19 +1,21 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.validators import ValidationError
 
 from .models import Job
 
 
 class JobSearchPagination(PageNumberPagination):
     """Pagination for job search endpoint"""
+
     page_size = 20
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
 class JobCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a job (recruiter only)"""
+
     class Meta:
         model = Job
         fields = (
@@ -47,7 +49,9 @@ class JobCreateSerializer(serializers.ModelSerializer):
         if attrs.get("salary_min") and attrs.get("salary_max"):
             if attrs["salary_min"] > attrs["salary_max"]:
                 raise ValidationError(
-                    {"salary_min": "salary_min must be less than or equal to salary_max"}
+                    {
+                        "salary_min": "salary_min must be less than or equal to salary_max"
+                    }
                 )
         return attrs
 
@@ -58,6 +62,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
 
 class JobUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating a job (recruiter only)"""
+
     class Meta:
         model = Job
         fields = (
@@ -89,6 +94,7 @@ class JobUpdateSerializer(serializers.ModelSerializer):
 
 class JobDetailSerializer(serializers.ModelSerializer):
     """Serializer for job detail view"""
+
     recruiter_id = serializers.UUIDField(source="recruiter.id", read_only=True)
     recruiter_email = serializers.EmailField(source="recruiter.email", read_only=True)
 
@@ -127,6 +133,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
 
 class JobListSerializer(serializers.ModelSerializer):
     """Serializer for job list view"""
+
     recruiter_id = serializers.UUIDField(source="recruiter.id", read_only=True)
     recruiter_email = serializers.EmailField(source="recruiter.email", read_only=True)
 
@@ -157,6 +164,7 @@ class JobListSerializer(serializers.ModelSerializer):
 
 class JobSearchSerializer(serializers.ModelSerializer):
     """Serializer for job search and filtering"""
+
     class Meta:
         model = Job
         fields = (

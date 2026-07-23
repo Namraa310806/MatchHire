@@ -11,6 +11,7 @@ class JobMatch(models.Model):
     Stores match scores between a candidate and a job.
     Calculated deterministically based on skills, experience, and education.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     candidate = models.ForeignKey(
         User,
@@ -49,4 +50,6 @@ class JobMatch(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"JobMatch<{self.candidate.email} -> {self.job.title}: {self.match_score}%>"
+        return (
+            f"JobMatch<{self.candidate.email} -> {self.job.title}: {self.match_score}%>"
+        )

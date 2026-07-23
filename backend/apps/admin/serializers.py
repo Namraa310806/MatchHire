@@ -9,6 +9,7 @@ from apps.users.models import User
 
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serializer for admin user management"""
+
     class Meta:
         model = User
         fields = (
@@ -22,11 +23,18 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "date_joined",
             "updated_at",
         )
-        read_only_fields = ("id", "is_staff", "is_verified", "date_joined", "updated_at")
+        read_only_fields = (
+            "id",
+            "is_staff",
+            "is_verified",
+            "date_joined",
+            "updated_at",
+        )
 
 
 class AdminUserUpdateSerializer(serializers.Serializer):
     """Serializer for admin user updates"""
+
     is_active = serializers.BooleanField(required=False)
     role = serializers.ChoiceField(choices=User.Roles.choices, required=False)
     reason = serializers.CharField(required=False, allow_blank=True)
@@ -34,6 +42,7 @@ class AdminUserUpdateSerializer(serializers.Serializer):
 
 class AdminJobSerializer(serializers.ModelSerializer):
     """Serializer for admin job management"""
+
     recruiter_id = serializers.UUIDField(source="recruiter.id", read_only=True)
     recruiter_email = serializers.EmailField(source="recruiter.email", read_only=True)
 
@@ -72,12 +81,14 @@ class AdminJobSerializer(serializers.ModelSerializer):
 
 class AdminJobUpdateSerializer(serializers.Serializer):
     """Serializer for admin job updates"""
+
     status = serializers.ChoiceField(choices=Job.JobStatus.choices, required=False)
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
 class AdminResumeSerializer(serializers.ModelSerializer):
     """Serializer for admin resume management"""
+
     candidate_id = serializers.UUIDField(source="user.id", read_only=True)
     candidate_email = serializers.EmailField(source="user.email", read_only=True)
     candidate_name = serializers.CharField(source="user.full_name", read_only=True)
@@ -107,17 +118,21 @@ class AdminResumeSerializer(serializers.ModelSerializer):
 
 class AdminResumeUpdateSerializer(serializers.Serializer):
     """Serializer for admin resume updates"""
+
     is_active = serializers.BooleanField(required=False)
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
 class AdminApplicationSerializer(serializers.ModelSerializer):
     """Serializer for admin application management (read-only)"""
+
     job_id = serializers.UUIDField(source="job.id", read_only=True)
     job_title = serializers.CharField(source="job.title", read_only=True)
     job_company = serializers.CharField(source="job.company_name", read_only=True)
     recruiter_id = serializers.UUIDField(source="job.recruiter.id", read_only=True)
-    recruiter_email = serializers.EmailField(source="job.recruiter.email", read_only=True)
+    recruiter_email = serializers.EmailField(
+        source="job.recruiter.email", read_only=True
+    )
     candidate_id = serializers.UUIDField(source="candidate.id", read_only=True)
     candidate_email = serializers.EmailField(source="candidate.email", read_only=True)
     candidate_name = serializers.CharField(source="candidate.full_name", read_only=True)
@@ -158,6 +173,7 @@ class AdminApplicationSerializer(serializers.ModelSerializer):
 
 class ModerationLogSerializer(serializers.ModelSerializer):
     """Serializer for moderation logs"""
+
     admin_email = serializers.EmailField(source="admin.email", read_only=True)
 
     class Meta:
@@ -186,6 +202,7 @@ class ModerationLogSerializer(serializers.ModelSerializer):
 
 class AdminDashboardSerializer(serializers.Serializer):
     """Serializer for admin dashboard statistics"""
+
     total_users = serializers.IntegerField(read_only=True)
     total_candidates = serializers.IntegerField(read_only=True)
     total_recruiters = serializers.IntegerField(read_only=True)

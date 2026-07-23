@@ -1,16 +1,13 @@
 """
 Middleware to track HTTP request metrics for Prometheus.
 """
+
 import time
 import logging
 from django.utils.deprecation import MiddlewareMixin
-from prometheus_client import Counter, Histogram
 
 from matchhire_backend.core.metrics import (
     track_http_request,
-    http_requests_total,
-    http_request_duration_seconds,
-    http_requests_by_status,
 )
 
 logger = logging.getLogger(__name__)
@@ -19,7 +16,7 @@ logger = logging.getLogger(__name__)
 class PrometheusMetricsMiddleware(MiddlewareMixin):
     """
     Middleware to track HTTP request metrics for Prometheus.
-    
+
     Tracks:
     - Request count by method, endpoint, and status
     - Request duration by method and endpoint
@@ -33,7 +30,7 @@ class PrometheusMetricsMiddleware(MiddlewareMixin):
 
     def process_response(self, request, response):
         """Record request metrics."""
-        if not hasattr(request, 'start_time'):
+        if not hasattr(request, "start_time"):
             return response
 
         # Calculate request duration
@@ -54,7 +51,7 @@ class PrometheusMetricsMiddleware(MiddlewareMixin):
 
     def process_exception(self, request, exception):
         """Handle exceptions in metrics tracking."""
-        if hasattr(request, 'start_time'):
+        if hasattr(request, "start_time"):
             duration = time.time() - request.start_time
             try:
                 track_http_request(request.method, request.path, 500, duration)

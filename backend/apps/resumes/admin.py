@@ -14,7 +14,15 @@ class ResumeAdmin(admin.ModelAdmin):
 
 @admin.register(ResumeVersion)
 class ResumeVersionAdmin(admin.ModelAdmin):
-    list_display = ("id", "resume", "version_number", "is_current", "original_filename", "file_size", "uploaded_at")
+    list_display = (
+        "id",
+        "resume",
+        "version_number",
+        "is_current",
+        "original_filename",
+        "file_size",
+        "uploaded_at",
+    )
     list_filter = ("is_current", "uploaded_at", "mime_type")
     search_fields = ("resume__user__email", "original_filename")
     readonly_fields = ("id", "version_number", "uploaded_at", "created_at")

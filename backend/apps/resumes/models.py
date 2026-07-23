@@ -17,6 +17,7 @@ class Resume(models.Model):
     Resume container - represents a user's resume history.
     Does NOT store file data. File data lives in ResumeVersion.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -45,7 +46,7 @@ class Resume(models.Model):
 
 class ParsedResume(models.Model):
     """Model to store parsed resume text and metadata for a specific version."""
-    
+
     class ParseStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
         SUCCESS = "SUCCESS", "Success"
@@ -53,7 +54,7 @@ class ParsedResume(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resume_version = models.OneToOneField(
-        'ResumeVersion',
+        "ResumeVersion",
         on_delete=models.CASCADE,
         related_name="parsed_resume",
     )
@@ -81,13 +82,14 @@ class ResumeVersion(models.Model):
     Immutable document snapshot - stores actual file data.
     Each version is a complete, independent copy of the resume at a point in time.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resume = models.ForeignKey(
         Resume,
         on_delete=models.CASCADE,
         related_name="versions",
     )
-    
+
     # File data (moved from Resume)
     original_filename = models.CharField(max_length=255)
     stored_filename = models.CharField(max_length=255, unique=True)
@@ -95,7 +97,7 @@ class ResumeVersion(models.Model):
     file_size = models.PositiveIntegerField()
     mime_type = models.CharField(max_length=100)
     uploaded_at = models.DateTimeField(default=timezone.now)
-    
+
     # Version metadata
     version_number = models.PositiveIntegerField()
     is_current = models.BooleanField(default=False)
@@ -130,6 +132,7 @@ class StructuredResume(models.Model):
     Structured resume data extracted from parsed resume text.
     Contains contact information, summary, and links.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resume_version = models.OneToOneField(
         ResumeVersion,
@@ -161,6 +164,7 @@ class ResumeSkill(models.Model):
     """
     Individual skill extracted from a structured resume.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     structured_resume = models.ForeignKey(
         StructuredResume,
@@ -183,6 +187,7 @@ class ResumeEducation(models.Model):
     """
     Education entry extracted from a structured resume.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     structured_resume = models.ForeignKey(
         StructuredResume,
@@ -210,6 +215,7 @@ class ResumeExperience(models.Model):
     """
     Work experience entry extracted from a structured resume.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     structured_resume = models.ForeignKey(
         StructuredResume,
@@ -236,6 +242,7 @@ class ResumeProject(models.Model):
     """
     Project entry extracted from a structured resume.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     structured_resume = models.ForeignKey(
         StructuredResume,
@@ -261,6 +268,7 @@ class ResumeCertification(models.Model):
     """
     Certification entry extracted from a structured resume.
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     structured_resume = models.ForeignKey(
         StructuredResume,

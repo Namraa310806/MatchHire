@@ -16,31 +16,97 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Job',
+            name="Job",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=255)),
-                ('company_name', models.CharField(max_length=255)),
-                ('location', models.CharField(max_length=255)),
-                ('employment_type', models.CharField(choices=[('full_time', 'Full Time'), ('part_time', 'Part Time'), ('contract', 'Contract'), ('internship', 'Internship')], default='full_time', max_length=32)),
-                ('experience_level', models.CharField(choices=[('entry', 'Entry Level'), ('junior', 'Junior'), ('mid', 'Mid Level'), ('senior', 'Senior'), ('lead', 'Lead')], default='mid', max_length=32)),
-                ('description', models.TextField()),
-                ('requirements', models.TextField(blank=True)),
-                ('responsibilities', models.TextField(blank=True)),
-                ('salary_min', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('salary_max', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('currency', models.CharField(default='USD', max_length=3)),
-                ('is_remote', models.BooleanField(default=False)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('active', 'Active'), ('closed', 'Closed')], default='draft', max_length=32)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('closed_at', models.DateTimeField(blank=True, null=True)),
-                ('recruiter', models.ForeignKey(limit_choices_to={'role': 'recruiter'}, on_delete=django.db.models.deletion.CASCADE, related_name='jobs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=255)),
+                ("company_name", models.CharField(max_length=255)),
+                ("location", models.CharField(max_length=255)),
+                (
+                    "employment_type",
+                    models.CharField(
+                        choices=[
+                            ("full_time", "Full Time"),
+                            ("part_time", "Part Time"),
+                            ("contract", "Contract"),
+                            ("internship", "Internship"),
+                        ],
+                        default="full_time",
+                        max_length=32,
+                    ),
+                ),
+                (
+                    "experience_level",
+                    models.CharField(
+                        choices=[
+                            ("entry", "Entry Level"),
+                            ("junior", "Junior"),
+                            ("mid", "Mid Level"),
+                            ("senior", "Senior"),
+                            ("lead", "Lead"),
+                        ],
+                        default="mid",
+                        max_length=32,
+                    ),
+                ),
+                ("description", models.TextField()),
+                ("requirements", models.TextField(blank=True)),
+                ("responsibilities", models.TextField(blank=True)),
+                (
+                    "salary_min",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "salary_max",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                ("currency", models.CharField(default="USD", max_length=3)),
+                ("is_remote", models.BooleanField(default=False)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("active", "Active"),
+                            ("closed", "Closed"),
+                        ],
+                        default="draft",
+                        max_length=32,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("closed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "recruiter",
+                    models.ForeignKey(
+                        limit_choices_to={"role": "recruiter"},
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="jobs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'jobs',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['status'], name='jobs_status_92f544_idx'), models.Index(fields=['recruiter'], name='jobs_recruit_e48915_idx'), models.Index(fields=['created_at'], name='jobs_created_7c32a5_idx')],
+                "db_table": "jobs",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(fields=["status"], name="jobs_status_92f544_idx"),
+                    models.Index(fields=["recruiter"], name="jobs_recruit_e48915_idx"),
+                    models.Index(fields=["created_at"], name="jobs_created_7c32a5_idx"),
+                ],
             },
         ),
     ]

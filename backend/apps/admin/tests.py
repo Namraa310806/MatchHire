@@ -1,6 +1,5 @@
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from django.db.models import Count
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -8,7 +7,6 @@ from apps.admin.models import ModerationLog
 from apps.applications.models import Application
 from apps.jobs.models import Job
 from apps.resumes.models import Resume, ResumeVersion
-from apps.users.models import User
 
 User = get_user_model()
 
