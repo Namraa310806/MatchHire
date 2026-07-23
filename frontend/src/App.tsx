@@ -16,7 +16,20 @@ import NotificationsPage from '@/pages/candidate/NotificationsPage';
 import AnalyticsPage from '@/pages/candidate/AnalyticsPage';
 import SettingsPage from '@/pages/candidate/SettingsPage';
 import RecruiterDashboard from '@/pages/recruiter/RecruiterDashboard';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
+import SystemDashboard from '@/features/admin/pages/SystemDashboard';
+import UserManagement from '@/features/admin/pages/UserManagement';
+import CompanyManagement from '@/features/admin/pages/CompanyManagement';
+import JobAdministration from '@/features/admin/pages/JobAdministration';
+import ApplicationAdministration from '@/features/admin/pages/ApplicationAdministration';
+import ResumeAdministration from '@/features/admin/pages/ResumeAdministration';
+import SearchMonitoring from '@/features/admin/pages/SearchMonitoring';
+import RecommendationMonitoring from '@/features/admin/pages/RecommendationMonitoring';
+import Observability from '@/features/admin/pages/Observability';
+import FeatureFlags from '@/features/admin/pages/FeatureFlags';
+import AuditLogs from '@/features/admin/pages/AuditLogs';
+import SecurityCenter from '@/features/admin/pages/SecurityCenter';
+import SystemConfiguration from '@/features/admin/pages/SystemConfiguration';
+import { AdminLayout } from '@/features/admin/components/AdminLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import CandidateRoute from '@/components/auth/CandidateRoute';
 import RecruiterRoute from '@/components/auth/RecruiterRoute';
@@ -50,7 +63,21 @@ function App() {
               <Route path="recruiter/dashboard" element={<RecruiterDashboard />} />
             </Route>
             <Route element={<AdminRoute />}>
-              <Route path="admin/dashboard" element={<AdminDashboard />} />
+              <Route element={<AdminLayout />}>
+                <Route path="admin/dashboard" element={<SystemDashboard />} />
+                <Route path="admin/users" element={<UserManagement />} />
+                <Route path="admin/companies" element={<CompanyManagement />} />
+                <Route path="admin/jobs" element={<JobAdministration />} />
+                <Route path="admin/applications" element={<ApplicationAdministration />} />
+                <Route path="admin/resumes" element={<ResumeAdministration />} />
+                <Route path="admin/search" element={<SearchMonitoring />} />
+                <Route path="admin/recommendations" element={<RecommendationMonitoring />} />
+                <Route path="admin/observability" element={<Observability />} />
+                <Route path="admin/feature-flags" element={<FeatureFlags />} />
+                <Route path="admin/audit-logs" element={<AuditLogs />} />
+                <Route path="admin/security" element={<SecurityCenter />} />
+                <Route path="admin/settings" element={<SystemConfiguration />} />
+              </Route>
             </Route>
           </Route>
         </Route>

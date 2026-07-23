@@ -1,71 +1,110 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SystemDashboard from '@/features/admin/pages/SystemDashboard';
+import UserManagement from '@/features/admin/pages/UserManagement';
+import JobAdministration from '@/features/admin/pages/JobAdministration';
+import ApplicationAdministration from '@/features/admin/pages/ApplicationAdministration';
+import ResumeAdministration from '@/features/admin/pages/ResumeAdministration';
+import SearchMonitoring from '@/features/admin/pages/SearchMonitoring';
+import RecommendationMonitoring from '@/features/admin/pages/RecommendationMonitoring';
+import SystemConfiguration from '@/features/admin/pages/SystemConfiguration';
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  FileText,
+  Database,
+  Search,
+  Brain,
+  Settings,
+  RefreshCw,
+} from 'lucide-react';
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-slate-400 mt-2">Platform administration and monitoring</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Console</h1>
+          <p className="text-slate-400 mt-2">Platform administration and operations</p>
+        </div>
+        <Button variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh All
+        </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader>
-            <CardTitle>Total Users</CardTitle>
-            <CardDescription>Registered users</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-emerald-400">0</p>
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-slate-900/50 border border-slate-800">
+          <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-800">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-slate-800">
+            <Users className="h-4 w-4 mr-2" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="jobs" className="data-[state=active]:bg-slate-800">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Jobs
+          </TabsTrigger>
+          <TabsTrigger value="applications" className="data-[state=active]:bg-slate-800">
+            <FileText className="h-4 w-4 mr-2" />
+            Applications
+          </TabsTrigger>
+          <TabsTrigger value="resumes" className="data-[state=active]:bg-slate-800">
+            <Database className="h-4 w-4 mr-2" />
+            Resumes
+          </TabsTrigger>
+          <TabsTrigger value="search" className="data-[state=active]:bg-slate-800">
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </TabsTrigger>
+          <TabsTrigger value="recommendations" className="data-[state=active]:bg-slate-800">
+            <Brain className="h-4 w-4 mr-2" />
+            Recommendations
+          </TabsTrigger>
+          <TabsTrigger value="config" className="data-[state=active]:bg-slate-800">
+            <Settings className="h-4 w-4 mr-2" />
+            Config
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader>
-            <CardTitle>Total Jobs</CardTitle>
-            <CardDescription>Active job listings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-emerald-400">0</p>
-          </CardContent>
-        </Card>
+        <TabsContent value="dashboard">
+          <SystemDashboard />
+        </TabsContent>
 
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader>
-            <CardTitle>Applications</CardTitle>
-            <CardDescription>Total applications</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-emerald-400">0</p>
-          </CardContent>
-        </Card>
+        <TabsContent value="users">
+          <UserManagement />
+        </TabsContent>
 
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader>
-            <CardTitle>Companies</CardTitle>
-            <CardDescription>Registered companies</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-emerald-400">0</p>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="jobs">
+          <JobAdministration />
+        </TabsContent>
 
-      <Card className="border-slate-800 bg-slate-900/50">
-        <CardHeader>
-          <CardTitle>Admin Features</CardTitle>
-          <CardDescription>Coming soon</CardDescription>
-        </CardHeader>
-        <CardContent className="text-slate-300">
-          <ul className="space-y-2">
-            <li>• User management</li>
-            <li>• Job moderation</li>
-            <li>• Platform analytics</li>
-            <li>• System health monitoring</li>
-            <li>• Feature flags</li>
-            <li>• Provider configuration</li>
-          </ul>
-        </CardContent>
-      </Card>
+        <TabsContent value="applications">
+          <ApplicationAdministration />
+        </TabsContent>
+
+        <TabsContent value="resumes">
+          <ResumeAdministration />
+        </TabsContent>
+
+        <TabsContent value="search">
+          <SearchMonitoring />
+        </TabsContent>
+
+        <TabsContent value="recommendations">
+          <RecommendationMonitoring />
+        </TabsContent>
+
+        <TabsContent value="config">
+          <SystemConfiguration />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
