@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Home, Briefcase, FileText, Bell, Settings, LogOut } from "lucide-react"
+import { Menu, Home, Briefcase, FileText, Bell, Settings, LogOut, User, Upload, Calendar, Heart, BarChart3 } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 
 interface CandidateLayoutProps {
@@ -22,9 +22,14 @@ interface CandidateLayoutProps {
 
 const navigation = [
   { name: "Dashboard", href: "/candidate/dashboard", icon: Home },
+  { name: "Profile", href: "/candidate/profile", icon: User },
+  { name: "Resume", href: "/candidate/resume", icon: Upload },
   { name: "Jobs", href: "/candidate/jobs", icon: Briefcase },
   { name: "Applications", href: "/candidate/applications", icon: FileText },
+  { name: "Interviews", href: "/candidate/interviews", icon: Calendar },
+  { name: "Saved", href: "/candidate/saved", icon: Heart },
   { name: "Notifications", href: "/candidate/notifications", icon: Bell },
+  { name: "Analytics", href: "/candidate/analytics", icon: BarChart3 },
   { name: "Settings", href: "/candidate/settings", icon: Settings },
 ]
 
