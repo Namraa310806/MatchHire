@@ -41,6 +41,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.health",
+    "apps.users",
+    "apps.companies",
+    "apps.jobs",
+    "apps.matching",
+    "apps.subscriptions",
+    "apps.analytics",
 ]
 
 MIDDLEWARE = [
@@ -89,6 +95,9 @@ DATABASES = {
     }
 }
 
+
+# Custom User Model
+AUTH_USER_MODEL = "users.User"
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
