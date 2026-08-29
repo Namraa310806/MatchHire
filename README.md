@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 1B
+## Current Implementation Status: Phase 2A
 
-This is Phase 1B of the MatchHire project: development infrastructure hardening.
+This is Phase 2A of the MatchHire project: core domain models.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -12,18 +12,29 @@ This is Phase 1B of the MatchHire project: development infrastructure hardening.
 - PostgreSQL and Redis via Docker Compose with health checks
 - Health endpoint at `/api/health/` (checks database and Redis connectivity)
 - Environment-based configuration (database, Redis, CORS)
-- Basic test suite
-- Centralized Redis configuration for future Celery integration
+- Custom user model with email-based authentication
+- Core domain models:
+  - **User Domain**: Custom User model with UserProfile (skills, experience, keywords)
+  - **Company Domain**: Verified job sources with scraper configuration support
+  - **Job Domain**: Jobs from verified sources with deduplication and matching metadata
+    - Structured experience fields (minimum_experience_years, maximum_experience_years) for numeric matching
+    - Skills/keywords semantic contract documented (skills = concrete capabilities, keywords = broader domain terms)
+  - **MatchScore Domain**: Persisted match results with component scores for explainability
+    - All score fields validated to range 0.0 to 1.0 (final_score, skill_similarity_score, experience_match_score, keyword_overlap_score)
+  - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
+  - **Analytics Domain**: ApplyClick tracking for job application analytics
+- Django admin interfaces for all models (Job admin is read-only to preserve source-only ingestion)
+- Comprehensive model tests (39 tests passing)
+- Database migrations for all domain models
 
 **Not yet implemented (planned for future phases):**
-- Authentication and user management
-- Job scraping and ingestion
+- Authentication endpoints (JWT, login/register)
+- Job scraping and ingestion pipeline
 - Resume upload and parsing
-- Matching engine (TF-IDF, embeddings)
-- Company and job models
-- Recruiter functionality
-- Subscriptions and payments (Razorpay)
+- Matching engine (TF-IDF, embeddings, scoring algorithms)
 - Celery async tasks
+- Redis caching
+- Payment integration (Razorpay)
 - Production deployment
 
 ## Technology Stack
@@ -41,7 +52,13 @@ matchhire/
 ├── backend/              # Django backend
 │   ├── config/          # Django project configuration
 │   ├── apps/            # Django applications
-│   │   └── health/      # Health check app
+│   │   ├── health/      # Health check app
+│   │   ├── users/       # User domain (User, UserProfile)
+│   │   ├── companies/   # Company domain (verified job sources)
+│   │   ├── jobs/        # Job domain (verified jobs)
+│   │   ├── matching/    # MatchScore domain
+│   │   ├── subscriptions/ # Subscription domain
+│   │   └── analytics/   # ApplyClick analytics domain
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/            # React frontend
@@ -173,23 +190,32 @@ Expected response:
 
 ## Architecture Notes
 
-- The backend is structured to support future Django apps in the `apps/` directory
+- The backend is structured with domain-specific Django apps in the `apps/` directory
 - PostgreSQL and Redis are configured with health checks in Docker Compose
 - PostgreSQL credentials are configurable via environment variables in both Docker Compose and Django settings
 - Environment variables are managed through `python-decouple`
 - CORS is configurable via environment variables (CORS_ALLOWED_ORIGINS)
 - Django REST Framework is configured with permissive permissions for development
 - Redis configuration is centralized in settings.py for future Celery integration
+- Custom user model (`apps.users.User`) with email-based authentication is established
+- Domain models support the future MatchHire pipeline:
+  - Companies represent verified job sources only (not arbitrary job posting)
+  - Jobs must enter through verified source ingestion (external IDs distinct from internal PKs)
+  - MatchScore stores component scores for explainable matching (scoring algorithm not implemented)
+  - Subscriptions store state only (payment processing deferred)
+  - ApplyClick tracks events without storing sensitive application data
+- Django admin interfaces are available for inspection (Job creation is disabled to preserve source-only ingestion)
 
 ## Future Phases
 
 The following features are planned for implementation in future phases:
 
-- User authentication and authorization
-- Job ingestion from verified sources
-- Resume parsing and analysis
-- ML-based job matching (TF-IDF, embeddings)
-- Company and recruiter management
-- Subscription and payment integration
+- Phase 2B: Indexes, constraints, and performance optimization
+- Authentication endpoints (JWT, login/register)
+- Job ingestion from verified sources (scraping pipeline)
+- Resume upload and parsing
+- ML-based job matching (TF-IDF, embeddings, scoring algorithms)
 - Celery for async task processing
+- Redis caching
+- Subscription and payment integration (Razorpay)
 - Production deployment with Nginx
