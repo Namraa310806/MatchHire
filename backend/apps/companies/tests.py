@@ -1,5 +1,7 @@
 from django.test import TestCase
+from django.db import IntegrityError, transaction
 from .models import Company
+from apps.jobs.models import Job
 
 
 class CompanyModelTest(TestCase):
@@ -54,3 +56,30 @@ class CompanyModelTest(TestCase):
         )
         self.assertEqual(company.scraper_config['scraper_type'], 'custom')
         self.assertEqual(company.scraper_config['rate_limit'], 10)
+
+
+class CompanyDeletionBehaviorTest(TestCase):
+    """Test deletion behavior for Company relationships."""
+    
+    def setUp(self):
+        """Set up test company."""
+        self.company = Company.objects.create(
+            name='Tech Corp',
+            slug='tech-corp',
+            careers_url='https://techcorp.com/careers'
+        )
+    
+    def test_company_deletion_protected_when_jobs_exist(self):
+        """Test that company deletion is PROTECTED when jobs exist."""
+        Job.objects.create(
+            company=self.company,
+            external_job_id='job-1',
+            title='Software Engineer',
+            description='Build great software',
+            application_url='https://techcorp.com/jobs/1',
+            deduplication_hash='abc123'
+        )
+        # Attempting to delete company should be prevented
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.company.delete()

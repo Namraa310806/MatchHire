@@ -1,4 +1,6 @@
 from django.test import TestCase
+from django.db import IntegrityError, transaction
+from decimal import Decimal
 from .models import Job
 from apps.companies.models import Company
 
@@ -279,3 +281,129 @@ class JobModelTest(TestCase):
         )
         self.assertIsNone(job.minimum_experience_years)
         self.assertIsNone(job.maximum_experience_years)
+
+
+class JobDatabaseConstraintTest(TestCase):
+    """Test database-level constraints for Job."""
+    
+    def setUp(self):
+        """Set up test companies."""
+        self.company_a = Company.objects.create(
+            name='Company A',
+            slug='company-a',
+            careers_url='https://companya.com/careers'
+        )
+        self.company_b = Company.objects.create(
+            name='Company B',
+            slug='company-b',
+            careers_url='https://companyb.com/careers'
+        )
+    
+    def test_duplicate_external_job_id_same_company_rejected_at_database_level(self):
+        """Test that duplicate external_job_id for same company is rejected at database level."""
+        Job.objects.create(
+            company=self.company_a,
+            external_job_id='job-123',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://companya.com/jobs/123',
+            deduplication_hash='hash1'
+        )
+        # Same external ID for same company should fail at database level
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Job.objects.create(
+                    company=self.company_a,
+                    external_job_id='job-123',
+                    title='Senior Engineer',
+                    description='Lead development',
+                    application_url='https://companya.com/jobs/124',
+                    deduplication_hash='hash2'
+                )
+    
+    def test_same_external_job_id_different_companies_allowed(self):
+        """Test that same external_job_id for different companies is allowed."""
+        job1 = Job.objects.create(
+            company=self.company_a,
+            external_job_id='job-123',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://companya.com/jobs/123',
+            deduplication_hash='hash1'
+        )
+        job2 = Job.objects.create(
+            company=self.company_b,
+            external_job_id='job-123',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://companyb.com/jobs/123',
+            deduplication_hash='hash2'
+        )
+        self.assertEqual(Job.objects.filter(external_job_id='job-123').count(), 2)
+    
+    def test_deduplication_hash_globally_unique_at_database_level(self):
+        """Test that deduplication_hash remains globally unique at database level."""
+        Job.objects.create(
+            company=self.company_a,
+            external_job_id='job-123',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://companya.com/jobs/123',
+            deduplication_hash='unique-hash-123'
+        )
+        # Same hash for different company should fail at database level
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Job.objects.create(
+                    company=self.company_b,
+                    external_job_id='job-456',
+                    title='Frontend Engineer',
+                    description='Build frontend systems',
+                    application_url='https://companyb.com/jobs/456',
+                    deduplication_hash='unique-hash-123'
+                )
+
+
+class TransactionIntegrityTest(TestCase):
+    """Test transaction/integrity behavior."""
+    
+    def setUp(self):
+        """Set up test company."""
+        self.company = Company.objects.create(
+            name='Example Technologies',
+            slug='example-technologies',
+            careers_url='https://example.com/careers'
+        )
+    
+    def test_transaction_rollback_on_integrity_error(self):
+        """Test that failed operation does not create invalid data and transaction can be handled."""
+        # Create a valid job
+        Job.objects.create(
+            company=self.company,
+            external_job_id='job-123',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://example.com/jobs/123',
+            deduplication_hash='hash1'
+        )
+        
+        # Count before transaction attempt
+        count_before = Job.objects.filter(company=self.company).count()
+        
+        # Attempt to create duplicate within transaction
+        try:
+            with transaction.atomic():
+                Job.objects.create(
+                    company=self.company,
+                    external_job_id='job-123',
+                    title='Senior Engineer',
+                    description='Lead development',
+                    application_url='https://example.com/jobs/124',
+                    deduplication_hash='hash2'
+                )
+        except IntegrityError:
+            pass  # Expected
+        
+        # Count after failed transaction - should be unchanged
+        count_after = Job.objects.filter(company=self.company).count()
+        self.assertEqual(count_before, count_after)

@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.db import IntegrityError
 from .models import ApplyClick
 from apps.users.models import User
 from apps.companies.models import Company
@@ -77,3 +78,87 @@ class ApplyClickModelTest(TestCase):
         self.job.delete()
         # ApplyClick should be deleted
         self.assertFalse(ApplyClick.objects.filter(id=apply_click.id).exists())
+
+
+class ApplyClickRelationshipTest(TestCase):
+    """Test ApplyClick relationship behavior."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            password='testpass123'
+        )
+        self.company = Company.objects.create(
+            name='Example Technologies',
+            slug='example-technologies',
+            careers_url='https://example.com/careers'
+        )
+        self.job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-1',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://example.com/jobs/1',
+            deduplication_hash='hash1'
+        )
+    
+    def test_multiple_clicks_for_same_job_user_allowed(self):
+        """Test that multiple clicks for the same job/user are allowed."""
+        apply_click1 = ApplyClick.objects.create(
+            user=self.user,
+            job=self.job
+        )
+        apply_click2 = ApplyClick.objects.create(
+            user=self.user,
+            job=self.job
+        )
+        self.assertEqual(ApplyClick.objects.filter(user=self.user, job=self.job).count(), 2)
+    
+    def test_click_with_null_user_allowed(self):
+        """Test that click with null user is allowed for anonymous tracking."""
+        apply_click = ApplyClick.objects.create(
+            user=None,
+            job=self.job
+        )
+        self.assertIsNone(apply_click.user)
+        self.assertEqual(apply_click.job, self.job)
+
+
+class ApplyClickDeletionBehaviorTest(TestCase):
+    """Test deletion behavior for ApplyClick relationships."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            password='testpass123'
+        )
+        self.company = Company.objects.create(
+            name='Example Technologies',
+            slug='example-technologies',
+            careers_url='https://example.com/careers'
+        )
+        self.job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-1',
+            title='Backend Engineer',
+            description='Build backend systems',
+            application_url='https://example.com/jobs/1',
+            deduplication_hash='hash1'
+        )
+        self.apply_click = ApplyClick.objects.create(
+            user=self.user,
+            job=self.job
+        )
+    
+    def test_user_deletion_sets_null_on_apply_clicks(self):
+        """Test that deleting user sets null on apply clicks (SET_NULL)."""
+        apply_click_id = self.apply_click.id
+        self.user.delete()
+        # ApplyClick should still exist but with null user
+        apply_click = ApplyClick.objects.get(id=apply_click_id)
+        self.assertIsNone(apply_click.user)
+        self.assertEqual(apply_click.job, self.job)

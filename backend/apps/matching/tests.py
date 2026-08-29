@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.db import IntegrityError, transaction
 from decimal import Decimal
 from .models import MatchScore
 from apps.users.models import User, UserProfile
@@ -288,3 +289,124 @@ class MatchScoreModelTest(TestCase):
         )
         with self.assertRaises(Exception):
             match_score.save()
+
+
+class MatchScoreVersionUniquenessTest(TestCase):
+    """Test match score version uniqueness at database level."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            password='testpass123'
+        )
+        self.profile = UserProfile.objects.create(user=self.user)
+        self.company = Company.objects.create(
+            name='Tech Corp',
+            slug='tech-corp',
+            careers_url='https://techcorp.com/careers'
+        )
+        self.job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-123',
+            title='Software Engineer',
+            description='Build great software',
+            application_url='https://techcorp.com/jobs/123',
+            deduplication_hash='abc123'
+        )
+    
+    def test_same_profile_same_job_same_version_rejected_at_database_level(self):
+        """Test that same profile + same job + same version is rejected at database level."""
+        MatchScore.objects.create(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.8200'),
+            skill_similarity_score=Decimal('0.8000'),
+            experience_match_score=Decimal('0.9000'),
+            keyword_overlap_score=Decimal('0.7000'),
+            version=1
+        )
+        # Same combination should fail at database level
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                MatchScore.objects.create(
+                    user_profile=self.profile,
+                    job=self.job,
+                    final_score=Decimal('0.8500'),
+                    skill_similarity_score=Decimal('0.8500'),
+                    experience_match_score=Decimal('0.8500'),
+                    keyword_overlap_score=Decimal('0.8500'),
+                    version=1
+                )
+    
+    def test_same_profile_same_job_different_version_allowed(self):
+        """Test that same profile + same job + different version is allowed."""
+        match_score1 = MatchScore.objects.create(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.8200'),
+            skill_similarity_score=Decimal('0.8000'),
+            experience_match_score=Decimal('0.9000'),
+            keyword_overlap_score=Decimal('0.7000'),
+            version=1
+        )
+        match_score2 = MatchScore.objects.create(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.9000'),
+            skill_similarity_score=Decimal('0.9500'),
+            experience_match_score=Decimal('0.8500'),
+            keyword_overlap_score=Decimal('0.8000'),
+            version=2
+        )
+        self.assertEqual(match_score1.version, 1)
+        self.assertEqual(match_score2.version, 2)
+
+
+class MatchScoreDeletionBehaviorTest(TestCase):
+    """Test deletion behavior for MatchScore relationships."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            username='testuser',
+            password='testpass123'
+        )
+        self.profile = UserProfile.objects.create(user=self.user)
+        self.company = Company.objects.create(
+            name='Tech Corp',
+            slug='tech-corp',
+            careers_url='https://techcorp.com/careers'
+        )
+        self.job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-123',
+            title='Software Engineer',
+            description='Build great software',
+            application_url='https://techcorp.com/jobs/123',
+            deduplication_hash='abc123'
+        )
+        self.match_score = MatchScore.objects.create(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.8200'),
+            skill_similarity_score=Decimal('0.8000'),
+            experience_match_score=Decimal('0.9000'),
+            keyword_overlap_score=Decimal('0.7000')
+        )
+    
+    def test_profile_deletion_cascades_to_match_scores(self):
+        """Test that deleting profile cascades to match scores (CASCADE)."""
+        match_score_id = self.match_score.id
+        self.profile.delete()
+        # MatchScore should be deleted due to CASCADE
+        self.assertFalse(MatchScore.objects.filter(id=match_score_id).exists())
+    
+    def test_job_deletion_cascades_to_match_scores(self):
+        """Test that deleting job cascades to match scores (CASCADE)."""
+        match_score_id = self.match_score.id
+        self.job.delete()
+        # MatchScore should be deleted due to CASCADE
+        self.assertFalse(MatchScore.objects.filter(id=match_score_id).exists())
