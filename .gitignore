@@ -92,7 +92,6 @@ htmlcov/
 *.tmp
 *.temp
 
+# Reference documentation (private project material)
 *.pdf
 *.docx
-
-AGENTS.md

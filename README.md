@@ -2,17 +2,18 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 1A
+## Current Implementation Status: Phase 1B
 
-This is Phase 1A of the MatchHire project: project scaffolding and local infrastructure foundation.
+This is Phase 1B of the MatchHire project: development infrastructure hardening.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
 - React frontend with Vite
-- PostgreSQL and Redis via Docker Compose
-- Health endpoint at `/api/health/`
-- Environment-based configuration
+- PostgreSQL and Redis via Docker Compose with health checks
+- Health endpoint at `/api/health/` (checks database and Redis connectivity)
+- Environment-based configuration (database, Redis, CORS)
 - Basic test suite
+- Centralized Redis configuration for future Celery integration
 
 **Not yet implemented (planned for future phases):**
 - Authentication and user management
@@ -174,9 +175,11 @@ Expected response:
 
 - The backend is structured to support future Django apps in the `apps/` directory
 - PostgreSQL and Redis are configured with health checks in Docker Compose
+- PostgreSQL credentials are configurable via environment variables in both Docker Compose and Django settings
 - Environment variables are managed through `python-decouple`
-- CORS is configured for local development with the React frontend
+- CORS is configurable via environment variables (CORS_ALLOWED_ORIGINS)
 - Django REST Framework is configured with permissive permissions for development
+- Redis configuration is centralized in settings.py for future Celery integration
 
 ## Future Phases
 
