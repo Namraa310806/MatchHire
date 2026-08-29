@@ -55,6 +55,16 @@ class ApplyClick(models.Model):
         verbose_name = 'Apply Click'
         verbose_name_plural = 'Apply Clicks'
         ordering = ['-clicked_at']
+        indexes = [
+            models.Index(
+                fields=['job', '-clicked_at'],
+                name='idx_applyclick_job_clicked_at'
+            ),
+            models.Index(
+                fields=['user', '-clicked_at'],
+                name='idx_applyclick_user_clicked_at'
+            )
+        ]
     
     def __str__(self):
         return f"{self.user.email if self.user else 'Anonymous'} - {self.job.title} at {self.clicked_at}"

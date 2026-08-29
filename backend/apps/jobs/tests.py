@@ -190,3 +190,92 @@ class JobModelTest(TestCase):
         self.assertEqual(job.maximum_experience_years, 5.0)
         self.assertEqual(job.skills, ['python', 'django', 'postgresql'])
         self.assertEqual(job.keywords, ['backend', 'api'])
+
+    def test_experience_range_valid_minimum_less_than_maximum(self):
+        """Test that minimum < maximum is valid."""
+        job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-124',
+            title='Software Engineer',
+            description='Build great software',
+            minimum_experience_years=3.0,
+            maximum_experience_years=5.0,
+            application_url='https://techcorp.com/jobs/124',
+            deduplication_hash='def456'
+        )
+        self.assertEqual(job.minimum_experience_years, 3.0)
+        self.assertEqual(job.maximum_experience_years, 5.0)
+
+    def test_experience_range_valid_equal_bounds(self):
+        """Test that minimum == maximum is valid."""
+        job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-125',
+            title='Software Engineer',
+            description='Build great software',
+            minimum_experience_years=3.0,
+            maximum_experience_years=3.0,
+            application_url='https://techcorp.com/jobs/125',
+            deduplication_hash='ghi789'
+        )
+        self.assertEqual(job.minimum_experience_years, 3.0)
+        self.assertEqual(job.maximum_experience_years, 3.0)
+
+    def test_experience_range_invalid_minimum_greater_than_maximum(self):
+        """Test that minimum > maximum is rejected by database constraint."""
+        with self.assertRaises(Exception):
+            Job.objects.create(
+                company=self.company,
+                external_job_id='job-126',
+                title='Software Engineer',
+                description='Build great software',
+                minimum_experience_years=5.0,
+                maximum_experience_years=3.0,
+                application_url='https://techcorp.com/jobs/126',
+                deduplication_hash='jkl012'
+            )
+
+    def test_experience_range_null_minimum_valid(self):
+        """Test that NULL minimum is valid when maximum is set."""
+        job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-127',
+            title='Software Engineer',
+            description='Build great software',
+            minimum_experience_years=None,
+            maximum_experience_years=5.0,
+            application_url='https://techcorp.com/jobs/127',
+            deduplication_hash='mno345'
+        )
+        self.assertIsNone(job.minimum_experience_years)
+        self.assertEqual(job.maximum_experience_years, 5.0)
+
+    def test_experience_range_null_maximum_valid(self):
+        """Test that NULL maximum is valid when minimum is set."""
+        job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-128',
+            title='Software Engineer',
+            description='Build great software',
+            minimum_experience_years=3.0,
+            maximum_experience_years=None,
+            application_url='https://techcorp.com/jobs/128',
+            deduplication_hash='pqr678'
+        )
+        self.assertEqual(job.minimum_experience_years, 3.0)
+        self.assertIsNone(job.maximum_experience_years)
+
+    def test_experience_range_both_null_valid(self):
+        """Test that both NULL is valid."""
+        job = Job.objects.create(
+            company=self.company,
+            external_job_id='job-129',
+            title='Software Engineer',
+            description='Build great software',
+            minimum_experience_years=None,
+            maximum_experience_years=None,
+            application_url='https://techcorp.com/jobs/129',
+            deduplication_hash='stu901'
+        )
+        self.assertIsNone(job.minimum_experience_years)
+        self.assertIsNone(job.maximum_experience_years)

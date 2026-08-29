@@ -58,6 +58,12 @@ class Company(models.Model):
         verbose_name = 'Company'
         verbose_name_plural = 'Companies'
         ordering = ['name']
+        indexes = [
+            models.Index(
+                fields=['is_active'],
+                name='idx_company_is_active'
+            )
+        ]
     
     def __str__(self):
         return self.name

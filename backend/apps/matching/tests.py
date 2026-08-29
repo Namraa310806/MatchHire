@@ -182,3 +182,109 @@ class MatchScoreModelTest(TestCase):
         )
         with self.assertRaises(Exception):
             match_score.full_clean()
+
+    def test_match_score_database_constraint_final_score_below_zero(self):
+        """Test database constraint rejects final_score below 0.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('-0.1000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        # Bypass Django validation to test database constraint
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_final_score_above_one(self):
+        """Test database constraint rejects final_score above 1.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('1.1000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        # Bypass Django validation to test database constraint
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_skill_similarity_below_zero(self):
+        """Test database constraint rejects skill_similarity_score below 0.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('-0.1000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_skill_similarity_above_one(self):
+        """Test database constraint rejects skill_similarity_score above 1.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('1.1000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_experience_match_below_zero(self):
+        """Test database constraint rejects experience_match_score below 0.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('-0.1000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_experience_match_above_one(self):
+        """Test database constraint rejects experience_match_score above 1.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('1.1000'),
+            keyword_overlap_score=Decimal('0.5000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_keyword_overlap_below_zero(self):
+        """Test database constraint rejects keyword_overlap_score below 0.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('-0.1000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()
+
+    def test_match_score_database_constraint_keyword_overlap_above_one(self):
+        """Test database constraint rejects keyword_overlap_score above 1.0."""
+        match_score = MatchScore(
+            user_profile=self.profile,
+            job=self.job,
+            final_score=Decimal('0.5000'),
+            skill_similarity_score=Decimal('0.5000'),
+            experience_match_score=Decimal('0.5000'),
+            keyword_overlap_score=Decimal('1.1000')
+        )
+        with self.assertRaises(Exception):
+            match_score.save()

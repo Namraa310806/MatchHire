@@ -175,6 +175,23 @@ class Job(models.Model):
             models.UniqueConstraint(
                 fields=['company', 'external_job_id'],
                 name='unique_company_external_job'
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    minimum_experience_years__isnull=True
+                ) | models.Q(
+                    maximum_experience_years__isnull=True
+                ) | models.Q(
+                    minimum_experience_years__lte=models.F('maximum_experience_years')
+                ),
+                name='valid_experience_range',
+                violation_error_message='Minimum experience years must be less than or equal to maximum experience years when both are specified'
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['status', '-last_fetched_at'],
+                name='idx_job_status_freshness'
             )
         ]
     

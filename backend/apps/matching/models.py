@@ -94,6 +94,36 @@ class MatchScore(models.Model):
             models.UniqueConstraint(
                 fields=['user_profile', 'job', 'version'],
                 name='unique_user_job_version'
+            ),
+            models.CheckConstraint(
+                check=models.Q(final_score__gte=0) & models.Q(final_score__lte=1),
+                name='final_score_range',
+                violation_error_message='Final score must be between 0.0 and 1.0'
+            ),
+            models.CheckConstraint(
+                check=models.Q(skill_similarity_score__gte=0) & models.Q(skill_similarity_score__lte=1),
+                name='skill_similarity_score_range',
+                violation_error_message='Skill similarity score must be between 0.0 and 1.0'
+            ),
+            models.CheckConstraint(
+                check=models.Q(experience_match_score__gte=0) & models.Q(experience_match_score__lte=1),
+                name='experience_match_score_range',
+                violation_error_message='Experience match score must be between 0.0 and 1.0'
+            ),
+            models.CheckConstraint(
+                check=models.Q(keyword_overlap_score__gte=0) & models.Q(keyword_overlap_score__lte=1),
+                name='keyword_overlap_score_range',
+                violation_error_message='Keyword overlap score must be between 0.0 and 1.0'
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['user_profile', '-final_score'],
+                name='idx_match_profile_score'
+            ),
+            models.Index(
+                fields=['-updated_at'],
+                name='idx_match_updated_at'
             )
         ]
     

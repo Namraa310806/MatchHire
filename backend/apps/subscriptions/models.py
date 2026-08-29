@@ -75,6 +75,12 @@ class Subscription(models.Model):
         db_table = 'subscriptions'
         verbose_name = 'Subscription'
         verbose_name_plural = 'Subscriptions'
+        indexes = [
+            models.Index(
+                fields=['status'],
+                name='idx_subscription_status'
+            )
+        ]
     
     def __str__(self):
         return f"{self.user.email} - {self.plan} ({self.status})"
