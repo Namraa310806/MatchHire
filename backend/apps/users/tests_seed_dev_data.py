@@ -13,6 +13,18 @@ from apps.analytics.models import ApplyClick
 class SeedDevDataCommandTest(TestCase):
     """Test seed_dev_data management command."""
     
+    def setUp(self):
+        """Clean up database before each test to ensure isolation."""
+        # Clear all relevant tables to ensure each test starts with a clean state
+        # This prevents interference from other test modules that create real companies
+        ApplyClick.objects.all().delete()
+        MatchScore.objects.all().delete()
+        Subscription.objects.all().delete()
+        UserProfile.objects.all().delete()
+        User.objects.all().delete()
+        Job.objects.all().delete()
+        Company.objects.all().delete()
+    
     def test_first_execution_creates_expected_dataset(self):
         """Test that first execution creates the expected dataset."""
         # Verify database is empty

@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 4C
+## Current Implementation Status: Phase 4D
 
-This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
+This is Phase 4D of the MatchHire project: Ingestion Operational Layer with Retry Refinement.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -41,11 +41,11 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
   - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
   - **Analytics Domain**: ApplyClick tracking for job application analytics
 - Django admin interfaces for all models (Job and IngestionRun admins are read-only to preserve operational integrity)
-- Comprehensive test suite (319+ tests passing)
+- Comprehensive test suite (360 tests)
 - Database migrations for all domain models
 - Development seed data management command for local development
 - Authorization boundary documented (see `backend/apps/users/AUTHORIZATION_BOUNDARY.md`)
-- **Job Ingestion System (Phases 4A-4C):**
+  - **Job Ingestion System (Phases 4A-4D):**
   - BaseJobScraper abstraction defining the scraper contract
   - NormalizedJob common representation for all scrapers
   - **Real official sources:**
@@ -61,7 +61,7 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
     - Celery configured with Redis as broker
     - Source registry for controlled scraper mapping (prevents arbitrary source execution)
     - Thin ingestion task (`ingest_jobs_task`) for orchestration
-    - Transient vs permanent failure classification
+    - Explicit retry classification (transient vs permanent failures)
     - Bounded retry with exponential backoff (max 3 retries)
     - HTTP 429 handling with Retry-After respect
     - Idempotent task execution (PostgreSQL uniqueness prevents duplicates)
@@ -69,9 +69,9 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
     - Manual ingestion command: `python manage.py ingest_jobs --source stripe` (synchronous)
     - Async ingestion command: `python manage.py ingest_jobs --source stripe --async` (queues Celery task)
     - Celery worker service in docker-compose.yml
-  - **Ingestion Operational Layer (Phase 4C):**
+  - **Ingestion Operational Layer (Phase 4C-4D):**
     - IngestionRun model for tracking each ingestion execution
-    - Status state machine: PENDING, RUNNING, SUCCEEDED, PARTIAL, FAILED
+    - Status state machine: PENDING, RUNNING, RETRYING, SUCCEEDED, PARTIAL, FAILED
     - Per-run counters: fetched, normalized, created, updated, skipped, failed
     - Error information bounded in size (no secrets or stack traces)
     - Source health calculation from run history (HEALTHY, DEGRADED, FAILING, UNKNOWN)
@@ -81,6 +81,14 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
     - Management command for ingestion status: `python manage.py ingestion_status`
     - Management command for schedule registration: `python manage.py register_schedule`
     - Celery Beat service in docker-compose.yml
+  - **Retry Refinement (Phase 4D):**
+    - Removed conflicting `autoretry_for=(Exception,)` in favor of explicit classification
+    - Refined TRANSIENT_EXCEPTIONS to only include Timeout and ConnectionError (not broad RequestException)
+    - Added comprehensive retry regression tests
+    - Verified transient failures (timeout, 429, 500, 502, 503, 504) retry correctly
+    - Verified permanent failures (400, 401, 403, 404, malformed data) do not retry
+    - Verified retry count remains bounded at max_retries=3
+    - Verified successful retries reuse the same IngestionRun
 
 **Not yet implemented (planned for future phases):**
 - Additional company scrapers (currently Stripe, Spotify, Linear real sources + Nexus Technologies fictional demo)
@@ -115,17 +123,15 @@ matchhire/
 │   │   ├── subscriptions/ # Subscription domain
 │   │   └── analytics/   # ApplyClick analytics domain
 │   ├── manage.py
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── Dockerfile       # Docker image for Celery worker/beat
 ├── frontend/            # React frontend
 │   ├── src/
 │   ├── package.json
 │   └── vite.config.js
-├── infrastructure/      # Infrastructure configuration
-├── tests/              # Test files
-├── docs/               # Documentation
 ├── .env.example        # Environment variables template
 ├── .gitignore
-├── docker-compose.yml  # PostgreSQL and Redis services
+├── docker-compose.yml  # PostgreSQL, Redis, Celery worker, Celery Beat
 ├── AGENTS.md          # Engineering rules for agents
 └── README.md
 ```

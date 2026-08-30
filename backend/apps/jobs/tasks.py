@@ -44,7 +44,6 @@ TRANSIENT_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 TRANSIENT_EXCEPTIONS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
-    requests.exceptions.RequestException,
 )
 
 
@@ -68,13 +67,16 @@ def classify_failure(exception: Exception) -> bool:
     Classify a failure as transient (retryable) or permanent (non-retryable).
     
     Transient failures:
-    - Connection timeout
-    - Temporary network failure
+    - Connection timeout (requests.exceptions.Timeout)
+    - Connection error (requests.exceptions.ConnectionError)
     - HTTP 429 (rate limit)
     - HTTP 500, 502, 503, 504 (server errors)
-    - Temporary database connectivity failure
     
     Permanent failures:
+    - HTTP 400 (bad request)
+    - HTTP 401 (unauthorized)
+    - HTTP 403 (forbidden)
+    - HTTP 404 (not found)
     - Malformed source payload
     - Unsupported source format
     - Missing required job identifier
@@ -151,7 +153,6 @@ def extract_retry_after(exception: Exception) -> int:
     bind=True,
     max_retries=3,
     default_retry_delay=60,  # Start with 60 seconds
-    autoretry_for=(Exception,),
     retry_backoff=True,
     retry_backoff_max=600,  # Maximum 10 minutes between retries
     retry_jitter=True,
