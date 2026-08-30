@@ -109,7 +109,7 @@ Each development phase has specific scope restrictions. Always verify the curren
 ## Job Ingestion Rules
 
 - **Official-source-only jobs**: Jobs must enter MatchHire only through the automated verified-source ingestion pipeline. Do not add endpoints allowing arbitrary users to create jobs.
-- **Real vs fictional sources**: Clearly distinguish between real official company sources (e.g., Stripe via Greenhouse ATS) and fictional demo sources (e.g., Nexus Technologies). Only real sources should be used in production.
+- **Real vs fictional sources**: Clearly distinguish between real official company sources (e.g., Stripe via Greenhouse ATS, Spotify via Lever ATS, Linear via Ashby ATS) and fictional demo sources (e.g., Nexus Technologies). Only real sources should be used in production.
 - **Scraper/persistence separation**: Scrapers must not perform database operations. Use the ingestion service for persistence to enable future Celery integration.
 - **Deterministic fixtures**: Unit tests must use deterministic fixture data, not live network requests. Tests should not fail due to external website availability.
 - **No user job creation**: Do not create public APIs allowing users to create arbitrary job records.
@@ -117,6 +117,26 @@ Each development phase has specific scope restrictions. Always verify the curren
 - **No secrets/logging**: Never log secrets, passwords, or sensitive data. Do not hardcode credentials.
 - **No live network dependency in tests**: All scraper tests must use fixture data, not live HTTP requests.
 - **No anti-bot bypass**: Do not implement CAPTCHA solving, proxy rotation, stealth browser automation, or any mechanism to bypass access controls. If a source blocks automated access, select another legitimate official source.
+
+## Multi-Source Scraper Implementation Rules
+
+- **Extend BaseJobScraper**: All new scrapers must extend BaseJobScraper and implement the contract (get_source_identifier, fetch, extract, normalize).
+- **Use NormalizedJob**: All scrapers must return NormalizedJob objects with the required fields (source, external_id, title, description, application_url).
+- **Register in SOURCE_REGISTRY**: New sources must be added to SOURCE_REGISTRY in apps/jobs/scrapers/registry.py. This is the authoritative list of supported sources.
+- **Create Company record**: Each source must have a corresponding Company record in the database with the matching slug.
+- **Create fixture data**: Each scraper must have deterministic fixture data in apps/jobs/scrapers/fixtures/{source}_jobs.json for testing.
+- **Write comprehensive tests**: Each scraper must have a test class in tests_scrapers.py covering extraction, normalization, validation, and edge cases.
+- **Register periodic schedule**: New sources should have a schedule registered via register_schedule command in apps/jobs/management/commands/register_schedule.py.
+- **ATS pattern diversity**: When adding new sources, prioritize different ATS patterns (e.g., Greenhouse, Lever, Ashby, Workday, SmartRecruiters) to demonstrate scraper flexibility.
+- **Verify API accessibility**: Before implementing a scraper, verify the source's public API is accessible, documented, and requires no authentication.
+- **Handle ATS-specific quirks**: Each ATS has different response formats, field names, and pagination strategies. Normalize these in the scraper's extract/normalize methods.
+- **HTML to text conversion**: Use BeautifulSoup for HTML-to-text conversion when needed. Add beautifulsoup4 to requirements.txt.
+- **Employment type normalization**: Map source-specific employment types to normalized values (FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP).
+- **Location handling**: Preserve location information from the source. Normalize to a consistent format if possible.
+- **Skills extraction**: Implement basic keyword-based skill extraction from descriptions. More sophisticated NLP can be added in future phases.
+- **Keyword extraction**: Extract keywords from department, team, location, and other relevant fields for searchability.
+- **Error handling**: Use ScrapingError for scraper-specific errors with descriptive messages. Handle network timeouts and API errors gracefully.
+- **No secrets in scrapers**: Scrapers must not require authentication or secrets. Only use public APIs that don't require credentials.
 
 ## Ingestion Operational Layer Rules (Phase 4C)
 

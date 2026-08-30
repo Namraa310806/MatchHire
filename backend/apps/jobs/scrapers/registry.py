@@ -15,6 +15,8 @@ from typing import Dict, Type, Tuple
 from apps.jobs.scrapers.base import BaseJobScraper
 from apps.jobs.scrapers.nexus_technologies import NexusTechnologiesScraper
 from apps.jobs.scrapers.stripe import StripeScraper
+from apps.jobs.scrapers.spotify import SpotifyScraper
+from apps.jobs.scrapers.linear import LinearScraper
 
 
 # Source registry: maps source identifier to (scraper_class, company_slug)
@@ -22,6 +24,8 @@ from apps.jobs.scrapers.stripe import StripeScraper
 SOURCE_REGISTRY: Dict[str, Tuple[Type[BaseJobScraper], str]] = {
     'nexus_technologies': (NexusTechnologiesScraper, 'nexus-technologies'),
     'stripe': (StripeScraper, 'stripe'),
+    'spotify': (SpotifyScraper, 'spotify'),
+    'linear': (LinearScraper, 'linear'),
 }
 
 

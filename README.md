@@ -48,7 +48,10 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
 - **Job Ingestion System (Phases 4A-4C):**
   - BaseJobScraper abstraction defining the scraper contract
   - NormalizedJob common representation for all scrapers
-  - **Real official source:** Stripe (via Greenhouse ATS API - https://boards-api.greenhouse.io/v1/boards/stripe/jobs)
+  - **Real official sources:**
+    - Stripe (via Greenhouse ATS API - https://boards-api.greenhouse.io/v1/boards/stripe/jobs)
+    - Spotify (via Lever ATS API - https://api.lever.co/v0/postings/spotify?mode=json)
+    - Linear (via Ashby ATS API - https://api.ashbyhq.com/posting-api/job-board/linear)
   - **Fictional demo source:** Nexus Technologies (for demonstrating scraper contract with deterministic fixtures)
   - Job ingestion service for persistence boundary
   - Deterministic fixture-based testing (no live network dependency)
@@ -73,13 +76,14 @@ This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
     - Error information bounded in size (no secrets or stack traces)
     - Source health calculation from run history (HEALTHY, DEGRADED, FAILING, UNKNOWN)
     - Overlap prevention via database constraint (only one RUNNING run per source)
-    - Celery Beat scheduling for controlled periodic ingestion (Stripe every 4 hours, configurable)
+    - Celery Beat scheduling for controlled periodic ingestion (Stripe every 4 hours, Spotify every 4 hours, Linear every 4 hours, all configurable)
     - Django admin for IngestionRun inspection (read-only)
     - Management command for ingestion status: `python manage.py ingestion_status`
+    - Management command for schedule registration: `python manage.py register_schedule`
     - Celery Beat service in docker-compose.yml
 
 **Not yet implemented (planned for future phases):**
-- Additional company scrapers (currently only Stripe real source + Nexus Technologies fictional demo)
+- Additional company scrapers (currently Stripe, Spotify, Linear real sources + Nexus Technologies fictional demo)
 - Resume upload and parsing
 - Matching engine (TF-IDF, embeddings, scoring algorithms)
 - Redis caching
@@ -349,6 +353,8 @@ IngestionRun update (status, counters, error info)
 
 **Implemented Sources:**
 - **Stripe** (real official source): Uses Greenhouse ATS public API at https://boards-api.greenhouse.io/v1/boards/stripe/jobs. Greenhouse is a legitimate ATS provider used by Stripe for their official careers page. The API is public, documented, and requires no authentication.
+- **Spotify** (real official source): Uses Lever ATS public API at https://api.lever.co/v0/postings/spotify?mode=json. Lever is a legitimate ATS provider used by Spotify for their official careers page. The API is public, documented, and requires no authentication.
+- **Linear** (real official source): Uses Ashby ATS public API at https://api.ashbyhq.com/posting-api/job-board/linear. Ashby is a legitimate ATS provider used by Linear for their official careers page. The API is public, documented, and requires no authentication.
 - **Nexus Technologies** (fictional demo): Fictional company with fictional API endpoint used for demonstrating the scraper contract with deterministic fixtures. Not a real verified source.
 
 **Key architectural principles:**
@@ -373,6 +379,8 @@ IngestionRun update (status, counters, error info)
 ```bash
 cd backend
 python manage.py ingest_jobs --source stripe
+python manage.py ingest_jobs --source spotify
+python manage.py ingest_jobs --source linear
 python manage.py ingest_jobs --source stripe --dry-run
 python manage.py ingest_jobs --source nexus_technologies  # fictional demo
 ```
@@ -381,6 +389,8 @@ python manage.py ingest_jobs --source nexus_technologies  # fictional demo
 ```bash
 cd backend
 python manage.py ingest_jobs --source stripe --async
+python manage.py ingest_jobs --source spotify --async
+python manage.py ingest_jobs --source linear --async
 ```
 
 The async command queues the task to Celery for background execution. Monitor task execution via Celery worker logs or Flower (if configured).
@@ -406,7 +416,17 @@ This command provides operational visibility into ingestion runs and source heal
 
 **Scheduled ingestion (Celery Beat):**
 - Stripe ingestion is scheduled every 4 hours by default (configurable via INGESTION_SCHEDULE_STRIPE_HOURS)
+- Spotify ingestion is scheduled every 4 hours by default (configurable via INGESTION_SCHEDULE_SPOTIFY_HOURS)
+- Linear ingestion is scheduled every 4 hours by default (configurable via INGESTION_SCHEDULE_LINEAR_HOURS)
 - Celery Beat service runs alongside Celery worker in docker-compose.yml
-- Schedules are defined in code (apps/jobs/scheduled_tasks.py) for security
+- Schedules are registered via management command: `python manage.py register_schedule`
 - Only sources in SOURCE_REGISTRY can be scheduled
 - Overlap prevention ensures only one RUNNING run per source at a time
+
+**Registering periodic schedules:**
+```bash
+cd backend
+python manage.py register_schedule
+```
+
+This command creates or updates PeriodicTask records in django-celery-beat for all configured sources. It is safe to run multiple times - it will not create duplicate schedules.

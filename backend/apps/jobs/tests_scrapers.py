@@ -13,6 +13,8 @@ from django.core.exceptions import ValidationError
 from apps.jobs.scrapers.base import NormalizedJob, BaseJobScraper, ScrapingError
 from apps.jobs.scrapers.nexus_technologies import NexusTechnologiesScraper
 from apps.jobs.scrapers.stripe import StripeScraper
+from apps.jobs.scrapers.spotify import SpotifyScraper
+from apps.jobs.scrapers.linear import LinearScraper
 from apps.jobs.models import Job
 from apps.companies.models import Company
 
@@ -757,3 +759,339 @@ class StripeScraperTest(TestCase):
         # Bengaluru job
         blr_job = self.scraper.normalize(jobs[3])
         self.assertEqual(blr_job.location, 'Bengaluru')
+
+
+class SpotifyScraperTest(TestCase):
+    """Test Spotify scraper with fixture data."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Load fixture data
+        fixture_path = os.path.join(
+            os.path.dirname(__file__),
+            'scrapers',
+            'fixtures',
+            'spotify_jobs.json'
+        )
+        with open(fixture_path, 'r') as f:
+            self.fixture_data = json.load(f)
+        
+        self.scraper = SpotifyScraper(
+            company_slug='spotify',
+            config={}
+        )
+    
+    def test_source_identifier(self):
+        """Test source identifier is correct."""
+        self.assertEqual(
+            self.scraper.get_source_identifier(),
+            'spotify'
+        )
+    
+    def test_extract_valid_data(self):
+        """Test extraction from valid fixture data."""
+        extracted = self.scraper.extract(self.fixture_data)
+        
+        self.assertEqual(len(extracted), 2)
+        self.assertEqual(extracted[0]['id'], 'a0fa7da3-4c3c-4fa2-97bd-7d6eb01eb9e5')
+        self.assertEqual(extracted[0]['text'], 'Android Engineer - Advertising')
+    
+    def test_extract_not_list(self):
+        """Test extraction fails when data is not a list."""
+        invalid_data = {'jobs': 'not a list'}
+        
+        with self.assertRaises(ScrapingError) as cm:
+            self.scraper.extract(invalid_data)
+        
+        self.assertIn("Expected list of jobs", str(cm.exception))
+    
+    def test_extract_empty_list(self):
+        """Test extraction handles empty list."""
+        extracted = self.scraper.extract([])
+        
+        self.assertEqual(extracted, [])
+    
+    def test_normalize_valid_job(self):
+        """Test normalization of a valid job."""
+        extracted_job = self.fixture_data[0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(normalized.source, 'spotify')
+        self.assertEqual(normalized.external_id, 'a0fa7da3-4c3c-4fa2-97bd-7d6eb01eb9e5')
+        self.assertEqual(normalized.title, 'Android Engineer - Advertising')
+        self.assertEqual(normalized.location, 'New York, NY')
+        self.assertEqual(normalized.employment_type, 'FULL_TIME')
+        self.assertIn('engineering', normalized.keywords)
+        self.assertIn('advertising r&d', normalized.keywords)
+    
+    def test_normalize_employment_type_mapping(self):
+        """Test employment type normalization."""
+        test_cases = [
+            ('Permanent', 'FULL_TIME'),
+            ('permanent', 'FULL_TIME'),
+            ('Contract', 'CONTRACT'),
+            ('Intern', 'INTERNSHIP'),
+            ('Part-time', 'PART_TIME'),
+        ]
+        
+        for input_type, expected in test_cases:
+            result = self.scraper._normalize_employment_type(input_type)
+            self.assertEqual(result, expected, f"Failed for input: {input_type}")
+    
+    def test_normalize_employment_type_invalid(self):
+        """Test invalid employment type returns None."""
+        result = self.scraper._normalize_employment_type('invalid-type')
+        self.assertIsNone(result)
+    
+    def test_normalize_missing_required_field(self):
+        """Test normalization fails with missing required field."""
+        invalid_job = {
+            'id': 'test-id',
+            'text': 'Software Engineer',
+            # Missing description
+            'applyUrl': 'https://example.com/apply'
+        }
+        
+        with self.assertRaises(ScrapingError) as cm:
+            self.scraper.normalize(invalid_job)
+        
+        self.assertIn('Missing required field', str(cm.exception))
+    
+    def test_normalize_preserves_raw_data(self):
+        """Test that raw data is preserved."""
+        extracted_job = self.fixture_data[0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(normalized.raw_data, extracted_job)
+    
+    def test_normalize_application_url(self):
+        """Test application URL is preserved correctly."""
+        extracted_job = self.fixture_data[0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(
+            normalized.application_url,
+            'https://jobs.lever.co/spotify/a0fa7da3-4c3c-4fa2-97bd-7d6eb01eb9e5/apply'
+        )
+    
+    def test_normalize_keywords_from_categories(self):
+        """Test keywords are extracted from categories."""
+        extracted_job = self.fixture_data[0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        # Should contain department and team
+        self.assertIn('engineering', normalized.keywords)
+        self.assertIn('advertising r&d', normalized.keywords)
+    
+    def test_normalize_keywords_deduplication(self):
+        """Test duplicate keywords are removed."""
+        extracted_job = self.fixture_data[0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        # Check no duplicates in keywords
+        self.assertEqual(len(normalized.keywords), len(set(normalized.keywords)))
+    
+    def test_normalize_multiple_locations(self):
+        """Test normalization handles different locations."""
+        jobs = self.fixture_data
+        
+        # New York job
+        ny_job = self.scraper.normalize(jobs[0])
+        self.assertEqual(ny_job.location, 'New York, NY')
+        
+        # London job
+        london_job = self.scraper.normalize(jobs[1])
+        self.assertEqual(london_job.location, 'London')
+
+
+class LinearScraperTest(TestCase):
+    """Test Linear scraper with fixture data."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Load fixture data
+        fixture_path = os.path.join(
+            os.path.dirname(__file__),
+            'scrapers',
+            'fixtures',
+            'linear_jobs.json'
+        )
+        with open(fixture_path, 'r') as f:
+            self.fixture_data = json.load(f)
+        
+        self.scraper = LinearScraper(
+            company_slug='linear',
+            config={}
+        )
+    
+    def test_source_identifier(self):
+        """Test source identifier is correct."""
+        self.assertEqual(
+            self.scraper.get_source_identifier(),
+            'linear'
+        )
+    
+    def test_extract_valid_data(self):
+        """Test extraction from valid fixture data."""
+        extracted = self.scraper.extract(self.fixture_data)
+        
+        self.assertEqual(len(extracted), 3)
+        self.assertEqual(extracted[0]['id'], 'd3bc1ced-3ce4-4086-a050-555055dbb1ff')
+        self.assertEqual(extracted[0]['title'], 'Senior / Staff Fullstack Engineer')
+    
+    def test_extract_jobs_not_list(self):
+        """Test extraction fails when 'jobs' is not a list."""
+        invalid_data = {'apiVersion': '1', 'jobs': 'not a list'}
+        
+        with self.assertRaises(ScrapingError) as cm:
+            self.scraper.extract(invalid_data)
+        
+        self.assertIn("Expected 'jobs' to be a list", str(cm.exception))
+    
+    def test_extract_filters_unlisted(self):
+        """Test extraction filters out unlisted jobs."""
+        data_with_unlisted = {
+            'apiVersion': '1',
+            'jobs': [
+                {'id': '1', 'title': 'Listed', 'isListed': True},
+                {'id': '2', 'title': 'Unlisted', 'isListed': False},
+                {'id': '3', 'title': 'Listed 2', 'isListed': True},
+            ]
+        }
+        
+        extracted = self.scraper.extract(data_with_unlisted)
+        
+        self.assertEqual(len(extracted), 2)
+        self.assertEqual(extracted[0]['id'], '1')
+        self.assertEqual(extracted[1]['id'], '3')
+    
+    def test_extract_empty_jobs(self):
+        """Test extraction handles empty jobs list."""
+        empty_data = {'apiVersion': '1', 'jobs': []}
+        
+        extracted = self.scraper.extract(empty_data)
+        
+        self.assertEqual(extracted, [])
+    
+    def test_normalize_valid_job(self):
+        """Test normalization of a valid job."""
+        extracted_job = self.fixture_data['jobs'][0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(normalized.source, 'linear')
+        self.assertEqual(normalized.external_id, 'd3bc1ced-3ce4-4086-a050-555055dbb1ff')
+        self.assertEqual(normalized.title, 'Senior / Staff Fullstack Engineer')
+        self.assertEqual(normalized.location, 'Europe')
+        self.assertEqual(normalized.employment_type, 'FULL_TIME')
+        self.assertIn('product', normalized.keywords)
+        self.assertIn('engineering', normalized.keywords)
+    
+    def test_normalize_employment_type_mapping(self):
+        """Test employment type normalization."""
+        test_cases = [
+            ('FullTime', 'FULL_TIME'),
+            ('PartTime', 'PART_TIME'),
+            ('Intern', 'INTERNSHIP'),
+            ('Contract', 'CONTRACT'),
+            ('Temporary', 'CONTRACT'),
+        ]
+        
+        for input_type, expected in test_cases:
+            result = self.scraper._normalize_employment_type(input_type)
+            self.assertEqual(result, expected, f"Failed for input: {input_type}")
+    
+    def test_normalize_employment_type_invalid(self):
+        """Test invalid employment type returns None."""
+        result = self.scraper._normalize_employment_type('invalid-type')
+        self.assertIsNone(result)
+    
+    def test_normalize_missing_required_field(self):
+        """Test normalization fails with missing required field."""
+        invalid_job = {
+            'id': 'test-id',
+            'title': 'Software Engineer',
+            # Missing description
+            'applyUrl': 'https://example.com/apply'
+        }
+        
+        with self.assertRaises(ScrapingError) as cm:
+            self.scraper.normalize(invalid_job)
+        
+        self.assertIn('Missing required field', str(cm.exception))
+    
+    def test_normalize_preserves_raw_data(self):
+        """Test that raw data is preserved."""
+        extracted_job = self.fixture_data['jobs'][0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(normalized.raw_data, extracted_job)
+    
+    def test_normalize_application_url(self):
+        """Test application URL is preserved correctly."""
+        extracted_job = self.fixture_data['jobs'][0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        self.assertEqual(
+            normalized.application_url,
+            'https://jobs.ashbyhq.com/linear/d3bc1ced-3ce4-4086-a050-555055dbb1ff/application'
+        )
+    
+    def test_normalize_keywords_from_department_team(self):
+        """Test keywords are extracted from department and team."""
+        extracted_job = self.fixture_data['jobs'][0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        # Should contain department and team
+        self.assertIn('product', normalized.keywords)
+        self.assertIn('engineering', normalized.keywords)
+    
+    def test_normalize_keywords_deduplication(self):
+        """Test duplicate keywords are removed."""
+        extracted_job = self.fixture_data['jobs'][0]
+        
+        normalized = self.scraper.normalize(extracted_job)
+        
+        # Check no duplicates in keywords
+        self.assertEqual(len(normalized.keywords), len(set(normalized.keywords)))
+    
+    def test_normalize_multiple_locations(self):
+        """Test normalization handles different locations."""
+        jobs = self.fixture_data['jobs']
+        
+        # Europe job
+        eu_job = self.scraper.normalize(jobs[0])
+        self.assertEqual(eu_job.location, 'Europe')
+        
+        # North America job
+        na_job = self.scraper.normalize(jobs[1])
+        self.assertEqual(na_job.location, 'North America')
+    
+    def test_normalize_remote_detection(self):
+        """Test remote status is detected correctly."""
+        jobs = self.fixture_data['jobs']
+        
+        # All jobs in fixture are remote (we can't test is_remote field since it's not in NormalizedJob)
+        # Just verify they normalize successfully
+        for job_data in jobs:
+            normalized = self.scraper.normalize(job_data)
+            self.assertIsNotNone(normalized.location, f"Job {job_data['title']} should have location")
+    
+    def test_normalize_non_engineering_role(self):
+        """Test normalization of non-engineering role."""
+        # Technical Recruiter role
+        recruiter_job = self.fixture_data['jobs'][2]
+        
+        normalized = self.scraper.normalize(recruiter_job)
+        
+        self.assertEqual(normalized.title, 'Technical Recruiter')
+        self.assertIn('operations', normalized.keywords)
+        self.assertIn('talent', normalized.keywords)
