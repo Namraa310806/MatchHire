@@ -1,10 +1,12 @@
 from django.http import JsonResponse
 from django.db import connection
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 import redis
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def health_check(request):
     health_status = {
         'status': 'ok',
