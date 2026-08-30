@@ -1,7 +1,10 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.contrib.auth import get_user_model
 from .models import User, UserProfile
+
+User = get_user_model()
 
 
 class UserModelTest(TestCase):
@@ -30,6 +33,139 @@ class UserModelTest(TestCase):
                 username='testuser2',
                 password='testpass123'
             )
+    
+    def test_user_can_be_created_without_username(self):
+        """Test that username is optional when email is USERNAME_FIELD."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertEqual(user.email, 'test@example.com')
+        self.assertTrue(user.check_password('testpass123'))
+        self.assertIsNone(user.username)
+    
+    def test_user_is_active_by_default(self):
+        """Test that new users are active by default."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertTrue(user.is_active)
+    
+    def test_user_is_not_staff_by_default(self):
+        """Test that new users are not staff by default."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertFalse(user.is_staff)
+    
+    def test_user_is_not_superuser_by_default(self):
+        """Test that new users are not superuser by default."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertFalse(user.is_superuser)
+
+
+class UserManagerTest(TestCase):
+    """Test UserManager functionality for authentication foundation."""
+    
+    def test_create_user_requires_email(self):
+        """Test that create_user raises ValueError when email is not provided."""
+        with self.assertRaises(ValueError) as cm:
+            User.objects.create_user(email='', password='testpass123')
+        self.assertEqual(str(cm.exception), 'Users must have an email address')
+    
+    def test_create_user_hashes_password(self):
+        """Test that password is hashed, not stored in plaintext."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        # Password should not be stored as plaintext
+        self.assertNotEqual(user.password, 'testpass123')
+        # Password should be hashed (starts with algorithm identifier)
+        self.assertTrue(user.password.startswith('pbkdf2_sha256$'))
+    
+    def test_create_user_check_password_correct(self):
+        """Test that check_password returns True for correct password."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertTrue(user.check_password('testpass123'))
+    
+    def test_create_user_check_password_incorrect(self):
+        """Test that check_password returns False for incorrect password."""
+        user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.assertFalse(user.check_password('wrongpassword'))
+    
+    def test_create_superuser_sets_staff_flag(self):
+        """Test that create_superuser sets is_staff=True."""
+        user = User.objects.create_superuser(
+            email='admin@example.com',
+            password='adminpass123'
+        )
+        self.assertTrue(user.is_staff)
+    
+    def test_create_superuser_sets_superuser_flag(self):
+        """Test that create_superuser sets is_superuser=True."""
+        user = User.objects.create_superuser(
+            email='admin@example.com',
+            password='adminpass123'
+        )
+        self.assertTrue(user.is_superuser)
+    
+    def test_create_superuser_sets_active_flag(self):
+        """Test that create_superuser sets is_active=True."""
+        user = User.objects.create_superuser(
+            email='admin@example.com',
+            password='adminpass123'
+        )
+        self.assertTrue(user.is_active)
+    
+    def test_create_superuser_requires_staff_true(self):
+        """Test that create_superuser raises ValueError if is_staff is False."""
+        with self.assertRaises(ValueError) as cm:
+            User.objects.create_superuser(
+                email='admin@example.com',
+                password='adminpass123',
+                is_staff=False
+            )
+        self.assertEqual(str(cm.exception), 'Superuser must have is_staff=True.')
+    
+    def test_create_superuser_requires_superuser_true(self):
+        """Test that create_superuser raises ValueError if is_superuser is False."""
+        with self.assertRaises(ValueError) as cm:
+            User.objects.create_superuser(
+                email='admin@example.com',
+                password='adminpass123',
+                is_superuser=False
+            )
+        self.assertEqual(str(cm.exception), 'Superuser must have is_superuser=True.')
+    
+    def test_create_superuser_password_hashed(self):
+        """Test that superuser password is hashed, not stored in plaintext."""
+        user = User.objects.create_superuser(
+            email='admin@example.com',
+            password='adminpass123'
+        )
+        self.assertNotEqual(user.password, 'adminpass123')
+        self.assertTrue(user.password.startswith('pbkdf2_sha256$'))
+    
+    def test_email_normalization(self):
+        """Test that email domain part is normalized (lowercased)."""
+        user = User.objects.create_user(
+            email='test@Example.COM',
+            password='testpass123'
+        )
+        # Django's normalize_email only lowercases the domain part
+        self.assertEqual(user.email, 'test@example.com')
 
 
 class UserProfileModelTest(TestCase):
@@ -126,3 +262,35 @@ class UserProfileDatabaseConstraintTest(TestCase):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 UserProfile.objects.create(user=user, title='Senior Engineer')
+
+
+class UserAuthenticationDatabaseConstraintTest(TestCase):
+    """Test database-level constraints for User authentication."""
+    
+    def test_duplicate_email_rejected_at_database_level(self):
+        """Test that duplicate email is rejected at database level."""
+        User.objects.create_user(
+            email='test@example.com',
+            password='testpass123'
+        )
+        # Attempt to create user with same email should fail at database level
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.create_user(
+                    email='test@example.com',
+                    password='differentpass123'
+                )
+    
+    def test_email_uniqueness_enforced(self):
+        """Test that email uniqueness is enforced at database level."""
+        user1 = User.objects.create_user(
+            email='user1@example.com',
+            password='pass123'
+        )
+        user2 = User.objects.create_user(
+            email='user2@example.com',
+            password='pass123'
+        )
+        self.assertNotEqual(user1.email, user2.email)
+        self.assertEqual(User.objects.filter(email='user1@example.com').count(), 1)
+        self.assertEqual(User.objects.filter(email='user2@example.com').count(), 1)

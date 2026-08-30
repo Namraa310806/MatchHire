@@ -1,5 +1,66 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+
+
+class UserManager(BaseUserManager):
+    """
+    Custom user manager for email-based authentication.
+    
+    This manager provides methods to create users and superusers using email
+    as the primary identifier instead of username.
+    """
+    
+    def create_user(self, email, username=None, password=None, **extra_fields):
+        """
+        Create and save a regular user with the given email and password.
+        
+        Args:
+            email: User's email address (required)
+            username: Optional username (kept for compatibility with AbstractUser)
+            password: User's password
+            **extra_fields: Additional user fields
+            
+        Returns:
+            User instance
+            
+        Raises:
+            ValueError: If email is not provided
+        """
+        if not email:
+            raise ValueError('Users must have an email address')
+        
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, username=None, password=None, **extra_fields):
+        """
+        Create and save a superuser with the given email and password.
+        
+        Args:
+            email: Superuser's email address (required)
+            username: Optional username
+            password: Superuser's password
+            **extra_fields: Additional user fields
+            
+        Returns:
+            Superuser instance
+            
+        Raises:
+            ValueError: If required superuser fields are invalid
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        return self.create_user(email, username, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -7,12 +68,23 @@ class User(AbstractUser):
     Custom user model for MatchHire.
     
     Extends Django's AbstractUser to provide authentication and user identity.
-    This is early in the project, so we can establish a clean custom user model.
+    Email is the primary identifier for authentication.
+    
+    Inherits from AbstractUser for compatibility with Django's authentication
+    system, including password hashing, permissions, and admin integration.
     """
     email = models.EmailField(unique=True)
+    username = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text='Optional username (kept for compatibility with AbstractUser)'
+    )
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = []  # Email is USERNAME_FIELD, so no other required fields
+    
+    objects = UserManager()
     
     class Meta:
         db_table = 'users'
