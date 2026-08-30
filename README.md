@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 2D
+## Current Implementation Status: Phase 3D
 
-This is Phase 2D of the MatchHire project: development seed data and domain validation.
+This is Phase 3D of the MatchHire project: Authentication Hardening & Authorization Boundary.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -13,6 +13,23 @@ This is Phase 2D of the MatchHire project: development seed data and domain vali
 - Health endpoint at `/api/health/` (checks database and Redis connectivity)
 - Environment-based configuration (database, Redis, CORS)
 - Custom user model with email-based authentication
+- **Authentication System (Phases 3A-3D):**
+  - Email/password registration with Django password validation
+  - JWT authentication with HttpOnly cookies
+  - Access token lifetime: 10 minutes
+  - Refresh token lifetime: 7 days
+  - Refresh token rotation with blacklisting
+  - Logout with token revocation
+  - Protected `/api/auth/me/` endpoint
+  - Secure default permission policy (IsAuthenticated)
+  - Public endpoints explicitly opt into AllowAny
+  - CSRF middleware globally enabled (auth endpoints exempt with documented rationale)
+  - CORS restricted to explicit origins (no wildcard with credentials)
+  - Cookie security: HttpOnly, Secure in production, SameSite=Lax
+  - JWT payload minimal (user_id only, no profile/job data)
+  - Password hashing managed by Django
+  - Safe user serialization (id, email only)
+  - Generic authentication errors (no account enumeration)
 - Core domain models:
   - **User Domain**: Custom User model with UserProfile (skills, experience, keywords)
   - **Company Domain**: Verified job sources with scraper configuration support
@@ -24,12 +41,12 @@ This is Phase 2D of the MatchHire project: development seed data and domain vali
   - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
   - **Analytics Domain**: ApplyClick tracking for job application analytics
 - Django admin interfaces for all models (Job admin is read-only to preserve source-only ingestion)
-- Comprehensive model tests (79 tests passing)
+- Comprehensive test suite (183 tests passing)
 - Database migrations for all domain models
 - Development seed data management command for local development
+- Authorization boundary documented (see `backend/apps/users/AUTHORIZATION_BOUNDARY.md`)
 
 **Not yet implemented (planned for future phases):**
-- Authentication endpoints (JWT, login/register)
 - Job scraping and ingestion pipeline
 - Resume upload and parsing
 - Matching engine (TF-IDF, embeddings, scoring algorithms)

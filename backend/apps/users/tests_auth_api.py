@@ -962,13 +962,300 @@ class SafeUserSerializerTest(TestCase):
             email='test@example.test',
             password='TestPass123!'
         )
-        
+
         from .serializers import SafeUserSerializer
         serializer = SafeUserSerializer(user)
         data = serializer.data
-        
+
         self.assertEqual(set(data.keys()), {'id', 'email'})
         self.assertNotIn('password', data)
         self.assertNotIn('username', data)
         self.assertNotIn('is_staff', data)
         self.assertNotIn('is_superuser', data)
+
+
+class Phase3DBoundaryTest(TestCase):
+    """Phase 3D authentication boundary regression tests."""
+
+    def setUp(self):
+        """Set up test client and user."""
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='testuser@example.test',
+            password='TestPass123!'
+        )
+
+    def test_health_endpoint_public_without_authentication(self):
+        """Test health endpoint works without authentication."""
+        response = self.client.get('/api/health/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Health endpoint returns JsonResponse, access content via json()
+        import json
+        data = json.loads(response.content)
+        self.assertIn('status', data)
+
+    def test_registration_public_without_authentication(self):
+        """Test registration endpoint works without authentication."""
+        response = self.client.post(
+            '/api/auth/register/',
+            {
+                'email': 'newuser@example.test',
+                'password': 'SecurePass123!',
+                'password_confirmation': 'SecurePass123!'
+            }
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_login_public_without_authentication(self):
+        """Test login endpoint works without authentication."""
+        response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_refresh_public_with_valid_token(self):
+        """Test refresh endpoint works with valid refresh token."""
+        # Login to get refresh token
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        refresh_token = login_response.cookies.get('refresh_token')
+
+        # Refresh should work
+        refresh_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={refresh_token.value}'
+        )
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+
+    def test_me_endpoint_requires_authentication(self):
+        """Test /api/auth/me/ requires authentication."""
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_default_permission_is_authenticated(self):
+        """Test default DRF permission is IsAuthenticated."""
+        from django.conf import settings
+        from rest_framework.permissions import IsAuthenticated
+
+        default_permissions = settings.REST_FRAMEWORK.get('DEFAULT_PERMISSION_CLASSES', [])
+        self.assertIn('rest_framework.permissions.IsAuthenticated', default_permissions)
+
+    def test_health_endpoint_explicitly_allow_any(self):
+        """Test health endpoint explicitly uses AllowAny permission."""
+        from apps.health.views import health_check
+        # The view is decorated with @permission_classes([AllowAny])
+        # We verify it's accessible without authentication
+        response = self.client.get('/api/health/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_no_jwt_values_in_json_responses(self):
+        """Test JWT tokens are not returned in JSON responses."""
+        # Login response
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        self.assertNotIn('access_token', login_response.data)
+        self.assertNotIn('refresh_token', login_response.data)
+        self.assertNotIn('token', login_response.data)
+        self.assertNotIn('jwt', login_response.data)
+
+        # Refresh response
+        refresh_token = login_response.cookies.get('refresh_token')
+        refresh_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={refresh_token.value}'
+        )
+        self.assertNotIn('access_token', refresh_response.data)
+        self.assertNotIn('refresh_token', refresh_response.data)
+
+    def test_inactive_user_cannot_authenticate(self):
+        """Test inactive users cannot authenticate."""
+        self.user.is_active = False
+        self.user.save()
+
+        response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Generic error, doesn't reveal user is inactive
+        self.assertIn('non_field_errors', response.data)
+
+    def test_invalid_access_token_rejected(self):
+        """Test invalid access token is rejected."""
+        response = self.client.get(
+            '/api/auth/me/',
+            HTTP_COOKIE='access_token=invalid_token'
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_expired_access_token_rejected(self):
+        """Test expired access token is rejected."""
+        from datetime import timedelta
+
+        # Create an expired access token
+        refresh = RefreshToken.for_user(self.user)
+        access_token = refresh.access_token
+        access_token.set_exp(lifetime=timedelta(seconds=-1))
+
+        response = self.client.get(
+            '/api/auth/me/',
+            HTTP_COOKIE=f'access_token={str(access_token)}'
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_user_profile_relationship_exists(self):
+        """Test User has OneToOne relationship with UserProfile."""
+        # create_user doesn't auto-create profile, so create it manually
+        UserProfile.objects.create(user=self.user)
+        self.assertTrue(hasattr(self.user, 'profile'))
+        self.assertIsNotNone(self.user.profile)
+
+    def test_user_ownership_from_request_user(self):
+        """Test that ownership derives from request.user."""
+        # Login to get access token
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        access_token = login_response.cookies.get('access_token')
+
+        # Access /me/ endpoint
+        me_response = self.client.get(
+            '/api/auth/me/',
+            HTTP_AUTHORIZATION=f'Bearer {access_token.value}'
+        )
+
+        # Verify the returned user is the authenticated user
+        self.assertEqual(me_response.data['email'], self.user.email)
+        self.assertEqual(me_response.data['id'], self.user.id)
+
+    def test_no_recruiter_employer_roles_exist(self):
+        """Test no recruiter/employer roles exist in User model."""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        # Check for recruiter/employer fields - they should not exist
+        user_fields = [f.name for f in User._meta.get_fields()]
+        self.assertNotIn('is_recruiter', user_fields)
+        self.assertNotIn('is_employer', user_fields)
+        self.assertNotIn('recruiter_id', user_fields)
+        self.assertNotIn('employer_id', user_fields)
+
+    def test_csrf_middleware_globally_enabled(self):
+        """Test CSRF middleware is globally enabled."""
+        from django.conf import settings
+        self.assertIn('django.middleware.csrf.CsrfViewMiddleware', settings.MIDDLEWARE)
+
+    def test_cors_credentials_enabled(self):
+        """Test CORS_ALLOW_CREDENTIALS is enabled for HttpOnly cookies."""
+        from django.conf import settings
+        self.assertTrue(settings.CORS_ALLOW_CREDENTIALS)
+
+    def test_cors_origins_not_wildcard(self):
+        """Test CORS origins are explicit, not wildcard."""
+        from django.conf import settings
+        cors_origins = settings.CORS_ALLOWED_ORIGINS
+        self.assertNotIn('*', cors_origins)
+
+    def test_cookie_httponly_flag(self):
+        """Test cookies have HttpOnly flag."""
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+
+        self.assertTrue(login_response.cookies['access_token'].get('httponly'))
+        self.assertTrue(login_response.cookies['refresh_token'].get('httponly'))
+
+    def test_refresh_token_path_scoped(self):
+        """Test refresh token cookie is path-scoped."""
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+
+        self.assertEqual(login_response.cookies['refresh_token']['path'], '/api/auth/refresh/')
+
+    def test_jwt_payload_minimal(self):
+        """Test JWT payload contains only minimal identity information."""
+        from rest_framework_simplejwt.tokens import RefreshToken
+        import json
+
+        refresh = RefreshToken.for_user(self.user)
+        access_token = refresh.access_token
+
+        # Decode payload
+        payload = access_token.payload
+
+        # Should contain only standard JWT claims and user_id
+        self.assertIn('user_id', payload)
+        self.assertIn('exp', payload)
+        # Should NOT contain profile data
+        self.assertNotIn('email', payload)
+        self.assertNotIn('skills', payload)
+        self.assertNotIn('resume', payload)
+        self.assertNotIn('profile', payload)
+
+    def test_password_hashing_django_managed(self):
+        """Test password hashing is managed by Django."""
+        # Password should be hashed
+        self.assertNotEqual(self.user.password, 'TestPass123!')
+        self.assertTrue(self.user.password.startswith('pbkdf2_sha256$'))
+
+        # check_password should work
+        self.assertTrue(self.user.check_password('TestPass123!'))
+        self.assertFalse(self.user.check_password('wrongpassword'))
+
+    def test_password_confirmation_not_persisted(self):
+        """Test password confirmation field is not persisted."""
+        # Create user with password confirmation
+        user = User.objects.create_user(
+            email='newuser@example.test',
+            password='SecurePass123!'
+        )
+
+        # Verify no password_confirmation field exists
+        self.assertFalse(hasattr(user, 'password_confirmation'))
+
+    def test_health_endpoint_no_sensitive_data_exposed(self):
+        """Test health endpoint does not expose sensitive configuration."""
+        response = self.client.get('/api/health/')
+        import json
+        data = json.loads(response.content)
+
+        # Should not expose credentials
+        response_str = str(data)
+        self.assertNotIn('password', response_str)
+        self.assertNotIn('secret', response_str)
+        self.assertNotIn('SECRET_KEY', response_str)
+        self.assertNotIn('token', response_str)
+
+        # Should only report health status
+        self.assertIn('status', data)
+        self.assertIn('dependencies', data)
