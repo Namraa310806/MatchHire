@@ -9,6 +9,7 @@ Architecture:
 - Celery tasks are defined in apps.jobs.tasks
 - Redis is used as the broker (already configured in settings)
 - PostgreSQL remains the source of truth for job data
+- Celery Beat for periodic scheduled ingestion
 """
 
 import os
@@ -25,6 +26,9 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Auto-discover tasks in installed apps
 app.autodiscover_tasks()
+
+# Load periodic tasks from django-celery-beat
+app.conf.beat_scheduler = settings.CELERY_BEAT_SCHEDULER
 
 
 @app.task(bind=True, ignore_result=True)

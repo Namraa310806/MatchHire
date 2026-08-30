@@ -30,6 +30,7 @@ from celery.exceptions import Retry
 import requests
 
 from apps.companies.models import Company
+from apps.jobs.models import IngestionRun
 from apps.jobs.scrapers.base import ScrapingError
 from apps.jobs.scrapers.registry import get_scraper
 from apps.jobs.services.ingestion import JobIngestionService
@@ -155,16 +156,18 @@ def extract_retry_after(exception: Exception) -> int:
     retry_backoff_max=600,  # Maximum 10 minutes between retries
     retry_jitter=True,
 )
-def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
+def ingest_jobs_task(self, source: str, ingestion_run_id: int = None) -> Dict[str, Any]:
     """
     Asynchronously ingest jobs from a verified source.
     
     This task orchestrates the ingestion pipeline:
     1. Validate source identifier via registry
     2. Obtain configured scraper
-    3. Execute scraper (fetch, extract, normalize)
-    4. Pass normalized jobs to existing ingestion service
-    5. Return serializable result
+    3. Create or reuse IngestionRun record
+    4. Execute scraper (fetch, extract, normalize)
+    5. Pass normalized jobs to existing ingestion service
+    6. Update IngestionRun with result
+    7. Return serializable result
     
     The task handles retry classification:
     - Transient failures (network, 429, 5xx) trigger bounded retry
@@ -175,8 +178,15 @@ def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
     - PostgreSQL uniqueness constraint prevents duplicates
     - Existing ingestion service handles upsert correctly
     
+    IngestionRun semantics:
+    - One logical IngestionRun per ingestion operation
+    - Retries reuse the same logical IngestionRun
+    - Status transitions: PENDING -> RUNNING -> (RETRYING -> RUNNING)* -> SUCCEEDED/PARTIAL/FAILED
+    - retry_count tracks the number of retry attempts
+    
     Args:
         source: Source identifier (e.g., 'stripe', 'nexus_technologies')
+        ingestion_run_id: Optional existing IngestionRun ID for retry reuse
     
     Returns:
         Dictionary with serializable ingestion result:
@@ -202,19 +212,62 @@ def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
         f"(attempt {retry_count + 1})"
     )
     
+    # Resolve company to get company slug
     try:
-        # Step 1: Validate source identifier via registry
         scraper_class, company_slug = get_scraper(source)
+        company = Company.objects.get(slug=company_slug)
+    except (ValueError, Company.DoesNotExist) as e:
+        # Permanent failure - cannot even resolve source
+        logger.error(f"Task {task_id}: Failed to resolve source: {e}")
+        raise PermanentIngestionError(f"Failed to resolve source: {e}")
+    
+    # Create or reuse IngestionRun record
+    if ingestion_run_id:
+        # Retry: reuse existing logical IngestionRun
+        try:
+            ingestion_run = IngestionRun.objects.get(id=ingestion_run_id)
+            # Verify it belongs to the correct source
+            if ingestion_run.source != source:
+                logger.error(
+                    f"Task {task_id}: IngestionRun {ingestion_run_id} source mismatch "
+                    f"(expected {source}, got {ingestion_run.source})"
+                )
+                raise PermanentIngestionError("IngestionRun source mismatch")
+            
+            # Update task_id to current retry task
+            ingestion_run.task_id = task_id
+            ingestion_run.save()
+            
+            logger.info(f"Task {task_id}: Reusing IngestionRun {ingestion_run.id}")
+        except IngestionRun.DoesNotExist:
+            logger.error(f"Task {task_id}: IngestionRun {ingestion_run_id} not found")
+            raise PermanentIngestionError(f"IngestionRun {ingestion_run_id} not found")
+    else:
+        # First attempt: create new IngestionRun
+        ingestion_run = IngestionRun.objects.create(
+            company=company,
+            source=source,
+            status=IngestionRun.RunStatus.PENDING,
+            task_id=task_id,
+            retry_count=0
+        )
+        logger.info(f"Task {task_id}: Created IngestionRun {ingestion_run.id}")
+    
+    try:
+        # Mark run as RUNNING (or back to RUNNING if retrying)
+        if ingestion_run.status == IngestionRun.RunStatus.RETRYING:
+            # Coming back from RETRYING state
+            ingestion_run.increment_retry()
+        ingestion_run.mark_running(task_id=task_id)
+        logger.info(f"Task {task_id}: IngestionRun {ingestion_run.id} marked RUNNING")
+        
+        # Step 1: Validate source identifier via registry (already done above)
         logger.info(f"Task {task_id}: Source '{source}' validated, company: {company_slug}")
         
-        # Step 2: Resolve company
-        try:
-            company = Company.objects.get(slug=company_slug)
-            if not company.is_active:
-                raise PermanentIngestionError(f"Company {company_slug} is not active")
-            logger.info(f"Task {task_id}: Company resolved: {company.name}")
-        except Company.DoesNotExist:
-            raise PermanentIngestionError(f"Company not found: {company_slug}")
+        # Step 2: Resolve company (already done above)
+        if not company.is_active:
+            raise PermanentIngestionError(f"Company {company_slug} is not active")
+        logger.info(f"Task {task_id}: Company resolved: {company.name}")
         
         # Step 3: Initialize and execute scraper
         # This performs HTTP fetch, extraction, and normalization
@@ -229,7 +282,8 @@ def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
         
         if not normalized_jobs:
             logger.warning(f"Task {task_id}: No jobs found for source {source}")
-            return {
+            # Mark as SUCCEEDED with zero counts
+            result = {
                 "source": source,
                 "fetched": 0,
                 "normalized": 0,
@@ -238,31 +292,55 @@ def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
                 "skipped": 0,
                 "failed": 0
             }
+            ingestion_run.mark_succeeded(result)
+            return result
         
         logger.info(f"Task {task_id}: Scraper returned {len(normalized_jobs)} normalized jobs")
         
         # Step 4: Ingest to database via existing service
         # This handles idempotent upsert with transaction boundaries
         ingestion_service = JobIngestionService()
-        result = ingestion_service.ingest_jobs(normalized_jobs, company_slug)
+        service_result = ingestion_service.ingest_jobs(normalized_jobs, company_slug)
         
         logger.info(
             f"Task {task_id}: Ingestion complete - "
-            f"created: {result.created}, updated: {result.updated}, "
-            f"skipped: {result.skipped}, failed: {result.failed}"
+            f"created: {service_result.created}, updated: {service_result.updated}, "
+            f"skipped: {service_result.skipped}, failed: {service_result.failed}"
         )
         
-        # Step 5: Return serializable result
-        # Do not return Django model objects or QuerySets
-        return {
+        # Step 5: Determine final status and update run
+        result = {
             "source": source,
-            "fetched": result.fetched,
-            "normalized": result.normalized,
-            "created": result.created,
-            "updated": result.updated,
-            "skipped": result.skipped,
-            "failed": result.failed
+            "fetched": service_result.fetched,
+            "normalized": service_result.normalized,
+            "created": service_result.created,
+            "updated": service_result.updated,
+            "skipped": service_result.skipped,
+            "failed": service_result.failed
         }
+        
+        # Determine status based on result
+        if service_result.failed > 0 or service_result.skipped > 0:
+            # Some jobs failed or were skipped - PARTIAL
+            if service_result.created + service_result.updated > 0:
+                # At least some jobs succeeded
+                ingestion_run.mark_partial(result)
+                logger.info(f"Task {task_id}: IngestionRun {ingestion_run.id} marked PARTIAL")
+            else:
+                # All jobs failed or skipped
+                ingestion_run.mark_failed(
+                    error_type="IngestionError",
+                    error_message=f"All jobs failed or skipped: {service_result.failed} failed, {service_result.skipped} skipped"
+                )
+                logger.warning(f"Task {task_id}: IngestionRun {ingestion_run.id} marked FAILED")
+        else:
+            # All jobs processed successfully
+            ingestion_run.mark_succeeded(result)
+            logger.info(f"Task {task_id}: IngestionRun {ingestion_run.id} marked SUCCEEDED")
+        
+        # Step 6: Return serializable result
+        # Do not return Django model objects or QuerySets
+        return result
         
     except Exception as e:
         # Classify failure as transient or permanent
@@ -289,15 +367,29 @@ def ingest_jobs_task(self, source: str) -> Dict[str, Any]:
                 logger.error(
                     f"Task {task_id}: Exhausted retries after {retry_count} attempts"
                 )
+                # Mark current run as FAILED (terminal state)
+                ingestion_run.mark_failed(
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:1000]
+                )
                 raise PermanentIngestionError(f"Retry limit exceeded: {e}")
             
-            # Retry with countdown
-            raise self.retry(exc=e, countdown=countdown)
+            # Mark run as RETRYING (in-progress, not terminal)
+            ingestion_run.mark_retrying()
+            logger.info(f"Task {task_id}: IngestionRun {ingestion_run.id} marked RETRYING")
+            
+            # Retry with countdown, passing ingestion_run_id to reuse the same logical run
+            raise self.retry(exc=e, countdown=countdown, args=(source, ingestion_run.id))
         
         else:
             # Permanent failure - do not retry
             logger.error(
                 f"Task {task_id}: Permanent failure, not retrying: {e}",
                 exc_info=True
+            )
+            # Mark run as FAILED
+            ingestion_run.mark_failed(
+                error_type=type(e).__name__,
+                error_message=str(e)[:1000]
             )
             raise PermanentIngestionError(f"Permanent ingestion failure: {e}")

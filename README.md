@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 4B
+## Current Implementation Status: Phase 4C
 
-This is Phase 4B of the MatchHire project: Asynchronous Job Ingestion & Reliability Layer.
+This is Phase 4C of the MatchHire project: Ingestion Operational Layer.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -40,12 +40,12 @@ This is Phase 4B of the MatchHire project: Asynchronous Job Ingestion & Reliabil
     - All score fields validated to range 0.0 to 1.0 (final_score, skill_similarity_score, experience_match_score, keyword_overlap_score)
   - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
   - **Analytics Domain**: ApplyClick tracking for job application analytics
-- Django admin interfaces for all models (Job admin is read-only to preserve source-only ingestion)
-- Comprehensive test suite (255+ tests passing)
+- Django admin interfaces for all models (Job and IngestionRun admins are read-only to preserve operational integrity)
+- Comprehensive test suite (319+ tests passing)
 - Database migrations for all domain models
 - Development seed data management command for local development
 - Authorization boundary documented (see `backend/apps/users/AUTHORIZATION_BOUNDARY.md`)
-- **Job Ingestion System (Phases 4A-4B):**
+- **Job Ingestion System (Phases 4A-4C):**
   - BaseJobScraper abstraction defining the scraper contract
   - NormalizedJob common representation for all scrapers
   - **Real official source:** Stripe (via Greenhouse ATS API - https://boards-api.greenhouse.io/v1/boards/stripe/jobs)
@@ -66,6 +66,17 @@ This is Phase 4B of the MatchHire project: Asynchronous Job Ingestion & Reliabil
     - Manual ingestion command: `python manage.py ingest_jobs --source stripe` (synchronous)
     - Async ingestion command: `python manage.py ingest_jobs --source stripe --async` (queues Celery task)
     - Celery worker service in docker-compose.yml
+  - **Ingestion Operational Layer (Phase 4C):**
+    - IngestionRun model for tracking each ingestion execution
+    - Status state machine: PENDING, RUNNING, SUCCEEDED, PARTIAL, FAILED
+    - Per-run counters: fetched, normalized, created, updated, skipped, failed
+    - Error information bounded in size (no secrets or stack traces)
+    - Source health calculation from run history (HEALTHY, DEGRADED, FAILING, UNKNOWN)
+    - Overlap prevention via database constraint (only one RUNNING run per source)
+    - Celery Beat scheduling for controlled periodic ingestion (Stripe every 4 hours, configurable)
+    - Django admin for IngestionRun inspection (read-only)
+    - Management command for ingestion status: `python manage.py ingestion_status`
+    - Celery Beat service in docker-compose.yml
 
 **Not yet implemented (planned for future phases):**
 - Additional company scrapers (currently only Stripe real source + Nexus Technologies fictional demo)
@@ -82,6 +93,7 @@ This is Phase 4B of the MatchHire project: Asynchronous Job Ingestion & Reliabil
 - **Database:** PostgreSQL 15
 - **Cache/Message Broker:** Redis 7
 - **Task Queue:** Celery 5.3.4
+- **Task Scheduler:** django-celery-beat 2.5.0
 - **Containerization:** Docker + Docker Compose
 
 ## Repository Structure
@@ -136,7 +148,7 @@ cp .env.example .env
 
 3. Edit `.env` with your actual values (do not commit `.env` to version control).
 
-## Starting PostgreSQL, Redis, and Celery Worker
+## Starting PostgreSQL, Redis, Celery Worker, and Celery Beat
 
 Start the infrastructure services using Docker Compose:
 
@@ -148,6 +160,7 @@ This starts:
 - PostgreSQL (database)
 - Redis (cache and Celery broker)
 - Celery worker (for asynchronous task execution)
+- Celery Beat (for periodic scheduled ingestion)
 
 To check service status:
 ```bash
@@ -163,6 +176,7 @@ To start only specific services:
 ```bash
 docker-compose up -d postgres redis  # Start only PostgreSQL and Redis
 docker-compose up -d celery_worker  # Start only Celery worker
+docker-compose up -d celery_beat  # Start only Celery Beat
 ```
 
 ## Starting Django Backend
@@ -300,21 +314,23 @@ Expected response:
 
 The following features are planned for implementation in future phases:
 
-- Phase 4B: Additional company scrapers and Celery integration for async ingestion
-- Phase 4C: Job lifecycle management and deactivation
+- Phase 4D: Additional company scrapers and enhanced scheduling
 - Resume upload and parsing
 - ML-based job matching (TF-IDF, embeddings, scoring algorithms)
-- Celery for async task processing
 - Redis caching
 - Subscription and payment integration (Razorpay)
 - Production deployment with Nginx
 
 ## Job Ingestion Architecture
 
-Phases 4A-4B established the foundation for verified job ingestion with asynchronous execution:
+Phases 4A-4C established the foundation for verified job ingestion with asynchronous execution and operational tracking:
 
 ```
+Celery Beat (periodic scheduling)
+        ↓
 Celery Task (ingest_jobs_task)
+        ↓
+IngestionRun creation (operational tracking)
         ↓
 Source Registry (controlled mapping)
         ↓
@@ -327,6 +343,8 @@ NormalizedJob (common representation)
 JobIngestionService (validation + persistence)
         ↓
 Job model (PostgreSQL)
+        ↓
+IngestionRun update (status, counters, error info)
 ```
 
 **Implemented Sources:**
@@ -346,6 +364,10 @@ Job model (PostgreSQL)
 - Transient failures trigger bounded retry with exponential backoff
 - Permanent failures (malformed data, unknown source) do not retry
 - HTTP 429 responses respect Retry-After header when available
+- PostgreSQL is the source of truth for ingestion state (Redis is broker only)
+- IngestionRun provides operational visibility without complex monitoring infrastructure
+- Overlap prevention uses database constraints (no distributed locking required)
+- Source health is derived from run history (no separate health model needed)
 
 **Running manual ingestion (synchronous):**
 ```bash
@@ -369,3 +391,22 @@ The async command queues the task to Celery for background execution. Monitor ta
 - HTTP 429 respects Retry-After header (capped at 300s)
 - Permanent failures (malformed data, unknown source) do not retry
 - Task results are serializable primitives (source, fetched, created, updated, skipped, failed)
+- Each task execution creates an IngestionRun record for operational tracking
+
+**Ingestion status inspection:**
+```bash
+cd backend
+python manage.py ingestion_status
+python manage.py ingestion_status --source stripe
+python manage.py ingestion_status --health
+python manage.py ingestion_status --source stripe --health --limit 5
+```
+
+This command provides operational visibility into ingestion runs and source health without requiring a full monitoring dashboard.
+
+**Scheduled ingestion (Celery Beat):**
+- Stripe ingestion is scheduled every 4 hours by default (configurable via INGESTION_SCHEDULE_STRIPE_HOURS)
+- Celery Beat service runs alongside Celery worker in docker-compose.yml
+- Schedules are defined in code (apps/jobs/scheduled_tasks.py) for security
+- Only sources in SOURCE_REGISTRY can be scheduled
+- Overlap prevention ensures only one RUNNING run per source at a time

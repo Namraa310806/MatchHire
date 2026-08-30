@@ -117,3 +117,19 @@ Each development phase has specific scope restrictions. Always verify the curren
 - **No secrets/logging**: Never log secrets, passwords, or sensitive data. Do not hardcode credentials.
 - **No live network dependency in tests**: All scraper tests must use fixture data, not live HTTP requests.
 - **No anti-bot bypass**: Do not implement CAPTCHA solving, proxy rotation, stealth browser automation, or any mechanism to bypass access controls. If a source blocks automated access, select another legitimate official source.
+
+## Ingestion Operational Layer Rules (Phase 4C)
+
+- **PostgreSQL as source of truth**: IngestionRun records in PostgreSQL are the authoritative source for ingestion state. Redis is only the Celery broker, not a storage layer for run state.
+- **IngestionRun creation**: One logical IngestionRun per ingestion operation. Retries reuse the same logical IngestionRun to avoid creating misleading "failed" records during active retry attempts.
+- **Status state machine**: IngestionRun status follows controlled transitions: PENDING → RUNNING → (RETRYING → RUNNING)* → (SUCCEEDED | PARTIAL | FAILED). RETRYING is an in-progress state, not a terminal failure.
+- **Retry semantics**: Transient failures move the run to RETRYING status, not FAILED. Only after retry exhaustion does the run become FAILED. The retry_count field tracks retry attempts.
+- **Error information bounds**: Store only bounded error information (error_type, error_message) without secrets, passwords, JWTs, full payloads, or stack traces. Limit message size to 1000 characters.
+- **Source health derivation**: Source health (HEALTHY, DEGRADED, FAILING, UNKNOWN) must be derived from recent IngestionRun records. RETRYING status is treated as DEGRADED (in-progress), not as a terminal failure. Do not create a separate SourceHealth model unless genuinely required.
+- **Overlap prevention**: Use database constraints (UniqueConstraint with condition) to prevent concurrent RUNNING runs for the same source. Do not introduce distributed locking infrastructure unless database constraints are insufficient.
+- **Scheduling security**: Only sources in SOURCE_REGISTRY may be scheduled. Schedules are registered via controlled management command (register_schedule) into django-celery-beat's database. Do not allow arbitrary URLs or user-configured schedules.
+- **Idempotent scheduling**: Scheduled runs must remain safe and idempotent. PostgreSQL uniqueness prevents duplicate jobs even if a schedule runs multiple times. The register_schedule command is safe to run repeatedly.
+- **Admin read-only**: IngestionRun admin interface must be read-only (no add/change/delete permissions) to preserve operational integrity.
+- **Management command safety**: The ingestion_status command is for inspection only. The register_schedule command is for deterministic schedule setup. Do not add commands that allow modifying ingestion state or triggering arbitrary runs.
+- **No complex monitoring**: Do not build full monitoring dashboards, Prometheus/Grafana, or OpenTelemetry in this phase unless already present. Use IngestionRun + management command for operational visibility.
+- **Schedule intervals**: Use reasonable scheduling intervals (e.g., 4 hours for Stripe). Do not use extremely aggressive intervals (e.g., every minute) that could hammer sources. Test schedules (test_schedule command) are for verification only and must be removed after testing.
