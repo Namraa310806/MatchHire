@@ -1,0 +1,76 @@
+{
+  "jobs": [
+    {
+      "id": "NX-1001",
+      "title": "Senior Backend Engineer",
+      "description": "Build scalable backend systems using Python and Django. Work on distributed systems architecture and API development. Join our team to build the next generation of cloud infrastructure.",
+      "location": "San Francisco, CA",
+      "employment_type": "Full-time",
+      "experience_required": "5-7 years",
+      "skills": ["Python", "Django", "PostgreSQL", "Redis", "Docker"],
+      "keywords": ["backend", "distributed systems", "api", "scalability"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1001",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1001"
+    },
+    {
+      "id": "NX-1002",
+      "title": "DevOps Engineer",
+      "description": "Manage cloud infrastructure and CI/CD pipelines. Implement monitoring and automation solutions. Help us maintain 99.9% uptime across our global infrastructure.",
+      "location": "Remote",
+      "employment_type": "Remote",
+      "experience_required": "3-5 years",
+      "skills": ["AWS", "Kubernetes", "Docker", "Terraform", "Ansible"],
+      "keywords": ["devops", "cloud", "infrastructure", "automation"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1002",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1002"
+    },
+    {
+      "id": "NX-1003",
+      "title": "Full Stack Developer",
+      "description": "Develop both frontend and backend components. Work with React and Django to build complete web applications. Collaborate with product and design teams.",
+      "location": "New York, NY",
+      "employment_type": "Full-time",
+      "experience_required": "2-4 years",
+      "skills": ["Python", "Django", "React", "JavaScript", "PostgreSQL"],
+      "keywords": ["full stack", "web development", "frontend", "backend"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1003",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1003"
+    },
+    {
+      "id": "NX-1004",
+      "title": "Machine Learning Engineer",
+      "description": "Develop and deploy machine learning models at scale. Work on recommendation systems and predictive analytics. Strong background in deep learning required.",
+      "location": "Seattle, WA",
+      "employment_type": "Full-time",
+      "experience_required": "4+ years",
+      "skills": ["Python", "TensorFlow", "PyTorch", "Scikit-learn", "Pandas"],
+      "keywords": ["machine learning", "ai", "data science", "ml"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1004",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1004"
+    },
+    {
+      "id": "NX-1005",
+      "title": "Frontend Engineer",
+      "description": "Build responsive and accessible user interfaces. Work with React and modern CSS frameworks. Focus on performance and user experience.",
+      "location": "Austin, TX",
+      "employment_type": "Full-time",
+      "experience_required": "3 years",
+      "skills": ["React", "JavaScript", "TypeScript", "CSS", "HTML"],
+      "keywords": ["frontend", "ui", "ux", "web development"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1005",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1005"
+    },
+    {
+      "id": "NX-1006",
+      "title": "Data Engineer",
+      "description": "Build and maintain data infrastructure. Design ETL pipelines and data warehouses. Work with large-scale data processing systems.",
+      "location": "Remote",
+      "employment_type": "Remote",
+      "experience_required": "Senior",
+      "skills": ["Python", "SQL", "Spark", "Airflow", "PostgreSQL"],
+      "keywords": ["data engineering", "etl", "data pipeline", "big data"],
+      "application_url": "https://careers.nexustech.example.test/jobs/NX-1006",
+      "source_url": "https://careers.nexustech.example.test/jobs/NX-1006"
+    }
+  ]
+}

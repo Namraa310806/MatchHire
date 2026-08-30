@@ -1,0 +1,210 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=7532733",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3336216,
+      "location": {
+        "name": "San Francisco, CA"
+      },
+      "metadata": null,
+      "id": 7532733,
+      "updated_at": "2026-08-25T17:40:40-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Account Executive, AI Sales",
+      "company_name": "Stripe",
+      "first_published": "2026-02-03T15:19:01-05:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2>Who we are</h2><h3>About Stripe</h3><p>Stripe is a financial infrastructure platform for businesses. Millions of companies - from the world's largest enterprises to the most ambitious startups - use Stripe to accept payments, grow their revenue, and accelerate new business opportunities. Our mission is to increase the GDP of the internet, and we have a staggering amount of work ahead. That means you have an unprecedented opportunity to put the global economy within everyone's reach while doing the most important work of your career.</p><h3>About the team</h3><p>The AI team is focused on one of Stripe's most strategic growth areas: enabling the monetization and scaling of AI-native and AI-enabled businesses.</p><h3>What you'll do</h3><ul><li>Work with existing Stripe customers in the AI Industry to develop and execute long-term sales strategies to expand Stripe's revenue</li><li>Own the full sales cycle, from business case development, to deal structuring and negotiating, to close</li></ul><h3>Minimum requirements</h3><ul><li>13+ years of sales experience, preferably selling a technical product, with a track record of top performance</li><li>4+ years leading complex sales cycles with Enterprise organizations required</li></ul>",
+      "departments": [
+        {
+          "id": 81430,
+          "name": "1175 Enterprise - Account Executives (NA)",
+          "child_ids": [],
+          "parent_id": 81961
+        }
+      ],
+      "offices": [
+        {
+          "id": 65234,
+          "name": "US",
+          "location": null,
+          "child_ids": [
+            89623,
+            249942,
+            249943
+          ],
+          "parent_id": 673
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7532733/ai_opt_out"
+    },
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=8130725",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3520748,
+      "location": {
+        "name": "San Francisco"
+      },
+      "metadata": null,
+      "id": 8130725,
+      "updated_at": "2026-08-19T14:02:07-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Account Executive, AI Startups (Hunter)",
+      "company_name": "Stripe",
+      "first_published": "2026-08-19T14:02:07-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2>Who we are</h2><h3>About Stripe</h3><p>Stripe is a financial infrastructure platform for businesses. Millions of companies—from the world's largest enterprises to the most ambitious startups—use Stripe to accept payments, grow their revenue, and accelerate new business opportunities. Our mission is to increase the GDP of the internet, and we have a staggering amount of work ahead. That means you have an unprecedented opportunity to put the global economy within everyone's reach while doing the most important work of your career.</p><h3>About the team</h3><p>Stripe's Funded AE team sits within our New Business Sales function and is responsible for closing net-new accounts for Stripe. You have the opportunity to sell the entire suite of Stripe products and run the full sales cycle through onboarding.</p><h2>What you'll do</h2><p>As a Startup Account Executive at Stripe, you will drive Stripe's future growth engine by building relationships with founders of the fastest growing venture-backed companies.</p><h3>Responsibilities</h3><ul><li>Own the full sales cycle from lead to close for startups</li><li>Identify high-potential prospective users from inbound leads</li></ul><h2>Who you are</h2><p>You're a motivated, users-first driven individual, capable of engaging in business-level and technical conversations at multiple levels of the organization.</p><h3>Minimum requirements</h3><ul><li>2+ years of sales or client facing experience, preferably at a high-growth Saas company, bank, consultancy or venture capital firm, with a track record of top performance</li><li>Ability to understand the Stripe API and build great relationships with highly technical founders</li></ul>",
+      "departments": [
+        {
+          "id": 336773,
+          "name": "1653 Startups - Account Executives (NA)",
+          "child_ids": [],
+          "parent_id": 81961
+        }
+      ],
+      "offices": [
+        {
+          "id": 65234,
+          "name": "US",
+          "location": null,
+          "child_ids": [
+            89623,
+            249942
+          ],
+          "parent_id": 673
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8130725/ai_opt_out"
+    },
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=8141211",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3523367,
+      "location": {
+        "name": "Singapore"
+      },
+      "metadata": null,
+      "id": 8141211,
+      "updated_at": "2026-08-24T06:32:37-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Account Executive, Commercial Hunter",
+      "company_name": "Stripe",
+      "first_published": "2026-08-21T05:00:47-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2>Who we are</h2><h3>About Stripe</h3><p>Stripe is a financial infrastructure platform for businesses. Millions of companies—from the world's largest enterprises to the most ambitious startups—use Stripe to accept payments, grow their revenue, and accelerate new business opportunities. Our mission is to increase the GDP of the internet, and we have a staggering amount of work ahead. That means you have an unprecedented opportunity to put the global economy within everyone's reach while doing the most important work of your career.</p><h3>About The Team</h3><p>The Commercial Sales team is responsible for the acquisition, growth, retention, and expansion of mid-market customers. These companies—often tech-forward, founder-led, and rapidly scaling—represent Stripe's next generation of breakout users.</p><h2>What you'll do</h2><p>Commercial AEs own a book of high-potential accounts, they focus on hunting for new growth opportunities and building a pipeline of new users.</p><h3>Responsibilities</h3><ul><li>Identify high-potential, mid-market businesses for a full-stack Stripe implementation</li><li>Develop and execute an outbound play to target a new vertical in their region and implement sales strategies to grow revenue per user</li></ul><h2>Who you are</h2><p>We're looking for someone who meets the minimum requirements to be considered for the role.</p><h3>Minimum requirements</h3><ul><li>5 years of experience in solution sales field</li><li>Ability to understand technical requirements and craft solutions across multiple technology products</li><li>Ability to perform quantitative analysis and independently manage pricing negotiations</li></ul>",
+      "departments": [
+        {
+          "id": 81432,
+          "name": "1195 Account Executives (APAC)",
+          "child_ids": [],
+          "parent_id": 81963
+        }
+      ],
+      "offices": [
+        {
+          "id": 86997,
+          "name": "Singapore Locations",
+          "location": null,
+          "child_ids": [
+            81542,
+            106345
+          ],
+          "parent_id": 4260
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8141211/ai_opt_out"
+    },
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=7738241",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3394726,
+      "location": {
+        "name": "Bengaluru"
+      },
+      "metadata": null,
+      "id": 7738241,
+      "updated_at": "2026-08-25T09:33:42-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Verifications Operations Associate",
+      "company_name": "Stripe",
+      "first_published": "2026-03-24T10:00:27-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2>Who we are</h2><h3>About Stripe</h3><p>Stripe is a financial infrastructure platform for businesses. Millions of companies - from the world's largest enterprises to the most ambitious startups - use Stripe to accept payments, grow their revenue, and accelerate new business opportunities. Our mission is to increase the GDP of the internet, and we have a staggering amount of work ahead. That means you have an unprecedented opportunity to put the global economy within everyone's reach while doing the most important work of your career.</p><h3>About the team</h3><p>At Stripe, our Bengaluru office is a vibrant hub at the forefront of our mission to reshape the financial landscape for businesses worldwide.</p><h2>What you'll do</h2><p>We're hiring a hands-on Verification Risk Ops Associate to support large-user special handling, migrations, and ORR activities.</p><h3>Responsibilities</h3><ul><li>Plan, lead and execute large-user migrations end-to-end: coordinate technical steps, apply migration-based grace periods, monitor progress, resolve blockers, and ensure smooth onboarding at scale.</li><li>Run and interpret Hubble/SQL queries and build simple dashboards to track migration status, rejection rates/types, SLAs, and backlogs</li></ul><h3>Minimum requirements</h3><ul><li>Communication & Engagement: Strong English communication skills (written and verbal) with the ability to explain technical concepts to Stripe's largest customers.</li><li>Analytical Problem-Solving: Ability to synthesize large amounts of data to identify key trends and inform decisions.</li></ul>",
+      "departments": [
+        {
+          "id": 304729,
+          "name": "4374 SDC - Partner Risk Operations",
+          "child_ids": [],
+          "parent_id": 258050
+        }
+      ],
+      "offices": [
+        {
+          "id": 87000,
+          "name": "India Locations",
+          "location": null,
+          "child_ids": [
+            84345,
+            80454,
+            80444
+          ],
+          "parent_id": 4260
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7738241/ai_opt_out"
+    }
+  ]
+}

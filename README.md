@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 3D
+## Current Implementation Status: Phase 4A
 
-This is Phase 3D of the MatchHire project: Authentication Hardening & Authorization Boundary.
+This is Phase 4A of the MatchHire project: Verified Job Ingestion Foundation.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -41,16 +41,26 @@ This is Phase 3D of the MatchHire project: Authentication Hardening & Authorizat
   - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
   - **Analytics Domain**: ApplyClick tracking for job application analytics
 - Django admin interfaces for all models (Job admin is read-only to preserve source-only ingestion)
-- Comprehensive test suite (183 tests passing)
+- Comprehensive test suite (234 tests passing)
 - Database migrations for all domain models
 - Development seed data management command for local development
 - Authorization boundary documented (see `backend/apps/users/AUTHORIZATION_BOUNDARY.md`)
+- **Job Ingestion System (Phase 4A):**
+  - BaseJobScraper abstraction defining the scraper contract
+  - NormalizedJob common representation for all scrapers
+  - **Real official source:** Stripe (via Greenhouse ATS API - https://boards-api.greenhouse.io/v1/boards/stripe/jobs)
+  - **Fictional demo source:** Nexus Technologies (for demonstrating scraper contract with deterministic fixtures)
+  - Job ingestion service for persistence boundary
+  - Deterministic fixture-based testing (no live network dependency)
+  - Source-only job invariant enforced (no user job creation)
+  - Deduplication via company + external_job_id constraint
+  - Manual ingestion command: `python manage.py ingest_jobs --source stripe` or `--source nexus_technologies`
 
 **Not yet implemented (planned for future phases):**
-- Job scraping and ingestion pipeline
+- Additional company scrapers (currently only Stripe real source + Nexus Technologies fictional demo)
 - Resume upload and parsing
 - Matching engine (TF-IDF, embeddings, scoring algorithms)
-- Celery async tasks
+- Celery async tasks for ingestion orchestration
 - Redis caching
 - Payment integration (Razorpay)
 - Production deployment
@@ -268,11 +278,49 @@ Expected response:
 
 The following features are planned for implementation in future phases:
 
-- Phase 2B: Indexes, constraints, and performance optimization
-- Job ingestion from verified sources (scraping pipeline)
+- Phase 4B: Additional company scrapers and Celery integration for async ingestion
+- Phase 4C: Job lifecycle management and deactivation
 - Resume upload and parsing
 - ML-based job matching (TF-IDF, embeddings, scoring algorithms)
 - Celery for async task processing
 - Redis caching
 - Subscription and payment integration (Razorpay)
 - Production deployment with Nginx
+
+## Job Ingestion Architecture
+
+Phase 4A established the foundation for verified job ingestion:
+
+```
+Official Company Source
+        ↓
+Source-specific scraper (e.g., StripeScraper, NexusTechnologiesScraper)
+        ↓
+BaseJobScraper contract (fetch → extract → normalize)
+        ↓
+NormalizedJob (common representation)
+        ↓
+JobIngestionService (validation + persistence)
+        ↓
+Job model (PostgreSQL)
+```
+
+**Implemented Sources:**
+- **Stripe** (real official source): Uses Greenhouse ATS public API at https://boards-api.greenhouse.io/v1/boards/stripe/jobs. Greenhouse is a legitimate ATS provider used by Stripe for their official careers page. The API is public, documented, and requires no authentication.
+- **Nexus Technologies** (fictional demo): Fictional company with fictional API endpoint used for demonstrating the scraper contract with deterministic fixtures. Not a real verified source.
+
+**Key architectural principles:**
+- Scrapers are isolated from database operations
+- Source-specific logic is contained in individual scraper classes
+- NormalizedJob provides a common contract for all scrapers
+- Deduplication is handled via (company, external_job_id) constraint
+- Tests use deterministic fixtures, not live network requests
+- No public API allows arbitrary users to create jobs
+
+**Running manual ingestion:**
+```bash
+cd backend
+python manage.py ingest_jobs --source stripe
+python manage.py ingest_jobs --source stripe --dry-run
+python manage.py ingest_jobs --source nexus_technologies  # fictional demo
+```

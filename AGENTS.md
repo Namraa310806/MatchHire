@@ -79,3 +79,15 @@ This document outlines engineering rules and principles for agents working on th
 ## Phase-Specific Guidelines
 
 Each development phase has specific scope restrictions. Always verify the current phase requirements before implementing features. Do not implement features from future phases prematurely.
+
+## Job Ingestion Rules
+
+- **Official-source-only jobs**: Jobs must enter MatchHire only through the automated verified-source ingestion pipeline. Do not add endpoints allowing arbitrary users to create jobs.
+- **Real vs fictional sources**: Clearly distinguish between real official company sources (e.g., Stripe via Greenhouse ATS) and fictional demo sources (e.g., Nexus Technologies). Only real sources should be used in production.
+- **Scraper/persistence separation**: Scrapers must not perform database operations. Use the ingestion service for persistence to enable future Celery integration.
+- **Deterministic fixtures**: Unit tests must use deterministic fixture data, not live network requests. Tests should not fail due to external website availability.
+- **No user job creation**: Do not create public APIs allowing users to create arbitrary job records.
+- **No matching logic in scrapers**: Scrapers should only normalize job data. Matching algorithms belong to future phases.
+- **No secrets/logging**: Never log secrets, passwords, or sensitive data. Do not hardcode credentials.
+- **No live network dependency in tests**: All scraper tests must use fixture data, not live HTTP requests.
+- **No anti-bot bypass**: Do not implement CAPTCHA solving, proxy rotation, stealth browser automation, or any mechanism to bypass access controls. If a source blocks automated access, select another legitimate official source.
