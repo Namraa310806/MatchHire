@@ -30,6 +30,32 @@ This document outlines engineering rules and principles for agents working on th
 
 13. **Avoid unnecessary rewrites** - Future architecture decisions should build upon existing foundations rather than requiring complete rewrites.
 
+## Celery and Asynchronous Task Rules
+
+14. **Celery is orchestration only** - Celery tasks must not contain scraping logic, HTML parsing, JSON extraction, normalization rules, or database upsert logic. These responsibilities belong to scrapers and the ingestion service.
+
+15. **Scrapers remain independent of Celery** - Scrapers must work independently without requiring Celery. They should be testable without a Celery worker.
+
+16. **Tasks must be idempotent** - Celery tasks may execute more than once. Idempotency must be achieved through database uniqueness constraints and idempotent upsert logic, not through Celery task IDs.
+
+17. **Do not use Redis as job source of truth** - Redis is the Celery broker only. PostgreSQL remains the source of truth for job records. Do not use Redis for job deduplication or storage.
+
+18. **Retry only transient failures** - Transient failures (timeout, 429, 500, 502, 503, 504) may be retried. Permanent failures (malformed data, unknown source, validation errors) must not endlessly retry.
+
+19. **Do not retry malformed/permanent failures indefinitely** - Malformed payloads, unsupported formats, missing required fields, and unknown sources must fail permanently without retry.
+
+20. **Task arguments/results must be serializable** - Task arguments and results must be simple serializable values (strings, integers, booleans, lists, dicts). Do not pass Django QuerySets, model instances, database connections, or scraper instances.
+
+21. **Do not allow arbitrary task execution** - Use a controlled source registry. Do not allow task arguments such as Python import paths, shell commands, arbitrary URLs, or arbitrary scraper classes.
+
+22. **At-least-once execution semantics** - Celery provides at-least-once execution semantics. Correctness must not depend on a task running exactly once. Use database uniqueness and idempotent upsert as the correctness mechanism.
+
+23. **Database transactions must not wrap network calls** - Do not hold PostgreSQL transactions during HTTP requests. Fetch first, then open a transaction for persistence.
+
+24. **Bounded retry with exponential backoff** - Retries must be bounded (e.g., max 3 retries) with exponential backoff. Do not create infinite retry loops or use extremely aggressive retry intervals.
+
+25. **HTTP 429 handling** - HTTP 429 must be treated as transient. Respect the Retry-After header when available (capped at reasonable bounds). Do not hammer the source or implement anti-bot bypassing.
+
 ## Development Workflow
 
 - Before starting a task, read the relevant existing code and documentation.

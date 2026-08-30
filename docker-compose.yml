@@ -29,6 +29,32 @@ services:
       timeout: 5s
       retries: 5
 
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchhire_celery_worker
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-True}
+      - DATABASE_NAME=${DATABASE_NAME:-matchhire}
+      - DATABASE_USER=${DATABASE_USER:-matchhire_user}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-matchhire_password}
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

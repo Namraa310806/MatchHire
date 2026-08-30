@@ -4,9 +4,11 @@ Management command to manually run job ingestion for a specific source.
 Usage:
     python manage.py ingest_jobs --source nexus_technologies
     python manage.py ingest_jobs --source nexus_technologies --dry-run
+    python manage.py ingest_jobs --source stripe --async
 
 This command is for manual testing and debugging of the ingestion pipeline.
-It does not require Celery and runs synchronously.
+By default, it runs synchronously without Celery.
+Use --async to queue the task for asynchronous execution via Celery.
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -17,6 +19,7 @@ from apps.companies.models import Company
 from apps.jobs.scrapers.nexus_technologies import NexusTechnologiesScraper
 from apps.jobs.scrapers.stripe import StripeScraper
 from apps.jobs.services.ingestion import JobIngestionService
+from apps.jobs.tasks import ingest_jobs_task
 
 
 logger = logging.getLogger(__name__)
@@ -30,19 +33,49 @@ class Command(BaseCommand):
             '--source',
             type=str,
             required=True,
-            help='Source identifier (e.g., nexus_technologies)'
+            help='Source identifier (e.g., nexus_technologies, stripe)'
         )
         parser.add_argument(
             '--dry-run',
             action='store_true',
             help='Run scraper without persisting to database'
         )
+        parser.add_argument(
+            '--async',
+            action='store_true',
+            help='Queue the task for asynchronous execution via Celery'
+        )
 
     def handle(self, *args, **options):
         source = options['source']
         dry_run = options['dry_run']
+        async_mode = options['async']
 
         self.stdout.write(f"Starting job ingestion for source: {source}")
+
+        # If async mode, queue the Celery task and return
+        if async_mode:
+            if dry_run:
+                raise CommandError("--dry-run and --async are mutually exclusive")
+            
+            self.stdout.write("Queueing Celery task for asynchronous execution...")
+            try:
+                result = ingest_jobs_task.delay(source)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Task queued successfully. Task ID: {result.id}"
+                    )
+                )
+                self.stdout.write(
+                    "Monitor task execution with Celery worker logs or Flower."
+                )
+                return
+            except Exception as e:
+                logger.error(f"Failed to queue Celery task: {e}", exc_info=True)
+                raise CommandError(f"Failed to queue Celery task: {e}")
+
+        # Synchronous execution (existing behavior)
+        self.stdout.write("Running synchronous ingestion...")
 
         # Map source to scraper
         scraper_map = {

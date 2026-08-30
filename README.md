@@ -2,9 +2,9 @@
 
 MatchHire is a verified job aggregation and intelligent job-matching platform.
 
-## Current Implementation Status: Phase 4A
+## Current Implementation Status: Phase 4B
 
-This is Phase 4A of the MatchHire project: Verified Job Ingestion Foundation.
+This is Phase 4B of the MatchHire project: Asynchronous Job Ingestion & Reliability Layer.
 
 **Currently implemented:**
 - Django backend with Django REST Framework
@@ -41,11 +41,11 @@ This is Phase 4A of the MatchHire project: Verified Job Ingestion Foundation.
   - **Subscription Domain**: Subscription state (FREE, PRO, PREMIUM plans)
   - **Analytics Domain**: ApplyClick tracking for job application analytics
 - Django admin interfaces for all models (Job admin is read-only to preserve source-only ingestion)
-- Comprehensive test suite (234 tests passing)
+- Comprehensive test suite (255+ tests passing)
 - Database migrations for all domain models
 - Development seed data management command for local development
 - Authorization boundary documented (see `backend/apps/users/AUTHORIZATION_BOUNDARY.md`)
-- **Job Ingestion System (Phase 4A):**
+- **Job Ingestion System (Phases 4A-4B):**
   - BaseJobScraper abstraction defining the scraper contract
   - NormalizedJob common representation for all scrapers
   - **Real official source:** Stripe (via Greenhouse ATS API - https://boards-api.greenhouse.io/v1/boards/stripe/jobs)
@@ -54,13 +54,23 @@ This is Phase 4A of the MatchHire project: Verified Job Ingestion Foundation.
   - Deterministic fixture-based testing (no live network dependency)
   - Source-only job invariant enforced (no user job creation)
   - Deduplication via company + external_job_id constraint
-  - Manual ingestion command: `python manage.py ingest_jobs --source stripe` or `--source nexus_technologies`
+  - **Celery integration for asynchronous task execution:**
+    - Celery configured with Redis as broker
+    - Source registry for controlled scraper mapping (prevents arbitrary source execution)
+    - Thin ingestion task (`ingest_jobs_task`) for orchestration
+    - Transient vs permanent failure classification
+    - Bounded retry with exponential backoff (max 3 retries)
+    - HTTP 429 handling with Retry-After respect
+    - Idempotent task execution (PostgreSQL uniqueness prevents duplicates)
+    - Task results are serializable primitives (no ORM objects)
+    - Manual ingestion command: `python manage.py ingest_jobs --source stripe` (synchronous)
+    - Async ingestion command: `python manage.py ingest_jobs --source stripe --async` (queues Celery task)
+    - Celery worker service in docker-compose.yml
 
 **Not yet implemented (planned for future phases):**
 - Additional company scrapers (currently only Stripe real source + Nexus Technologies fictional demo)
 - Resume upload and parsing
 - Matching engine (TF-IDF, embeddings, scoring algorithms)
-- Celery async tasks for ingestion orchestration
 - Redis caching
 - Payment integration (Razorpay)
 - Production deployment
@@ -71,6 +81,7 @@ This is Phase 4A of the MatchHire project: Verified Job Ingestion Foundation.
 - **Frontend:** React with Vite
 - **Database:** PostgreSQL 15
 - **Cache/Message Broker:** Redis 7
+- **Task Queue:** Celery 5.3.4
 - **Containerization:** Docker + Docker Compose
 
 ## Repository Structure
@@ -125,13 +136,18 @@ cp .env.example .env
 
 3. Edit `.env` with your actual values (do not commit `.env` to version control).
 
-## Starting PostgreSQL and Redis
+## Starting PostgreSQL, Redis, and Celery Worker
 
 Start the infrastructure services using Docker Compose:
 
 ```bash
 docker-compose up -d
 ```
+
+This starts:
+- PostgreSQL (database)
+- Redis (cache and Celery broker)
+- Celery worker (for asynchronous task execution)
 
 To check service status:
 ```bash
@@ -141,6 +157,12 @@ docker-compose ps
 To stop services:
 ```bash
 docker-compose down
+```
+
+To start only specific services:
+```bash
+docker-compose up -d postgres redis  # Start only PostgreSQL and Redis
+docker-compose up -d celery_worker  # Start only Celery worker
 ```
 
 ## Starting Django Backend
@@ -289,10 +311,12 @@ The following features are planned for implementation in future phases:
 
 ## Job Ingestion Architecture
 
-Phase 4A established the foundation for verified job ingestion:
+Phases 4A-4B established the foundation for verified job ingestion with asynchronous execution:
 
 ```
-Official Company Source
+Celery Task (ingest_jobs_task)
+        ↓
+Source Registry (controlled mapping)
         ↓
 Source-specific scraper (e.g., StripeScraper, NexusTechnologiesScraper)
         ↓
@@ -310,17 +334,38 @@ Job model (PostgreSQL)
 - **Nexus Technologies** (fictional demo): Fictional company with fictional API endpoint used for demonstrating the scraper contract with deterministic fixtures. Not a real verified source.
 
 **Key architectural principles:**
+- Celery is orchestration only (scrapers remain independent)
 - Scrapers are isolated from database operations
 - Source-specific logic is contained in individual scraper classes
 - NormalizedJob provides a common contract for all scrapers
 - Deduplication is handled via (company, external_job_id) constraint
 - Tests use deterministic fixtures, not live network requests
 - No public API allows arbitrary users to create jobs
+- Source registry prevents arbitrary source execution
+- Task execution is at-least-once (idempotency via database constraints)
+- Transient failures trigger bounded retry with exponential backoff
+- Permanent failures (malformed data, unknown source) do not retry
+- HTTP 429 responses respect Retry-After header when available
 
-**Running manual ingestion:**
+**Running manual ingestion (synchronous):**
 ```bash
 cd backend
 python manage.py ingest_jobs --source stripe
 python manage.py ingest_jobs --source stripe --dry-run
 python manage.py ingest_jobs --source nexus_technologies  # fictional demo
 ```
+
+**Running asynchronous ingestion (Celery):**
+```bash
+cd backend
+python manage.py ingest_jobs --source stripe --async
+```
+
+The async command queues the task to Celery for background execution. Monitor task execution via Celery worker logs or Flower (if configured).
+
+**Celery task retry behavior:**
+- Transient failures (timeout, 429, 5xx) trigger retry
+- Maximum 3 retries with exponential backoff (60s, 120s, 240s)
+- HTTP 429 respects Retry-After header (capped at 300s)
+- Permanent failures (malformed data, unknown source) do not retry
+- Task results are serializable primitives (source, fetched, created, updated, skipped, failed)
