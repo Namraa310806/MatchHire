@@ -1259,3 +1259,135 @@ class Phase3DBoundaryTest(TestCase):
         # Should only report health status
         self.assertIn('status', data)
         self.assertIn('dependencies', data)
+
+
+class SecurityRegressionTest(TestCase):
+    """Security regression tests for final pre-phase-4 corrections."""
+
+    def setUp(self):
+        """Set up test client and user."""
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='testuser@example.test',
+            password='TestPass123!'
+        )
+
+    def test_missing_django_secret_key_fails_clearly(self):
+        """Test that settings.py has no default SECRET_KEY fallback."""
+        # Read the settings.py file to verify no default is present
+        import os
+        settings_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'config',
+            'settings.py'
+        )
+        
+        with open(settings_path, 'r') as f:
+            settings_content = f.read()
+        
+        # Verify SECRET_KEY line does NOT contain a default parameter
+        # The correct line should be: SECRET_KEY = config('DJANGO_SECRET_KEY')
+        # NOT: SECRET_KEY = config('DJANGO_SECRET_KEY', default='...')
+        self.assertIn("SECRET_KEY = config('DJANGO_SECRET_KEY')", settings_content)
+        self.assertNotIn("SECRET_KEY = config('DJANGO_SECRET_KEY', default=", settings_content)
+
+    def test_refresh_blacklist_failure_does_not_issue_new_token(self):
+        """Test that refresh token blacklist failure prevents new token issuance."""
+        from unittest.mock import patch
+        
+        # Login to get refresh token
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        
+        initial_refresh_token = login_response.cookies.get('refresh_token')
+        self.assertIsNotNone(initial_refresh_token)
+        
+        # Mock the blacklist method to raise an exception
+        with patch('rest_framework_simplejwt.tokens.RefreshToken.blacklist') as mock_blacklist:
+            mock_blacklist.side_effect = Exception('Blacklist operation failed')
+            
+            # Attempt refresh - should fail with 500
+            refresh_response = self.client.post(
+                '/api/auth/refresh/',
+                HTTP_COOKIE=f'refresh_token={initial_refresh_token.value}'
+            )
+            
+            # Should return 500 Internal Server Error
+            self.assertEqual(refresh_response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(refresh_response.data['detail'], 'Token refresh failed.')
+            
+            # Verify no new refresh token was issued
+            new_refresh_token = refresh_response.cookies.get('refresh_token')
+            # Either no cookie set or cookie is empty
+            if new_refresh_token:
+                self.assertEqual(new_refresh_token.value, '')
+
+    def test_normal_refresh_works_when_blacklist_succeeds(self):
+        """Test that normal refresh works when blacklist succeeds."""
+        # Login to get refresh token
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        
+        initial_refresh_token = login_response.cookies.get('refresh_token')
+        self.assertIsNotNone(initial_refresh_token)
+        
+        # Normal refresh should succeed
+        refresh_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={initial_refresh_token.value}'
+        )
+        
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        
+        # New refresh token should be issued
+        new_refresh_token = refresh_response.cookies.get('refresh_token')
+        self.assertIsNotNone(new_refresh_token)
+        self.assertNotEqual(initial_refresh_token.value, new_refresh_token.value)
+
+    def test_old_refresh_token_reuse_rejected_after_rotation(self):
+        """Test that old refresh token is rejected after rotation."""
+        # Login to get refresh token
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'testuser@example.test',
+                'password': 'TestPass123!'
+            }
+        )
+        
+        initial_refresh_token = login_response.cookies.get('refresh_token')
+        
+        # First refresh - should succeed and rotate
+        first_refresh_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={initial_refresh_token.value}'
+        )
+        
+        self.assertEqual(first_refresh_response.status_code, status.HTTP_200_OK)
+        new_refresh_token = first_refresh_response.cookies.get('refresh_token')
+        
+        # Attempt to reuse the old refresh token - should be rejected
+        reuse_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={initial_refresh_token.value}'
+        )
+        
+        self.assertEqual(reuse_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # New refresh token should still work
+        new_refresh_response = self.client.post(
+            '/api/auth/refresh/',
+            HTTP_COOKIE=f'refresh_token={new_refresh_token.value}'
+        )
+        
+        self.assertEqual(new_refresh_response.status_code, status.HTTP_200_OK)

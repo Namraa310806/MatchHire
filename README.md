@@ -238,7 +238,11 @@ GET http://localhost:8000/api/health/
 Expected response:
 ```json
 {
-    "status": "ok"
+    "status": "ok",
+    "dependencies": {
+        "database": "ok",
+        "redis": "ok"
+    }
 }
 ```
 
@@ -249,7 +253,7 @@ Expected response:
 - PostgreSQL credentials are configurable via environment variables in both Docker Compose and Django settings
 - Environment variables are managed through `python-decouple`
 - CORS is configurable via environment variables (CORS_ALLOWED_ORIGINS)
-- Django REST Framework is configured with permissive permissions for development
+- Django REST Framework is configured with IsAuthenticated as the default permission
 - Redis configuration is centralized in settings.py for future Celery integration
 - Custom user model (`apps.users.User`) with email-based authentication is established
 - Domain models support the future MatchHire pipeline:
@@ -265,7 +269,6 @@ Expected response:
 The following features are planned for implementation in future phases:
 
 - Phase 2B: Indexes, constraints, and performance optimization
-- Authentication endpoints (JWT, login/register)
 - Job ingestion from verified sources (scraping pipeline)
 - Resume upload and parsing
 - ML-based job matching (TF-IDF, embeddings, scoring algorithms)

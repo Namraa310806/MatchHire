@@ -157,13 +157,16 @@ class RefreshView(APIView):
                 new_refresh = RefreshToken.for_user(user)
                 new_refresh_token = str(new_refresh)
                 
-                # Blacklist the old token if configured (after generating new one)
+                # Blacklist the old token if configured (must succeed before issuing new token)
                 if settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION', False):
                     try:
                         refresh.blacklist()
                     except Exception:
-                        # If blacklisting fails, continue with rotation
-                        pass
+                        # If blacklisting fails, do not issue new refresh token
+                        return Response(
+                            {'detail': 'Token refresh failed.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
             else:
                 new_refresh_token = str(refresh)
             
