@@ -1,0 +1,109 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: matchhire_postgres
+    environment:
+      POSTGRES_DB: matchhire_dev
+      POSTGRES_USER: matchhire
+      POSTGRES_PASSWORD: matchhire
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchhire -d matchhire_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: matchhire_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchhire_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: matchhire_dev
+      DB_USER: matchhire
+      DB_PASSWORD: matchhire
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: django-insecure-development-key-change-in-production
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchhire_celery_worker
+    command: celery -A config worker -l info -Q default,fetch_queue,parse_queue,match_queue
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: matchhire_dev
+      DB_USER: matchhire
+      DB_PASSWORD: matchhire
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: django-insecure-development-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: matchhire_celery_beat
+    command: celery -A config beat -l info
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: matchhire_dev
+      DB_USER: matchhire
+      DB_PASSWORD: matchhire
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: django-insecure-development-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

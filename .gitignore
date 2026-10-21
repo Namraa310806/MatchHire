@@ -1,6 +1,55 @@
+# PDFs and documents
 *.pdf
-.env
-node_modules
 *.docx
 *.xlsx
-*.md
+MatchHire_Prompt_Playbook.md
+MatchHire_AI_Prompts_Guide.pdf
+MatchHire_Documentation_FINAL.pdf
+MatchHire_PhasesAndGoals.docx
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media
+
+# Node
+node_modules/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep important markdown files
+!README.md
+!CLAUDE.md
+!AGENTS.md
+!docs/*.md
+MatchHire_Prompt_Playbook.md
