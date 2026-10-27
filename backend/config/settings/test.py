@@ -2,7 +2,13 @@ from .base import *
 
 DEBUG = False
 
-DATABASES["default"]["NAME"] = environ.get("DB_NAME", "matchhire_test")
+# Use SQLite for faster test execution (Phase 0 decision)
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+    }
+}
 
 # Celery test mode - use eager mode for synchronous task execution in tests
 CELERY_TASK_ALWAYS_EAGER = True

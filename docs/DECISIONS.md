@@ -574,3 +574,25 @@ The following companies are candidates for source review but are NOT approved:
 - Decision 9: Resume Consent, Retention, and Deletion (requires legal review)
 - Decision 10: Initial Company and Source List (not a blocker for Phase 1)
 - Decision 11: Free-Tier Quota Semantics (limit and timezone require approval)
+
+---
+
+## Phase 1 Scope Discrepancy (Unresolved)
+
+**Issue:** Disagreement between approved Phase 1 scope and `docs/DB_SCHEMA.md` migration strategy.
+
+**Approved Phase 1 Scope (from implementation prompt):**
+- Includes 12 entities: User, CandidateProfile, Skill, CandidateSkill, WorkExperience, Company, IngestionSource, FetchRun, Job, JobSkill, MatchScore, ApplicationClick
+- Explicitly excludes Subscription (deferred to Phase 3)
+
+**DB_SCHEMA.md Migration Strategy (lines 726-738):**
+- Phase 1: User, CandidateProfile, Skill, CandidateSkill, WorkExperience, Company, IngestionSource, FetchRun, Job, JobSkill (10 entities)
+- Phase 2: MatchScore, ApplicationClick (2 entities)
+- Phase 3: Subscription (future)
+
+**Resolution Action Taken:**
+- Implemented all 12 approved entities in Phase 1, including MatchScore and ApplicationClick
+- Excluded Subscription as specified (deferred to Phase 3)
+- This discrepancy remains unresolved and requires stakeholder decision
+
+**Status:** Resolved - DB_SCHEMA.md migration strategy updated to reflect approved Phase 1 scope (12 entities including MatchScore and ApplicationClick).

@@ -729,10 +729,11 @@ LIMIT 10;
 - Create User, CandidateProfile, Skill, CandidateSkill, WorkExperience
 - Create Company, IngestionSource, FetchRun
 - Create Job, JobSkill
-
-**Phase 2:**
 - Create MatchScore
 - Create ApplicationClick
+
+**Phase 2:**
+- Deferred to future work
 
 **Phase 3 (Future):**
 - Create Subscription when paid tier implemented
