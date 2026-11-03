@@ -224,6 +224,7 @@ class IngestionSourceTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         self.assertEqual(source.company, self.company)
         self.assertEqual(source.source_type, "career_page")
@@ -235,6 +236,7 @@ class IngestionSourceTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         with self.assertRaises(IntegrityError):
             IngestionSource.objects.create(
@@ -242,6 +244,7 @@ class IngestionSourceTest(TestCase):
                 name="Another Source",
                 source_type="api",
                 base_url="https://acme.com/careers",
+                scraper_class="FakeScraper",
             )
 
     def test_protect_delete_company(self):
@@ -251,6 +254,7 @@ class IngestionSourceTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         with self.assertRaises(IntegrityError):
             self.company.delete()
@@ -266,6 +270,7 @@ class FetchRunTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
 
     def test_fetch_run_creation(self):
@@ -291,6 +296,7 @@ class JobTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
 
     def test_job_creation(self):
@@ -373,6 +379,7 @@ class JobSkillTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         self.job = Job.objects.create(
             source=self.source,
@@ -424,6 +431,7 @@ class MatchScoreTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         self.job = Job.objects.create(
             source=self.source,
@@ -489,6 +497,7 @@ class ApplicationClickTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         self.job = Job.objects.create(
             source=self.source,
@@ -576,6 +585,7 @@ class AdminSecurityTest(TestCase):
             name="Career Page",
             source_type="career_page",
             base_url="https://acme.com/careers",
+            scraper_class="FakeScraper",
         )
         admin = IngestionSourceAdmin(IngestionSource, AdminSite())
         self.assertFalse(admin.has_add_permission(None))

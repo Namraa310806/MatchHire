@@ -230,6 +230,7 @@ class IngestionSource(models.Model):
     base_url = models.URLField(max_length=500)
     listing_url_pattern = models.CharField(max_length=500, blank=True)
     job_url_pattern = models.CharField(max_length=500, blank=True)
+    scraper_class = models.CharField(max_length=255, blank=True, null=True)
     fetch_interval_hours = models.IntegerField(default=24)
     stale_threshold = models.IntegerField(default=3)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -305,12 +306,14 @@ class Job(models.Model):
     external_id = models.CharField(max_length=255, blank=True, null=True)
     title = models.CharField(max_length=300)
     description = models.TextField()
-    requirements = models.TextField(blank=True)
-    location = models.CharField(max_length=200, blank=True)
+    requirements = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=200, blank=True, null=True)
     remote_type = models.CharField(
-        max_length=50, choices=REMOTE_TYPE_CHOICES, blank=True
+        max_length=50, choices=REMOTE_TYPE_CHOICES, blank=True, null=True
     )
-    role_type = models.CharField(max_length=50, choices=ROLE_TYPE_CHOICES, blank=True)
+    role_type = models.CharField(
+        max_length=50, choices=ROLE_TYPE_CHOICES, blank=True, null=True
+    )
     experience_min_years = models.DecimalField(
         max_digits=4, decimal_places=2, null=True, blank=True
     )

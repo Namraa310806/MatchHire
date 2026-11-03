@@ -596,3 +596,216 @@ The following companies are candidates for source review but are NOT approved:
 - This discrepancy remains unresolved and requires stakeholder decision
 
 **Status:** Resolved - DB_SCHEMA.md migration strategy updated to reflect approved Phase 1 scope (12 entities including MatchScore and ApplicationClick).
+
+---
+
+## Phase 2A: Job Ingestion Pipeline Foundation
+
+### Scraper Configuration Location
+**Status:** Implemented
+
+**Topic:** Where to store scraper class configuration.
+
+**Final Decision:**
+- Added `scraper_class` field (CharField, nullable, max_length=255) to `IngestionSource` model
+- Scraper configuration lives at the source level, not company level
+- This is appropriate because a company may have multiple sources (career page, ATS, API) with different scrapers
+- Migration 0005_ingestionsource_scraper_class added the field
+
+**Rationale:**
+- Source-specific metadata belongs at the source level
+- A company may have multiple sources requiring different scrapers
+- Aligns with existing model structure where source-specific configuration lives
+
+**Alternatives Considered:**
+- Add to Company model: Rejected as a company may have multiple sources with different scrapers
+- Separate configuration table: Rejected as overengineering for this phase
+
+**Consequences:**
+- New migration required and created
+- Admin interface updated to include scraper_class in readonly fields
+- Tests updated to include scraper_class in test fixtures
+
+---
+
+### Schema Field Nullability Adjustment
+**Status:** Implemented
+
+**Topic:** Adjusting Job model field nullability for optional fields.
+
+**Final Decision:**
+- Changed Job model fields to allow NULL: `requirements`, `location`, `remote_type`, `role_type`
+- Previous definition used `blank=True` but not `null=True` for these fields
+- Updated to `blank=True, null=True` to properly represent optional fields
+
+**Rationale:**
+- These fields are truly optional per the specification
+- `blank=True` only affects form validation, not database constraints
+- `null=True` allows database-level representation of missing values
+- Prevents NOT NULL constraint failures during ingestion
+
+**Alternatives Considered:**
+- Keep as blank-only: Rejected as it causes NOT NULL constraint failures
+- Use empty strings: Rejected as it conflates "not provided" with "explicitly empty"
+
+**Consequences:**
+- Migration 0006_alter_job_location_alter_job_remote_type_and_more created
+- Ingestion pipeline updated to convert None to empty string for requirements before save
+- Existing tests updated to use jobskill_set instead of skills accessor
+
+---
+
+### Scraper Registry Implementation
+**Status:** Implemented
+
+**Topic:** How to load and validate scraper classes.
+
+**Final Decision:**
+- Implemented `_ALLOWED_SCRAPERS` registry mapping class names to (module_path, class_name) tuples
+- `load_scraper(scraper_class)` validates against registry before loading
+- Registry stored as module-level dictionary for security (no arbitrary imports)
+- Registry initialized with only FakeScraper for tests
+- `register_scraper()` function provided for future real scraper registration
+
+**Rationale:**
+- Explicit whitelist prevents unsafe arbitrary imports
+- Tuple format (module, class) clearer than full dotted path for class
+- Fail-fast validation for unknown or invalid scrapers
+- Registry can be extended in future phases without code changes
+
+**Alternatives Considered:**
+- Direct import based on string: Rejected as security risk (arbitrary imports)
+- Dynamic class loading from plugin system: Rejected as overengineering for this phase
+- Configuration file for scrapers: Rejected as database field is sufficient
+
+**Consequences:**
+- Registry is module-level state (shared across application)
+- Only FakeScraper registered in Phase 2A
+- Real scrapers will be registered in future phases
+
+---
+
+### Required Years of Experience Mapping
+**Status:** Implemented
+
+**Topic:** How extracted `required_yoe` maps to Job model fields.
+
+**Final Decision:**
+- `required_yoe` from extraction is mapped to `experience_min_years` in Job model
+- If `experience_min_years` is already set in the record, it takes precedence
+- If `experience_min_years` is None but `required_yoe` is set, use `required_yoe`
+- `experience_max_years` is not populated from extraction (ranges not extracted in Phase 2A)
+
+**Rationale:**
+- Job model has `experience_min_years` and `experience_max_years` for ranges
+- Extraction produces a single value (`required_yoe`)
+- Mapping to `experience_min_years` is the natural fit for "minimum required"
+- Allows explicit record-level values to override extraction
+
+**Alternatives Considered:**
+- Store as separate field: Rejected as Job model already has experience fields
+- Ignore extraction result for persistence: Rejected as it loses extracted data
+- Store in both min and max: Rejected as extraction doesn't produce ranges
+
+**Consequences:**
+- Extraction result used in persistence via mapping
+- Test for experience extraction updated to check `experience_min_years`
+- Future phases may add range extraction for `experience_max_years`
+
+---
+
+### Skill Dictionary Scope
+**Status:** Implemented
+
+**Topic:** Size and composition of skills dictionary for Phase 2A.
+
+**Final Decision:**
+- Implemented representative skills dictionary with ~30 terms
+- Covers programming languages, frameworks, tools, and platforms
+- Includes canonical names and aliases (e.g., "js" → "JavaScript", "k8s" → "Kubernetes")
+- Dictionary is replaceable (not hardcoded in extraction logic)
+- Designed for expansion to 500+ terms in production per Decision 3
+
+**Rationale:**
+- Representative subset sufficient for Phase 2A testing
+- Demonstrates the pattern without implementing full vocabulary
+- Future migration can expand to full 500+ term vocabulary
+- Replaceable design allows vocabulary updates without code changes
+
+**Alternatives Considered:**
+- Implement full 500+ term vocabulary: Rejected as outside Phase 2A scope
+- Use no skills dictionary: Rejected as it doesn't demonstrate the pattern
+- Hardcode in extraction logic: Rejected as it prevents vocabulary updates
+
+**Consequences:**
+- Skills extraction works with subset for testing
+- Future vocabulary expansion will be migration-based
+- Dictionary is in `skill_extraction.py` for easy replacement
+
+---
+
+### Description Length Limit
+**Status:** Implemented
+
+**Topic:** Maximum description length for normalization.
+
+**Final Decision:**
+- Set `MAX_DESCRIPTION_LENGTH = 50000` characters in normalization
+- Descriptions exceeding this limit are rejected with ValueError
+- Limit chosen based on practical considerations (not from schema)
+
+**Rationale:**
+- Prevents abusive or malformed records from consuming excessive storage
+- 50k characters is generous (approximately 10k words)
+- Schema TextField has no hard limit, but application-level validation is prudent
+- Rejects obviously oversized descriptions early in pipeline
+
+**Alternatives Considered:**
+- No limit: Rejected as it doesn't prevent abuse
+- Schema-level limit: Rejected as TextField doesn't support max_length
+- Much smaller limit (e.g., 10k): Rejected as too restrictive for legitimate long descriptions
+
+**Consequences:**
+- Normalization rejects oversized descriptions
+- Validation error reported to caller
+- Configurable constant for future adjustment
+
+---
+
+### Shared Scraper Parsing-Error Contract
+**Status:** Implemented
+
+**Topic:** How scrapers report parsing errors to the ingestion pipeline.
+
+**Final Decision:**
+- Base class contract: `BaseJobScraper` provides shared error-reporting mechanism
+- Error representation: List of tuples `(raw_record: dict, error_msg: str)` stored in `parse_errors` attribute
+- Error collection: Each scraper initializes with empty `parse_errors` list via `__init__()`
+- Error recording: Scrapers use `_record_parse_error(raw_record, error_msg)` helper method
+- Error lifecycle: Each `parse()` invocation must call `_clear_parse_errors()` at start to prevent error leakage between batches
+- Pipeline consumption: Pipeline reads `scraper.parse_errors` directly (no `hasattr` check needed - it's guaranteed by base class)
+- Public signature unchanged: `parse(raw: list[dict]) -> list[JobRecord]` - error reporting is side-channel, not part of return value
+- Malformed record handling: Scrapers catch exceptions per-record, record error via base helper, and continue parsing remaining records
+- Valid records continue: Records that parse successfully continue through the pipeline even when other records in the same batch fail
+- Error attribution: Each error includes the original raw input for debugging and attribution
+
+**Rationale:**
+- Formalizing the contract in the base class ensures all scrapers (including future production scrapers) implement error reporting consistently
+- Base class initialization guarantees `parse_errors` attribute exists for all scraper instances
+- Explicit `_clear_parse_errors()` prevents error leakage between parse invocations
+- Helper method `_record_parse_error()` provides consistent error format
+- Removing `hasattr` check from pipeline eliminates FakeScraper-specific assumptions
+- Side-channel error reporting keeps the public signature simple (returns only valid records)
+
+**Alternatives Considered:**
+- Return errors from parse() method: Rejected as it would complicate the public signature and require handling errors in every caller
+- Use exceptions for errors: Rejected as exceptions would stop parsing of remaining records in the batch
+- Log errors only: Rejected as it loses attribution and makes debugging difficult
+- FakeScraper-specific implementation: Rejected as production scrapers wouldn't know to implement it
+
+**Consequences:**
+- All scrapers must call `_clear_parse_errors()` at start of `parse()`
+- All scrapers must use `_record_parse_error()` for parsing failures
+- Pipeline reads `scraper.parse_errors` without `hasattr` check
+- Errors are guaranteed to be available for any BaseJobScraper implementation
+- Test added using SimpleTestScraper (independent of FakeScraper) to verify contract
