@@ -14,6 +14,7 @@ from .validation import ValidationError, validate_job_record
 def process_batch(
     raw_records: list[dict[str, Any]],
     scraper_class: str,
+    dry_run: bool = False,
 ) -> IngestionResult:
     """Process a batch of raw job records through the ingestion pipeline.
 
@@ -23,11 +24,12 @@ def process_batch(
     3. Extract skills from descriptions
     4. Extract required years of experience
     5. Validate records
-    6. Persist records with idempotent upsert
+    6. Persist records with idempotent upsert (skipped if dry_run=True)
 
     Args:
         raw_records: List of raw job data dictionaries (source-specific format)
         scraper_class: Name of the scraper class to use for parsing
+        dry_run: If True, skip persistence stage and return summary only
 
     Returns:
         IngestionResult with counts and validation errors
@@ -110,8 +112,52 @@ def process_batch(
         else:
             valid_records.append(record)
 
-    # Stage 6: Persist
-    result = bulk_upsert_jobs(valid_records)
+    # Stage 6: Persist (skip if dry_run)
+    if dry_run:
+        # Read-only comparison to calculate create/update/skip counts
+        from api.models import Job
+
+        from .hashing import compute_job_hash
+
+        jobs_created = 0
+        jobs_updated = 0
+        jobs_skipped = 0
+
+        for record in valid_records:
+            # Try to find existing job by identity
+            existing_job = None
+            if record.external_id:
+                existing_job = Job.objects.filter(
+                    source_id=record.source_id,
+                    external_id=record.external_id
+                ).first()
+            else:
+                existing_job = Job.objects.filter(
+                    source_id=record.source_id,
+                    application_url=record.application_url
+                ).first()
+
+            if existing_job:
+                # Check if content changed
+                new_hash = compute_job_hash(record)
+                if existing_job.job_hash != new_hash:
+                    jobs_updated += 1
+                else:
+                    jobs_skipped += 1
+            else:
+                jobs_created += 1
+
+        result = IngestionResult(
+            jobs_processed=len(raw_records),
+            jobs_created=jobs_created,
+            jobs_updated=jobs_updated,
+            jobs_skipped=jobs_skipped + len(raw_records) - len(valid_records),
+            validation_errors=[],
+            skill_associations_created=0,
+        )
+    else:
+        result = bulk_upsert_jobs(valid_records)
+
     result.validation_errors.extend(all_errors)
     result.validation_errors.extend(validation_errors)
 

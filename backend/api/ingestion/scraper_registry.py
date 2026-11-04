@@ -8,6 +8,8 @@ from .base_scraper import BaseJobScraper
 # Format: "class_name": (module_path, class_name)
 _ALLOWED_SCRAPERS: dict[str, tuple[str, str]] = {
     "FakeScraper": ("api.ingestion.fake_scraper", "FakeScraper"),
+    "GreenhouseStripeScraper": ("api.ingestion.scrapers.greenhouse_stripe", "GreenhouseStripeScraper"),
+    "LeverSpotifyScraper": ("api.ingestion.scrapers.lever_spotify", "LeverSpotifyScraper"),
 }
 
 

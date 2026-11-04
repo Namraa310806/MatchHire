@@ -670,6 +670,240 @@ The following companies are candidates for source review but are NOT approved:
 **Rationale:**
 - Explicit whitelist prevents unsafe arbitrary imports
 - Tuple format (module, class) clearer than full dotted path for class
+
+---
+
+## Phase 2B: First Real Company Scrapers
+
+### Source Selection for Phase 2B
+**Status:** Implemented
+
+**Topic:** Selection of first real company job sources for Phase 2B implementation.
+
+**Final Decision:**
+- Selected 2 real company sources with publicly accessible JSON APIs
+- Source 1: Stripe (Greenhouse ATS) - `https://boards-api.greenhouse.io/v1/boards/stripe/jobs?content=true`
+- Source 2: Spotify (Lever ATS) - `https://api.lever.co/v0/postings/spotify?mode=json`
+- Third source deferred (2 sources is sufficient for Phase 2B per specification)
+- Both sources have robots.txt permission and no authentication requirement
+- Both sources provide stable JSON responses with application URLs
+
+**Rationale:**
+- Greenhouse and Lever are well-documented ATS ecosystems with public APIs
+- Both require no authentication and allow robots.txt access
+- Structured JSON responses simplify parsing and reduce errors
+- Direct application URLs available in responses
+- Good test coverage with fixture data possible
+
+**Alternatives Considered:**
+- Ashby ATS: Rejected due to robots.txt disallowing `/api/` path
+- Workable ATS: Rejected due to restrictive rate limit (8 requests in 40 seconds)
+- Additional Greenhouse or Lever boards: Deferred to future phases (2 sources sufficient for MVP)
+
+**Consequences:**
+- `GreenhouseStripeScraper` class implemented in `api/ingestion/scrapers/greenhouse_stripe.py`
+- `LeverSpotifyScraper` class implemented in `api/ingestion/scrapers/lever_spotify.py`
+- Both scrapers registered in `_ALLOWED_SCRAPERS` registry
+- Fixture data saved under `backend/api/tests/fixtures/ingestion/`
+- Source research documented in `docs/INGESTION_SOURCES.md`
+
+---
+
+### HTTP Client Implementation
+**Status:** Implemented
+
+**Topic:** HTTP client library and configuration for scrapers.
+
+**Final Decision:**
+- Use `requests` library for HTTP client (already in pyproject.toml dependencies)
+- Explicit connection and read timeouts: (10, 30) seconds
+- Descriptive User-Agent header: "MatchHire-Ingestion/1.0 (+https://github.com/Namraa310806/MatchHire)"
+- Use requests.Session for connection pooling
+- Handle HTTP failures explicitly with exception types
+- Handle invalid JSON with JSONDecodeError
+
+**Rationale:**
+- `requests` is already listed in Phase 0 decision 7 as the HTTP library
+- Explicit timeouts prevent hanging requests
+- Descriptive User-Agent allows source identification
+- Session object provides connection pooling for efficiency
+
+**Alternatives Considered:**
+- Playwright: Rejected for JSON APIs (overkill for simple HTTP requests)
+- Custom HTTP client: Rejected as requests is well-tested and maintained
+
+**Consequences:**
+- Added `requests>=2.31.0` to pyproject.toml dependencies
+- Both scrapers use requests.Session internally
+- Tests mock session.get() for offline testing
+
+---
+
+### Dry-Run Management Command
+**Status:** Implemented
+
+**Topic:** Django management command for job ingestion with dry-run support.
+
+**Final Decision:**
+- Implemented `python manage.py ingest_jobs --source <source-name> --dry-run`
+- Command loads IngestionSource by name
+- Resolves scraper through registry
+- Fetches, parses, normalizes, validates records
+- Displays summary of what would be created/updated/skipped
+- `--dry-run` flag skips persistence stage entirely
+- Dry-run verification compares job count before and after to ensure no writes occurred
+- Real ingestion requires explicit invocation (no --dry-run flag)
+
+**Rationale:**
+- Dry-run allows previewing ingestion without side effects
+- Verification step ensures dry-run guarantee is maintained
+- Command-line interface consistent with Django conventions
+- Summary output provides clear visibility into ingestion results
+
+**Alternatives Considered:**
+- No dry-run mode: Rejected as it prevents safe testing
+- Always dry-run by default: Rejected as it requires explicit flag for real ingestion
+- Separate command for dry-run: Rejected as single command with flag is simpler
+
+**Consequences:**
+- Management command created at `api/management/commands/ingest_jobs.py`
+- Pipeline updated with `dry_run` parameter to skip persistence
+- Management directory structure created
+- Command reports job count before/after for verification
+
+---
+
+### Fixture Data Organization
+**Status:** Implemented
+
+**Topic:** Organization and structure of test fixture data.
+
+**Final Decision:**
+- Fixtures stored under `backend/api/tests/fixtures/ingestion/`
+- Sample fixtures: `stripe_greenhouse_sample.json`, `spotify_lever_sample.json`
+- Fixtures contain realistic sanitized job data (2-3 jobs each)
+- Fixtures exclude credentials, cookies, personal data
+- Tests use fixtures with mocked HTTP responses
+- Tests do not depend on live network availability
+
+**Rationale:**
+- Sanitized fixtures enable offline testing
+- Separate fixture files per source keeps organization clear
+- No credentials or sensitive data in fixtures prevents security issues
+- Mocked HTTP responses ensure test reliability and speed
+
+**Alternatives Considered:**
+- Live network tests: Rejected as they make tests flaky and slow
+- Full response fixtures: Rejected as they may contain unnecessary data
+- No fixtures (only live tests): Rejected as it prevents offline testing
+
+**Consequences:**
+- Fixture directory structure created
+- 39 new tests added (18 for Greenhouse, 21 for Lever)
+- All tests pass (170 total: 131 Phase 2A + 39 Phase 2B)
+- Tests use unittest.mock.patch for HTTP mocking
+
+---
+
+### Source-Specific Test Coverage
+**Status:** Implemented
+
+**Topic:** Test coverage for real scrapers.
+
+**Final Decision:**
+- Source-specific test files: `test_greenhouse_stripe.py`, `test_lever_spotify.py`
+- Tests cover: fetch, parse, validate, error handling, edge cases
+- Tests use fixtures and mocked HTTP responses
+- Tests verify: HTML unescaping, date parsing, remote type detection, salary extraction
+- Tests verify: missing required fields, invalid JSON, HTTP errors
+- All Phase 2A tests remain passing (no regressions)
+
+**Rationale:**
+- Source-specific tests isolate scraper logic
+- Comprehensive coverage ensures reliability
+- Fixture-based tests are fast and deterministic
+- Edge case testing prevents production issues
+
+**Alternatives Considered:**
+- Generic scraper tests only: Rejected as they wouldn't test source-specific logic
+- Integration tests with live endpoints: Rejected as they're flaky and require network
+
+**Consequences:**
+- 39 new tests added (Phase 2B)
+- All 170 tests pass (131 Phase 2A + 39 Phase 2B)
+- Ruff linting passes with fixes
+- MyPy type checking passes with fixes
+- Django system check passes
+
+---
+
+### Application URL Verification
+**Status:** Verified
+
+**Topic:** Manual verification of application URLs from fixtures.
+
+**Final Decision:**
+- Verified 3 application URLs manually (2 Stripe, 1 Spotify)
+- All URLs open to valid job pages with correct titles and descriptions
+- Stripe URLs: https://stripe.com/jobs/search?gh_jid=8172510 (Abuse Investigator), https://stripe.com/jobs/search?gh_jid=8265686 (Writer, Content Marketing)
+- Spotify URL: https://jobs.lever.co/spotify/2a55d6c9-c564-443a-be3e-a3851db5a93b (Account Executive - Commercial)
+- Verification date: 2026-11-03
+- No fabricated URLs; all from actual fixture data
+
+**Rationale:**
+- Manual verification ensures application URLs are functional
+- Confirms scraper correctly extracts and stores application URLs
+- Prevents broken application links in production
+
+**Alternatives Considered:**
+- Skip verification: Rejected as broken URLs would be a critical failure
+- Automated verification: Deferred as manual verification sufficient for Phase 2B
+
+**Consequences:**
+- Application URLs verified as working
+- Scraper URL extraction logic validated
+- Documentation updated with verification results
+
+---
+
+## Phase 2B Summary
+
+**Implemented:**
+- 2 real company scrapers (Stripe/Greenhouse, Spotify/Lever)
+- Scraper registry updated with real scrapers
+- 39 new tests with fixtures and mocked HTTP
+- Dry-run management command with verification
+- Source research documented in INGESTION_SOURCES.md
+- Application URLs manually verified
+- All quality checks passing (ruff, mypy, Django check)
+
+**Not Implemented (Per Phase 2B Scope):**
+- Third source (2 sources sufficient per specification)
+- Celery scheduling
+- Celery Beat
+- Automatic recurring fetches
+- Retry orchestration
+- Playwright/browser automation
+- Matching algorithms
+- Resume parsing
+- Frontend work
+- Recruiter functionality
+- Payments or subscriptions
+
+**Test Results:**
+- Command: `uv run pytest api/tests/test_ingestion/ -v`
+- Result: 170 passed in 1.66s (131 Phase 2A + 39 Phase 2B)
+- Exit code: 0
+
+**Quality Checks:**
+- Ruff: All checks passed
+- MyPy: Success: no issues found in 47 source files
+- Django check: System check identified no issues (0 silenced)
+
+**Git Status:**
+- Branch: main
+- Working tree: Uncommitted changes (Phase 2B implementation)
+- Latest commit: 9d2e824 phase2a: implement job ingestion pipeline foundation
 - Fail-fast validation for unknown or invalid scrapers
 - Registry can be extended in future phases without code changes
 

@@ -1,0 +1,103 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=8172510",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3537063,
+      "location": {
+        "name": "Seattle, San Francisco, New York City"
+      },
+      "metadata": null,
+      "id": 8172510,
+      "updated_at": "2026-10-29T10:42:09-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Abuse Investigator",
+      "company_name": "Stripe",
+      "first_published": "2026-09-09T10:50:29-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2><strong>Who we are </strong></h2>\n<h3><strong>About Stripe</strong></h3>\n<p><span style=\"font-weight: 400;\">Stripe is a financial infrastructure platform for businesses. Millions of companies - from the world's largest enterprises to the most ambitious startups - use Stripe to accept payments, grow their revenue, and accelerate new business opportunities. Our mission is to increase the GDP of the internet.</span></p>\n<h3><strong>About the team</strong></h3>\n<p>Abuse Operations is the front-line incident response and remediation function handling active product abuse and fraud impacting Stripe and its merchants.</p>\n<h2><strong>What you'll do</strong></h2>\n<p>You'll play a critical role in safeguarding our financial ecosystem by investigating high-risk accounts and identifying complex patterns of fraud during incidents.</p>\n<h3><strong>Responsibilities</strong></h3>\n<ul>\n<li>Investigate, mitigate, and remediate urgent fraud incidents (e.g., ATO, card testing)</li>\n<li>Analyze high-risk accounts to identify fraudulent merchants and card testing</li>\n<li>Lead incident root cause analyses to identify gaps in current systems</li>\n</ul>\n<h2><strong>Who you are</strong></h2>\n<p>We're looking for someone who meets the minimum requirements to be considered for the role.</p>\n<h3><strong>Minimum requirements</strong></h3>\n<ul>\n<li>10+ years of experience conducting incident response in security, product abuse or trust domains</li>\n<li>10+ years experience analyzing large data sets to solve problems</li>\n<li>B.S. or M.S. Computer Science or related field, or equivalent experience</li>\n<li>Expert knowledge of Python and SQL</li>\n</ul>\n",
+      "departments": [
+        {
+          "id": 78730,
+          "name": "6630 Real Estate",
+          "child_ids": [],
+          "parent_id": 78727
+        }
+      ],
+      "offices": [
+        {
+          "id": 87009,
+          "name": "United Kingdom Locations",
+          "location": null,
+          "child_ids": [186827, 80466, 80465],
+          "parent_id": 17446
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8172510/ai_opt_out"
+    },
+    {
+      "absolute_url": "https://stripe.com/jobs/search?gh_jid=8265686",
+      "data_compliance": [
+        {
+          "type": "gdpr",
+          "requires_consent": false,
+          "requires_processing_consent": false,
+          "requires_retention_consent": false,
+          "retention_period": null,
+          "demographic_data_consent_applies": false
+        }
+      ],
+      "education": "education_required",
+      "internal_job_id": 3576414,
+      "location": {
+        "name": "US Hybrid"
+      },
+      "metadata": null,
+      "id": 8265686,
+      "updated_at": "2026-10-29T10:42:09-04:00",
+      "requisition_id": "See Opening ID",
+      "title": "Writer, Content Marketing",
+      "company_name": "Stripe",
+      "first_published": "2026-10-10T21:56:41-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "<h2><strong>Who we are </strong></h2>\n<h3><strong>About Stripe</strong></h3>\n<p><span style=\"font-weight: 400;\">Stripe is a financial infrastructure platform for businesses. Millions of companies - from the world's largest enterprises to the most ambitious startups - use Stripe to accept payments, grow their revenue, and accelerate new business opportunities.</span></p>\n<h3><strong>About the team</strong></h3>\n<p>Our Product Marketing team's mission is to generate customer insights that inform Stripe's product strategy, and lead go-to-market for our suite of products.</p>\n<h2><strong>What you'll do</strong></h2>\n<p>We're looking for an experienced writer to develop data-backed theses and original content pieces about how startups and AI-native businesses launch, monetize, and grow.</p>\n<h3><strong>Responsibilities</strong></h3>\n<ul>\n<li>Own content covering revenue strategies and pricing models, startups, and new developments in AI</li>\n<li>Coordinate with the demand generation team to identify opportunities for new editorial series</li>\n<li>Pioneer new content formats for Stripe, including short-form content and multimedia projects</li>\n</ul>\n<h2><strong>Who you are</strong></h2>\n<p>We're looking for someone who meets the minimum requirements to be considered for the role.</p>\n<h3><strong>Minimum requirements</strong></h3>\n<ul>\n<li>A strong writer with 7+ years of experience in journalism, content marketing, or related fields</li>\n<li>An analytical thinker who can derive original insights from data and market signals</li>\n<li>Skilled at combining various requests and feedback into a unified message</li>\n</ul>\n",
+      "departments": [
+        {
+          "id": 79922,
+          "name": "2317 Marketing - PMM",
+          "child_ids": [],
+          "parent_id": 78697
+        }
+      ],
+      "offices": [
+        {
+          "id": 65234,
+          "name": "US",
+          "location": null,
+          "child_ids": [89623, 249942, 249943],
+          "parent_id": 673
+        }
+      ],
+      "ai_disclaimer": null,
+      "include_ai_disclaimer": false,
+      "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8265686/ai_opt_out"
+    }
+  ],
+  "meta": {
+    "total": 2
+  }
+}
