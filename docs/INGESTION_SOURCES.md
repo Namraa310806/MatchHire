@@ -205,42 +205,49 @@ This document records research into publicly accessible job sources for Phase 2B
 
 ## Implementation Rate-Limit Behavior
 
-### Current Implementation (Phase 2B)
+### Current Implementation (Phase 2C)
 
 **Stripe (Greenhouse):**
 - HTTP requests per invocation: 1 (single fetch, no pagination)
 - Pagination requests: 0 (all jobs in single response)
 - Rate-limit enforcement: None (no documented rate limit)
-- Request frequency control: Manual invocation only (no scheduling in Phase 2B)
-- Future consideration: Reasonable polling (daily or hourly) when scheduling is added
+- Request frequency control: Configurable via `IngestionSource.fetch_interval_hours` (default 24h)
+- Backoff strategy: Exponential backoff on 5xx and 429 responses (max 3 retries)
+- Concurrency protection: Redis-based distributed lock prevents concurrent ingestion
 
 **Spotify (Lever):**
 - HTTP requests per invocation: 1 (single fetch, no pagination used)
-- Pagination requests: 0 (skip/limit available but not used in Phase 2B)
-- Rate-limit enforcement: None (crawl-delay is documented but not enforced in code)
-- Request frequency control: Manual invocation only (no scheduling in Phase 2B)
-- Future requirement: Must respect 1-second crawl-delay when repeated ingestion is introduced
+- Pagination requests: 0 (skip/limit available but not used in Phase 2C)
+- Rate-limit enforcement: 1-second crawl-delay enforced before fetch (robots.txt compliance)
+- Request frequency control: Configurable via `IngestionSource.fetch_interval_hours` (default 24h)
+- Backoff strategy: Exponential backoff on 5xx and 429 responses (max 3 retries)
+- Concurrency protection: Redis-based distributed lock prevents concurrent ingestion
 
-### Rate-Limit Limitations
+### Rate-Limit Improvements in Phase 2C
 
-**Current Limitations:**
-- No automatic enforcement of rate limits in code
-- No request throttling mechanism
-- No backoff strategy for 429 responses
-- No metrics for request frequency tracking
-- Manual invocation only (no scheduling infrastructure)
+**New Capabilities:**
+- Redis-based distributed locking prevents concurrent ingestion for same source
+- Exponential backoff with jitter for transient failures (timeouts, 5xx, 429)
+- Retry-After header respected when present in HTTP 429 response
+- Configurable fetch intervals per source (1h, 6h, 12h, 24h, custom)
+- Celery Beat scheduling for automated periodic ingestion
+- Health checks for worker and beat services in Docker Compose
 
-**Future Requirements (Out of Scope for Phase 2B):**
-- Implement request throttling before adding scheduling
-- Add exponential backoff for 429 responses
-- Track request frequency per source
-- Enforce crawl-delay constraints when repeated ingestion is introduced
-- Consider rate-limit-aware scheduling (e.g., spread sources over time window)
+**Retry Policy:**
+- Transient errors: retries with exponential backoff (max 3 retries, max 600s backoff)
+- Non-transient errors: no retry (immediate failure)
+- Retry count tracked in FetchRun.retry_count
+- Retry timestamp tracked in FetchRun.last_retry_at
+
+**Rate-Limit Enforcement:**
+- Spotify-specific: 1-second delay before fetch (robots.txt compliance)
+- Future sources: can add source-specific delays via task logic
+- No universal delay for all sources (only where documented)
 
 ---
 
 ## Research Date
 
-**Document Last Updated:** 2026-11-03
+**Document Last Updated:** 2026-11-04
 
-**Phase:** Phase 2B - First Real Company Scrapers
+**Phase:** Phase 2C - Reliable Automated Ingestion with Celery

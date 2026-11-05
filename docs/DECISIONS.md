@@ -685,6 +685,320 @@ The following companies are candidates for source review but are NOT approved:
 - Source 1: Stripe (Greenhouse ATS) - `https://boards-api.greenhouse.io/v1/boards/stripe/jobs?content=true`
 - Source 2: Spotify (Lever ATS) - `https://api.lever.co/v0/postings/spotify?mode=json`
 - Third source deferred (2 sources is sufficient for Phase 2B per specification)
+
+---
+
+## Phase 2C: Reliable Automated Ingestion with Celery
+
+### FetchRun Lifecycle States
+**Status:** Implemented
+
+**Topic:** Lifecycle states and counters for FetchRun to track ingestion execution.
+
+**Final Decision:**
+- Enhanced FetchRun model with proper lifecycle states: pending, running, succeeded, partially_succeeded, failed
+- Added counters: jobs_fetched, jobs_parsed, jobs_created, jobs_updated, jobs_skipped, jobs_invalid
+- Added retry tracking: retry_count, last_retry_at
+- Removed obsolete fields: jobs_stale, jobs_closed (not used in Phase 2C)
+- Added indexes: (source, started_at), (status, started_at) for efficient querying
+- Terminal states (succeeded, partially_succeeded, failed) always set completed_at timestamp
+- Error information stored in error_message field
+
+**Rationale:**
+- Clear lifecycle states enable monitoring and debugging
+- Counters provide visibility into ingestion pipeline performance
+- Retry tracking supports reliability improvements
+- Indexes support operational queries (recent runs, failed runs per source)
+
+**Alternatives Considered:**
+- Keep original minimal FetchRun: Rejected as insufficient for monitoring
+- Use separate logging table: Rejected as FetchRun is the right place for execution metadata
+
+**Consequences:**
+- Migration 0007 created to update FetchRun schema
+- Admin interface updated to show new fields
+- Celery tasks write state transitions and counters
+
+---
+
+### Celery Task Architecture
+**Status:** Implemented
+
+**Topic:** How Celery tasks orchestrate ingestion without duplicating business logic.
+
+**Final Decision:**
+- Created `ingest_source_task` as single orchestration task in `api/tasks.py`
+- Task responsibilities: source validation, lock acquisition, pipeline execution, FetchRun lifecycle, error handling
+- Business logic (parsing, normalization, validation, persistence) remains in existing pipeline modules
+- Task delegates to `process_batch()` from ingestion pipeline
+- Task handles lock acquisition/release, retry logic, and FetchRun state management
+- Returns structured result dict with fetch_run_id and counts
+
+**Rationale:**
+- Separation of concerns: tasks orchestrate, pipeline processes
+- Existing synchronous pipeline remains reusable for dry-run and manual commands
+- No code duplication between task and command execution paths
+
+**Alternatives Considered:**
+- Move business logic into tasks: Rejected as it would duplicate code and break dry-run
+- Create separate pipeline for Celery: Rejected as unnecessary complexity
+
+**Consequences:**
+- New `api/tasks.py` module with task orchestration
+- `ingest_jobs` command continues to use synchronous pipeline
+- Task and command share same `process_batch()` logic
+
+---
+
+### Distributed Locking Strategy
+**Status:** Implemented
+
+**Topic:** How to prevent concurrent ingestion for the same source across multiple workers.
+
+**Final Decision:**
+- Redis-based distributed locks using Redlock-style pattern with unique ownership tokens
+- Lock key: `ingestion_lock:source:{source_id}`
+- Lock lifetime: 3600 seconds (1 hour) by default
+- Lock acquisition: `redis.set(key, unique_token, nx=True, ex=timeout)` - stores UUID token
+- Lock release: Lua script for atomic compare-and-delete (verifies ownership before deletion)
+- Functions: `acquire_source_lock()` returns token or None, `release_source_lock(token)` returns bool
+- Lock acquisition failure: task ignores and exits (no retry)
+- Lock release on error: always released in finally block with ownership verification
+- Lock expiration: prevents deadlock if worker crashes
+- Redis errors: raise `SourceLockError` for explicit handling
+
+**Rationale:**
+- Redis provides distributed coordination across workers
+- Unique UUID token prevents one task from deleting another's lock after expiry
+- Lua script ensures atomic compare-and-delete (safe release)
+- 1-hour timeout covers normal ingestion plus retries
+- Finally block ensures lock release even on errors
+- Ownership verification prevents race conditions
+
+**Alternatives Considered:**
+- Blind key deletion: Rejected (unsafe, can delete another task's lock after expiry)
+- Static lock value: Rejected (no ownership verification)
+- Database-level lock: Rejected (doesn't work across workers with separate DB connections)
+- Process-local lock: Rejected (doesn't prevent concurrent execution across workers)
+- Celery's built-in lock: Not suitable for source-level locking (task-level only)
+- Redis Redlock library: Rejected (additional dependency, overkill for single-source locks)
+
+**Consequences:**
+- Lock functions in `api/tasks.py`: `acquire_source_lock()`, `release_source_lock()`
+- Task acquires lock before ingestion, releases in finally block
+- Redis URL configurable via `REDIS_LOCK_URL` setting (defaults to CELERY_BROKER_URL)
+- Lua script stored as constant for atomic operations
+
+**Failure Modes:**
+- Redis unavailable: lock acquisition raises `SourceLockError`, task skipped
+- Lock expiration: if task runs >1 hour, lock auto-expires (next task can proceed)
+- Worker crash: lock auto-expires after timeout
+- Wrong token on release: Lua script returns 0, lock not deleted (safe)
+
+---
+
+### FetchRun Reuse Across Retries
+**Status:** Implemented
+
+**Topic:** How to prevent duplicate FetchRun records when Celery retries a task.
+
+**Final Decision:**
+- FetchRun created once per logical execution, reused across retries via `celery_task_id` lookup
+- `_create_fetch_run()` queries for existing FetchRun with matching `celery_task_id` before creating new
+- If existing FetchRun found, return it (reuse instead of duplicate)
+- Retry count and timestamp updated in exception handler before retry
+- Terminal states (succeeded, failed, partially_succeeded) written once at completion
+- Lock release in finally block regardless of retry state
+
+**Rationale:**
+- Celery retries use the same task ID across attempts
+- Reusing FetchRun provides single audit trail per logical execution
+- Prevents duplicate records conflating attempts with executions
+- Retry tracking in single record provides clear history
+
+**Alternatives Considered:**
+- Create new FetchRun on every retry: Rejected (duplicates audit trail, conflates attempts with executions)
+- Use database transactions for uniqueness: Rejected (adds complexity, Celery async makes transactional guarantees difficult)
+- No FetchRun for retries: Rejected (loses retry history)
+
+**Consequences:**
+- `_create_fetch_run()` now checks for existing FetchRun before creating
+- FetchRun filtering by `celery_task_id` ensures reuse
+- Retry count and timestamp updated in exception handler
+- Test added to verify FetchRun reuse logic
+
+**Failure Modes:**
+- If task_id is not unique across executions (unlikely), retries could conflate different executions
+- Worker crash without finally execution could leave FetchRun in 'running' state (mitigated by lock expiry)
+
+---
+
+### Retry Policy
+**Status:** Implemented
+**Status:** Implemented
+
+**Topic:** When and how to retry failed ingestion tasks.
+
+**Final Decision:**
+- Transient errors: retry with exponential backoff, max 3 retries
+- Transient error types: requests.Timeout, requests.ConnectionError, HTTP 429, HTTP 5xx, RedisError
+- Non-transient errors: no retry, immediate failure
+- Non-transient error types: HTTP 4xx (except 429), ValueError, invalid configuration, malformed data
+- Retry backoff: exponential with jitter, max 600 seconds (10 minutes)
+- Retry-After header: if HTTP 429 includes Retry-After, use that value
+- Retry count tracked in FetchRun.retry_count and FetchRun.last_retry_at
+- Max retries exceeded: mark FetchRun as failed with "Max retries exceeded" error
+
+**Rationale:**
+- Transient errors are worth retrying (network issues, rate limits)
+- Non-transient errors indicate real problems (config, data)
+- Bounded retries prevent infinite loops
+- Exponential backoff reduces load on failing sources
+- Retry-After respects server-provided guidance
+
+**Alternatives Considered:**
+- Retry all errors: Rejected as it wastes resources on permanent failures
+- No retries: Rejected as transient errors are common
+- Unlimited retries: Rejected as it causes infinite loops
+
+**Consequences:**
+- Task decorator: `@shared_task(max_retries=3, autoretry_for=(requests.Timeout, ...), retry_backoff=True, retry_backoff_max=600, retry_jitter=True)`
+- `is_transient_error()` function classifies errors
+- `get_retry_after_seconds()` extracts Retry-After header
+- Task checks `self.request.retries` vs `self.max_retries` before retry
+
+---
+
+### Celery Beat Scheduling
+**Status:** Implemented
+
+**Topic:** How to schedule periodic ingestion for active sources.
+
+**Final Decision:**
+- Use django-celery-beat's DatabaseScheduler for dynamic scheduling
+- Provide `sync_beat_schedule` management command to sync IngestionSource to PeriodicTask table
+- Command reads active IngestionSource records and creates/updates PeriodicTask entries
+- Schedule interval based on `IngestionSource.fetch_interval_hours`
+- Schedule mapping: 1h → hourly crontab, 6h → every 6h crontab, 12h → every 12h crontab, 24h → daily crontab
+- Custom intervals: use IntervalSchedule with seconds (interval_hours * 3600)
+- Task routing: all ingestion tasks use `fetch_queue`
+- Inactive sources: corresponding PeriodicTask entries disabled automatically
+- Command supports `--dry-run` flag for preview
+- Manual sync required when adding/modifying sources
+
+**Rationale:**
+- Database scheduler allows dynamic changes without code deployment
+- Manual sync command provides explicit control and auditability
+- Source-specific intervals respect rate limits and update frequency
+- fetch_queue isolation allows separate worker concurrency settings
+- Avoids startup dependency on database for schedule generation
+
+**Alternatives Considered:**
+- Hardcoded schedule in code: Rejected as requires deployment for changes
+- Dynamic schedule generation in celery.py: Rejected (startup dependency on database, complex error handling)
+- Signal-based auto-sync on IngestionSource save: Rejected (database writes trigger schedule changes, potential race conditions)
+- Use cron on host: Rejected as it doesn't integrate with Celery
+- Single queue for all tasks: Rejected as it prevents per-queue concurrency tuning
+
+**Consequences:**
+- New `api/management/commands/sync_beat_schedule.py` module
+- `CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"` in base settings
+- Worker command includes `-Q fetch_queue` to process ingestion tasks
+- Django admin interface for PeriodicTask management
+- Operator must run `python manage.py sync_beat_schedule` after source changes
+
+**Deployment Requirement:**
+- Single Beat process required (multiple Beats would create duplicate schedules)
+- Run sync command on startup or after source configuration changes
+
+---
+
+### Spotify Request-Delay Enforcement
+**Status:** Implemented
+
+**Topic:** How to respect Spotify's crawl-delay requirement from robots.txt.
+
+**Final Decision:**
+- Detect Spotify sources by checking source name or scraper class for "spotify" or "lever"
+- If detected, apply 1-second sleep before fetch
+- Implementation: `time.sleep(1)` before `scraper.fetch()`
+- Only applied to identified Spotify/Lever sources
+- Not applied to other sources (no universal delay)
+
+**Rationale:**
+- Respects documented crawl-delay requirement
+- Minimal impact on other sources
+- Simple implementation without complex rate-limiting framework
+
+**Alternatives Considered:**
+- Universal 1-second delay for all sources: Rejected as unnecessary for sources without crawl-delay
+- Sophisticated rate-limiting library: Rejected as overkill for Phase 2C
+- Ignore crawl-delay: Rejected as it violates robots.txt
+
+**Consequences:**
+- Delay added in `ingest_source_task()` before fetch
+- Sources without crawl-delay not affected
+- Future phase may add per-source delay configuration
+
+---
+
+### Concurrency Configuration
+**Status:** Implemented
+
+**Topic:** Worker concurrency settings for Docker Compose.
+
+**Final Decision:**
+- Worker concurrency: `-c 2` (2 worker processes)
+- Task limit per child: `--max-tasks-per-child=1000` (prevent memory leaks)
+- Queue configuration: `-Q default,fetch_queue,parse_queue,match_queue`
+- Concurrency aligns with Decision 6 (fetch_queue=2 proposed)
+- Health check: `celery -A config inspect ping` every 30s
+
+**Rationale:**
+- Lower concurrency respects rate limits (fetch_queue specifically)
+- max-tasks-per-child prevents long-running memory accumulation
+- Health check enables Docker Compose restart on failure
+
+**Alternatives Considered:**
+- Default concurrency (CPU count): Rejected as too high for rate-limited fetching
+- No max-tasks-per-child: Rejected as memory leaks accumulate over time
+- No health check: Rejected as no recovery from worker crashes
+
+**Consequences:**
+- Docker Compose worker command updated with concurrency settings
+- Health check enables orchestration-level recovery
+- Note: parse_queue and match_queue not yet used (future phases)
+
+---
+
+### Operational Management Commands
+**Status:** Implemented
+
+**Topic:** Management commands for operational visibility and manual triggering.
+
+**Final Decision:**
+- `inspect_fetch_runs`: View recent FetchRun records with filtering
+  - Options: `--source <id>`, `--status <status>`, `--limit <n>`
+  - Displays: source, status, counters, error messages, timestamps
+- `trigger_ingestion`: Manually trigger ingestion for a source via Celery
+  - Option: `--source <id>` (required)
+  - Returns: Celery task ID for tracking
+- `ingest_jobs`: Retained with dry-run support
+  - Updated to suggest `trigger_ingestion` for background execution
+
+**Rationale:**
+- Inspect command enables debugging and monitoring
+- Trigger command supports manual ingestion without waiting for schedule
+- Dry-run command remains for validation
+
+**Alternatives Considered:**
+- No manual commands: Rejected as operational need for manual triggers
+- Web admin only: Rejected as CLI is faster for operations
+
+**Consequences:**
+- New management commands in `api/management/commands/`
+- Commands respect concurrency protection (trigger uses same task)
+- Dry-run continues to use synchronous pipeline
 - Both sources have robots.txt permission and no authentication requirement
 - Both sources provide stable JSON responses with application URLs
 

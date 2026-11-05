@@ -194,6 +194,7 @@ class FetchRunAdmin(admin.ModelAdmin):
         "started_at",
         "completed_at",
         "jobs_fetched",
+        "jobs_parsed",
         "jobs_created",
         "jobs_updated",
     )
@@ -205,12 +206,15 @@ class FetchRunAdmin(admin.ModelAdmin):
         "started_at",
         "completed_at",
         "jobs_fetched",
+        "jobs_parsed",
         "jobs_created",
         "jobs_updated",
-        "jobs_stale",
-        "jobs_closed",
+        "jobs_skipped",
+        "jobs_invalid",
         "error_message",
         "celery_task_id",
+        "retry_count",
+        "last_retry_at",
     )
 
     def has_add_permission(self, request):

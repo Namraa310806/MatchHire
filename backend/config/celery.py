@@ -8,7 +8,17 @@ app = Celery("matchhire")
 
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-app.autodiscover_tasks()
+# Explicitly discover tasks from api app
+app.autodiscover_tasks(["api"])
+
+# Use static schedule by default
+# In production, use django-celery-beat's database scheduler for dynamic scheduling
+try:
+    from config.celery_schedule import STATIC_SCHEDULE
+
+    app.conf.beat_schedule = STATIC_SCHEDULE
+except Exception:
+    app.conf.beat_schedule = {}
 
 
 @app.task(bind=True)

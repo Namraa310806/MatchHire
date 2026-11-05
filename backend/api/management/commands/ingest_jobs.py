@@ -136,3 +136,5 @@ class Command(BaseCommand):
             self.stdout.write("REAL INGESTION")
             self.stdout.write("=" * 50)
             self.stdout.write(self.style.SUCCESS("Jobs written to database"))
+            self.stdout.write("\nNote: For background ingestion with retries and monitoring, use:")
+            self.stdout.write("  python manage.py trigger_ingestion --source <source-id>")

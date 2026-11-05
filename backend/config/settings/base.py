@@ -32,6 +32,9 @@ INSTALLED_APPS = [
     "api",
 ]
 
+# Celery Beat scheduler (use database scheduler for dynamic scheduling)
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -116,6 +119,9 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+
+# Redis client configuration for distributed locking
+REDIS_LOCK_URL = environ.get("REDIS_LOCK_URL", CELERY_BROKER_URL)
 
 # Named queues
 CELERY_TASK_DEFAULT_QUEUE = "default"

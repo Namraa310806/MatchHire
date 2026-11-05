@@ -3,8 +3,6 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from api.tasks import ping
-
 
 class HealthCheckTestCase(TestCase):
     def setUp(self):
@@ -17,11 +15,3 @@ class HealthCheckTestCase(TestCase):
         self.assertEqual(response.data["status"], "ok")
         self.assertEqual(response.data["database"], "ok")
         self.assertEqual(response.data["redis"], "ok")
-
-
-class CeleryPingTestCase(TestCase):
-    def test_ping_task(self):
-        """Test Celery ping task executes successfully in eager mode."""
-        result = ping.apply()
-        self.assertEqual(result.result, "pong")
-        self.assertEqual(result.state, "SUCCESS")

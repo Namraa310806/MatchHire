@@ -47,6 +47,7 @@ services:
       DB_PASSWORD: matchhire
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_LOCK_URL: redis://redis:6379/0
       SECRET_KEY: django-insecure-development-key-change-in-production
       ALLOWED_HOSTS: localhost,127.0.0.1,backend
     depends_on:
@@ -60,7 +61,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: matchhire_celery_worker
-    command: celery -A config worker -l info -Q default,fetch_queue,parse_queue,match_queue
+    command: celery -A config worker -l info -Q default,fetch_queue,parse_queue,match_queue -c 2 --max-tasks-per-child=1000
     volumes:
       - ./backend:/app
       - /app/.venv
@@ -73,19 +74,25 @@ services:
       DB_PASSWORD: matchhire
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_LOCK_URL: redis://redis:6379/0
       SECRET_KEY: django-insecure-development-key-change-in-production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   celery_beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: matchhire_celery_beat
-    command: celery -A config beat -l info
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./backend:/app
       - /app/.venv
@@ -98,12 +105,18 @@ services:
       DB_PASSWORD: matchhire
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_LOCK_URL: redis://redis:6379/0
       SECRET_KEY: django-insecure-development-key-change-in-production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; import signal; os.kill(1, 0)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:

@@ -258,9 +258,9 @@ class FetchRun(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("running", "Running"),
-        ("success", "Success"),
-        ("failure", "Failure"),
-        ("partial", "Partial"),
+        ("succeeded", "Succeeded"),
+        ("partially_succeeded", "Partially Succeeded"),
+        ("failed", "Failed"),
     ]
 
     id = models.BigAutoField(primary_key=True)
@@ -269,17 +269,24 @@ class FetchRun(models.Model):
     started_at = models.DateTimeField(auto_now_add=True, db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     jobs_fetched = models.IntegerField(default=0)
+    jobs_parsed = models.IntegerField(default=0)
     jobs_created = models.IntegerField(default=0)
     jobs_updated = models.IntegerField(default=0)
-    jobs_stale = models.IntegerField(default=0)
-    jobs_closed = models.IntegerField(default=0)
+    jobs_skipped = models.IntegerField(default=0)
+    jobs_invalid = models.IntegerField(default=0)
     error_message = models.TextField(blank=True)
     celery_task_id = models.CharField(max_length=255, blank=True, db_index=True)
+    retry_count = models.IntegerField(default=0)
+    last_retry_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "fetch_run"
         verbose_name = "fetch run"
         verbose_name_plural = "fetch runs"
+        indexes = [
+            models.Index(fields=["source", "started_at"]),
+            models.Index(fields=["status", "started_at"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.source.name} - {self.status} at {self.started_at}"  # type: ignore[no-any-return]
