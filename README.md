@@ -108,6 +108,78 @@ Expected response:
 }
 ```
 
+## Development Data Seeding
+
+For local development and testing, you can seed the database with synthetic data:
+
+```bash
+cd backend
+uv run python manage.py seed_dev_data
+```
+
+**Important:** This command is exclusively for development environments and will refuse to run if `DEBUG=False` (production setting).
+
+### What the Seed Command Creates
+
+The `seed_dev_data` command creates a deterministic, fictional dataset:
+
+- **3 fictional companies** with ingestion sources
+  - TechNova Solutions (hybrid full-time roles)
+  - DataFlow Analytics (on-site/internship roles)
+  - CloudScale Systems (remote/DevOps roles)
+
+- **6 fictional jobs** (2 per company) via the ingestion pipeline
+  - All jobs enter through the approved ingestion pathway (preserves job-creation invariant)
+  - Jobs have realistic titles, descriptions, locations, and requirements
+  - All URLs use `example.invalid` (reserved for documentation/examples)
+
+- **2 fictional candidate users** with profiles
+  - candidate1@example.invalid (1.5 years experience, Python/Django skills)
+  - candidate2@example.invalid (fresher, data analysis skills)
+
+- **Skills and relationships**
+  - 20 skills in the vocabulary (Python, Django, React, SQL, etc.)
+  - Candidate-skill associations
+  - Work experience records
+
+- **Match scores and application clicks**
+  - Match scores for all candidate-job pairs
+  - Application clicks for high-scoring matches
+
+### Key Properties
+
+- **Idempotent:** Running the command multiple times does not create duplicates
+- **Deterministic:** Same data is created on each run
+- **Transaction-safe:** All operations are wrapped in a database transaction
+- **Clearly synthetic:** All data uses fictional companies and example.invalid domains
+- **Invariant-preserving:** Jobs enter through the standard ingestion pipeline
+
+### Verification
+
+After seeding, you can verify the data:
+
+```bash
+uv run python manage.py shell
+```
+
+```python
+from api.models import Company, Job, CandidateProfile
+
+print(f"Companies: {Company.objects.count()}")
+print(f"Jobs: {Job.objects.count()}")
+print(f"Candidates: {CandidateProfile.objects.count()}")
+```
+
+### Production Safety
+
+The command will refuse to run in production:
+
+```
+CommandError: seed_dev_data cannot run in production. This command is exclusively for development environments.
+```
+
+This safety check is based on the `DEBUG` setting. Never run this command with real production data.
+
 ## Development
 
 ### Backend Stack

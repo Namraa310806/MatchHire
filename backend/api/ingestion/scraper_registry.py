@@ -10,6 +10,10 @@ _ALLOWED_SCRAPERS: dict[str, tuple[str, str]] = {
     "FakeScraper": ("api.ingestion.fake_scraper", "FakeScraper"),
     "GreenhouseStripeScraper": ("api.ingestion.scrapers.greenhouse_stripe", "GreenhouseStripeScraper"),
     "LeverSpotifyScraper": ("api.ingestion.scrapers.lever_spotify", "LeverSpotifyScraper"),
+    # Development-only seed scraper for synthetic job data
+    # This scraper generates fictional data for local development and testing
+    # It routes through the standard ingestion pipeline to preserve the job-creation invariant
+    "DevSeedScraper": ("api.ingestion.scrapers.dev_seed", "DevSeedScraper"),
 }
 
 
