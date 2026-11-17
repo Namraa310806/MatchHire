@@ -1357,3 +1357,260 @@ The following companies are candidates for source review but are NOT approved:
 - Pipeline reads `scraper.parse_errors` without `hasattr` check
 - Errors are guaranteed to be available for any BaseJobScraper implementation
 - Test added using SimpleTestScraper (independent of FakeScraper) to verify contract
+
+---
+
+## Phase 3A: Shared Skill Extraction
+
+### Versioned Skills Dictionary
+**Status:** Implemented
+
+**Topic:** Structure and implementation of the versioned skills dictionary.
+
+**Final Decision:**
+- Dictionary stored as JSON data file (not hardcoded Python dict)
+- File location: `backend/api/extraction/skills_dictionary.json`
+- Dictionary version: 1.0.0
+- Target: 500+ canonical skills with aliases and categories
+- Structure: Top-level object with version, last_updated, description, and skills object
+- Skills organized by category (Programming Languages, Backend, Frontend, Databases, Cloud and DevOps, Data Engineering, Machine Learning and AI, Security, Testing, Tools and Platforms, Mobile Development, Embedded Systems)
+- Each skill entry: canonical name, aliases list, optional metadata dict
+- Validation on load: checks for duplicate canonical names, ambiguous aliases, required fields
+- Singleton pattern: global instance cached to avoid repeated file I/O
+- No external service queries at runtime (offline dictionary)
+- Updates reviewable through ordinary data-file changes
+
+**Rationale:**
+- JSON data file is easier to review and edit than large Python dict
+- Version tracking enables migration planning
+- Category organization improves maintainability
+- Validation prevents silent errors
+- Singleton pattern improves performance
+- Offline operation avoids external dependencies
+
+**Alternatives Considered:**
+- Hardcoded Python dict: Rejected as hard to review and update
+- Database storage: Rejected as adds complexity and database dependency
+- External API: Rejected as violates offline requirement
+- YAML format: Rejected as JSON is more standard and easier to parse
+
+**Consequences:**
+- SkillsDictionary class with validation and alias resolution
+- Global `get_skills_dictionary()` function for singleton access
+- Dictionary version tracking for future migrations
+- Tests for validation, alias resolution, and duplicate detection
+
+---
+
+### Skill Extraction Engine
+**Status:** Implemented
+
+**Topic:** Implementation of skill extraction with word-boundary-aware matching.
+
+**Final Decision:**
+- Separate module: `api/extraction/skill_extractor.py`
+- Function: `extract_skills(text)` returns list of SkillMatch objects
+- Matching: case-insensitive, word-boundary-aware using regex
+- Alias resolution: all aliases map to canonical names
+- Output: deduplicated, sorted deterministically by canonical name
+- Special handling: dots (Node.js), slashes (CI/CD), spaces (REST API), special chars (C++, C#, .NET)
+- False positive prevention: word boundaries for single-letter skills (C, R, Go)
+- Performance: efficient regex pattern building, cached dictionary
+- Separation: extraction logic separate from persistence (testable independently)
+
+**Rationale:**
+- Word boundaries prevent false positives (e.g., "Go" in "going")
+- Case-insensitive matching improves recall
+- Alias resolution normalizes skill names
+- Deterministic output aids testing and reproducibility
+- Separation of concerns enables independent testing
+
+**Alternatives Considered:**
+- Naïve substring matching: Rejected (high false positive rate)
+- NLP-based extraction: Rejected as overkill for Phase 3A
+- External library: Rejected to avoid additional dependencies
+- Case-sensitive matching: Rejected (reduces recall)
+
+**Consequences:**
+- `extract_skills()` function with comprehensive word-boundary logic
+- `_match_skill()` helper for pattern matching with special char handling
+- 500+ skill patterns with aliases resolved to canonical names
+- Comprehensive test coverage for edge cases
+
+---
+
+### Domain Keyword Extraction
+**Status:** Implemented
+
+**Topic:** Implementation of domain keyword extraction separate from technical skills.
+
+**Final Decision:**
+- Separate module: `api/extraction/domain_keywords.py`
+- Fixed vocabulary separate from skills dictionary
+- Function: `extract_domain_keywords(text)` returns list of DomainKeywordMatch objects
+- Keywords represent domains/fields (NLP, Fintech, VLSI) not technical skills
+- Word-boundary-aware matching similar to skill extraction
+- Categories: AI/ML, Data Science, Industry verticals (Fintech, Healthtech), DevOps, Security, etc.
+- No overlap with technical skills (distinct concepts)
+- Used for Jaccard matching signal (not skill overlap)
+
+**Rationale:**
+- Domain keywords are conceptually different from technical skills
+- Separate vocabulary prevents conflating the two
+- Jaccard matching on domains provides complementary signal to skill matching
+- Fixed vocabulary simpler than versioned dictionary for this use case
+
+**Alternatives Considered:**
+- Reuse skills dictionary: Rejected (conflates technical skills with domains)
+- NLP-based domain detection: Rejected as overkill for Phase 3A
+- No domain extraction: Rejected (loses valuable matching signal)
+
+**Consequences:**
+- Fixed domain keyword vocabulary in code (not JSON)
+- `extract_domain_keywords()` function
+- Domain keywords distinct from skills in matching logic
+- Tests for domain keyword extraction and false positive prevention
+
+---
+
+### Years of Experience Estimator
+**Status:** Implemented
+
+**Topic:** Implementation of conservative experience estimation from resume text.
+
+**Final Decision:**
+- Separate module: `api/extraction/experience_estimator.py`
+- Function: `estimate_experience_years(text)` returns ExperienceEstimate object
+- Priority: explicit statements > date ranges > internship counting
+- Internship weighting: 0.5 years (6 months) per internship per SPEC.md
+- Overlap handling: merge overlapping periods to avoid double-counting
+- Minimum threshold: roles < 1 month ignored
+- Returns null when experience cannot be reliably determined
+- Does not infer from graduation year alone
+- Confidence levels: high (explicit), medium (date ranges), low (internships), none (unknown)
+- Methodology field describes how estimate was derived
+
+**Rationale:**
+- Conservative estimation avoids false claims
+- Internship weighting acknowledges partial experience
+- Overlap merging prevents double-counting
+- Null return for unknown data prevents false positives
+- Confidence levels communicate estimate reliability
+
+**Alternatives Considered:**
+- Infer from graduation year: Rejected (inaccurate)
+- Count all experience equally: Rejected (internships different)
+- Always return a number: Rejected (false confidence)
+- NLP-based extraction: Rejected as overkill for Phase 3A
+
+**Consequences:**
+- `estimate_experience_years()` with multi-priority extraction
+- `_extract_explicit_total_experience()` for high-confidence statements
+- `_extract_employment_periods()` for date ranges
+- `_sum_employment_periods()` with overlap merging and internship weighting
+- `_count_internships()` as fallback
+- ExperienceEstimate dataclass with confidence and methodology
+
+---
+
+### Job Ingestion Integration
+**Status:** Implemented
+
+**Topic:** Integration of shared extractor with existing job ingestion pipeline.
+
+**Final Decision:**
+- Updated `api/ingestion/skill_extraction.py` to use shared extractor
+- Legacy interface preserved for backward compatibility
+- `extract_skills()` now returns list of canonical names (not SkillMatch objects)
+- Shared extractor loaded via `api.extraction.extract_skills`
+- Existing scraper interfaces unchanged
+- JobRecord continues to use canonical skill names
+- JobSkill relationships remain compatible with existing schema
+- No duplicate Skill records created
+- Preserves existing ingestion idempotency and hashing behavior
+- No second job persistence path introduced
+- Job-creation invariant maintained
+
+**Rationale:**
+- Minimal changes to existing pipeline reduce risk
+- Backward compatibility prevents breaking changes
+- Shared extractor provides better coverage (500+ vs 30 skills)
+- Existing tests continue to pass with interface compatibility
+
+**Alternatives Considered:**
+- Replace entire pipeline: Rejected (high risk, unnecessary)
+- Create parallel extraction path: Rejected (violates single-path invariant)
+- Break backward compatibility: Rejected (breaking change)
+
+**Consequences:**
+- Updated `api/ingestion/skill_extraction.py` as thin wrapper
+- Shared extractor used by both ingestion and future resume parsing
+- Existing job ingestion tests continue to pass
+- Skill extraction now uses 500+ term vocabulary
+
+---
+
+### Job Retagging Command
+**Status:** Implemented
+
+**Topic:** Safe management command for retagging existing jobs with new dictionary.
+
+**Final Decision:**
+- Command: `python manage.py retag_skills`
+- Default mode: dry-run (no writes)
+- Explicit commit: `--commit` flag to apply changes
+- Limit option: `--limit` for testing with subset of jobs
+- Reporting: jobs inspected, skills detected, additions, removals, unchanged, errors
+- Transaction safety: each job updated in transaction (atomic)
+- Idempotency: running twice on same state produces no changes
+- Preserves unrelated job fields (title, description, etc.)
+- Never deactivates jobs or modifies source identifiers
+- Skills not in vocabulary are ignored (existing behavior)
+- Rollback strategy: manual review of dry-run output before commit
+
+**Rationale:**
+- Dry-run default prevents accidental data modification
+- Transaction safety ensures atomic updates
+- Idempotency enables safe re-runs
+- Clear reporting provides audit trail
+- Limit option enables safe testing
+
+**Alternatives Considered:**
+- Automatic retagging in migration: Rejected (no review, unsafe)
+- No dry-run mode: Rejected (unsafe, no preview)
+- Modify job records directly: Rejected (bypasses model logic)
+
+**Consequences:**
+- `api/management/commands/retag_skills.py` command
+- Dry-run by default, explicit commit required
+- Transaction-safe updates per job
+- Comprehensive reporting of changes
+- Safe testing with --limit option
+
+---
+
+### Seed Data Update
+**Status:** Implemented
+
+**Topic:** Update seed_dev_data command to use versioned skills dictionary.
+
+**Final Decision:**
+- Updated `_seed_skills()` to load from versioned dictionary
+- Uses `get_skills_dictionary()` singleton
+- Creates all 500+ skills from dictionary with correct categories
+- Dictionary version reported in output
+- Replaces hardcoded 20-skill list
+
+**Rationale:**
+- Consistency between seed data and production vocabulary
+- Automatic updates when dictionary version changes
+- Correct categories from dictionary
+
+**Alternatives Considered:**
+- Keep hardcoded list: Rejected (inconsistent with dictionary)
+- Seed only subset: Rejected (limits testing coverage)
+
+**Consequences:**
+- Seed data now uses full 500+ skill vocabulary
+- Categories populated from dictionary
+- Development environment has complete skill set for testing

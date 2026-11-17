@@ -1,81 +1,61 @@
-"""Skill extraction from job descriptions."""
+"""Skill extraction from job descriptions using shared versioned dictionary.
 
-import re
+This module now uses the shared extraction utilities from api.extraction
+to maintain consistency between job ingestion and resume parsing.
+The original ~30-term dictionary has been replaced with the versioned
+500+ term dictionary per Phase 3A requirements.
+"""
 
-# Skills dictionary with canonical names and aliases
-# This is a representative subset (~30 skills) for Phase 2A
-# In production, this would be expanded to 500+ terms per Decision 3
-_SKILLS_DICT: dict[str, list[str]] = {
-    # Programming languages
-    "Python": ["python", "py"],
-    "JavaScript": ["javascript", "js", "ecmascript"],
-    "Java": ["java"],
-    "C++": ["c++", "cpp"],
-    "C": ["c"],
-    "C#": ["c#", "csharp"],
-    "Go": ["go", "golang"],
-    "Rust": ["rust"],
-    "Ruby": ["ruby"],
-    "PHP": ["php"],
-    "TypeScript": ["typescript", "ts"],
-    "Swift": ["swift"],
-    "Kotlin": ["kotlin"],
-    "Scala": ["scala"],
-    "R": ["r"],
-    "SQL": ["sql"],
-    "HTML": ["html"],
-    "CSS": ["css"],
-    # Frameworks and libraries
-    "React": ["react", "reactjs", "react.js"],
-    "Angular": ["angular", "angularjs"],
-    "Vue": ["vue", "vuejs", "vue.js"],
-    "Django": ["django"],
-    "Flask": ["flask"],
-    "Spring": ["spring", "spring boot"],
-    "Node.js": ["node", "nodejs", "node.js"],
-    "Express": ["express", "expressjs"],
-    # Tools and platforms
-    "Docker": ["docker"],
-    "Kubernetes": ["kubernetes", "k8s"],
-    "Git": ["git"],
-    "AWS": ["aws", "amazon web services"],
-    "Azure": ["azure"],
-    "GCP": ["gcp", "google cloud platform"],
-    "Linux": ["linux"],
-}
+from api.extraction import SkillMatch
+from api.extraction import extract_skills as shared_extract_skills
 
 
 def extract_skills(description: str) -> list[str]:
-    """Extract skills from job description using deterministic matching.
+    """Extract skills from job description using the shared versioned dictionary.
 
-    Uses word boundary matching to avoid false positives (e.g., "python" should not
-    match inside "pythonic"). Case-insensitive matching. Returns canonical names.
+    This function is a thin wrapper around the shared extraction engine
+    to maintain backward compatibility with the existing ingestion pipeline.
+    It returns only canonical skill names (not full SkillMatch objects)
+    to match the original interface.
+
+    The shared extractor provides:
+    - Case-insensitive matching
+    - Word-boundary-aware matching to avoid false positives
+    - Alias resolution to canonical names
+    - Deterministic output (sorted)
+    - Duplicate removal
+    - 500+ canonical skills with categories
 
     Args:
         description: The job description text
 
     Returns:
-        List of canonical skill names found in the description (deduplicated)
+        List of canonical skill names found in the description (deduplicated, sorted)
     """
-    found_skills: set[str] = set()
-    description_lower = description.lower()
-
-    for canonical_name, aliases in _SKILLS_DICT.items():
-        # Check canonical name and all aliases
-        for term in [canonical_name.lower()] + [a.lower() for a in aliases]:
-            # Use word boundary matching to avoid substring false positives
-            pattern = r"\b" + re.escape(term) + r"\b"
-            if re.search(pattern, description_lower):
-                found_skills.add(canonical_name)
-                break  # Found this skill, don't check other aliases
-
-    return sorted(found_skills)
+    skill_matches: list[SkillMatch] = shared_extract_skills(description)
+    return [match.canonical_name for match in skill_matches]
 
 
 def get_skills_dict() -> dict[str, list[str]]:
-    """Get the skills dictionary.
+    """Get the skills dictionary for backward compatibility.
+
+    This function provides a dictionary representation of the skills
+    vocabulary for compatibility with existing tests and code that expect
+    the old dictionary format. This is deprecated; new code should use
+    the SkillsDictionary class from api.extraction instead.
 
     Returns:
-        Dictionary mapping canonical skill names to aliases
+        Dictionary mapping canonical skill names to aliases (simplified representation)
     """
-    return _SKILLS_DICT.copy()
+    from api.extraction import get_skills_dictionary
+
+    dictionary = get_skills_dictionary()
+    result: dict[str, list[str]] = {}
+
+    # Build a simplified dict representation
+    for canonical in dictionary.get_all_canonical_names():
+        # In the new structure, we don't have a direct alias list per canonical
+        # For backward compatibility, we return the canonical name as its own alias
+        result[canonical] = [canonical]
+
+    return result

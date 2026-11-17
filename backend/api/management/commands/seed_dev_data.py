@@ -72,43 +72,25 @@ class Command(BaseCommand):
             raise CommandError(f"Failed to seed development data: {e}") from e
 
     def _seed_skills(self) -> None:
-        """Seed the skills vocabulary."""
-        self.stdout.write("Seeding skills...")
+        """Seed the skills vocabulary from the versioned dictionary."""
+        self.stdout.write("Seeding skills from versioned dictionary...")
 
-        # Skills used in synthetic jobs and candidate profiles
-        skill_names = [
-            "Python",
-            "Django",
-            "JavaScript",
-            "React",
-            "TypeScript",
-            "HTML",
-            "CSS",
-            "SQL",
-            "PostgreSQL",
-            "Git",
-            "REST APIs",
-            "Docker",
-            "Kubernetes",
-            "AWS",
-            "Linux",
-            "Testing",
-            "Selenium",
-            "CI/CD",
-            "Excel",
-            "Data visualization",
-        ]
+        from api.extraction import get_skills_dictionary
+
+        dictionary = get_skills_dictionary()
+        canonical_names = dictionary.get_all_canonical_names()
 
         created_count = 0
-        for skill_name in skill_names:
+        for skill_name in canonical_names:
+            category = dictionary.get_category(skill_name) or "uncategorized"
             skill, created = Skill.objects.get_or_create(
                 name=skill_name,
-                defaults={"category": "development"},
+                defaults={"category": category},
             )
             if created:
                 created_count += 1
 
-        self.stdout.write(f"  Created {created_count} skills.")
+        self.stdout.write(f"  Created {created_count} skills from dictionary (version {dictionary.version}).")
 
     def _seed_companies(self) -> dict[str, tuple[Company, IngestionSource]]:
         """Seed fictional companies and ingestion sources.
