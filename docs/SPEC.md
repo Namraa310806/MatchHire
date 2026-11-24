@@ -564,6 +564,11 @@ match_score = 0.50 * skill_similarity + 0.30 * experience_match + 0.20 * keyword
 
 ## Resume Handling, Consent, Retention, and Deletion
 
+> **Phase 3B note:** Resume parsing was listed as out-of-MVP scope; the
+> Phase 3B pipeline (upload, async parsing, status, deletion) is implemented
+> post-MVP. API contract and operational details: `docs/RESUME_PROCESSING.md`.
+> All retention periods below remain unresolved pending legal review.
+
 ### Resume Purpose (Decision 9)
 
 **Permitted Uses:**

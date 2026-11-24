@@ -2,8 +2,10 @@
 Base Django settings for MatchHire.
 """
 
+from datetime import timedelta
 from os import environ
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -27,6 +29,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "celery",
     "django_celery_beat",
     "api",
@@ -102,12 +106,91 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# File storage: local filesystem by default; S3/R2-compatible when
+# AWS_STORAGE_BUCKET_NAME is configured (see docs/RESUME_PROCESSING.md).
+MEDIA_ROOT = environ.get("MEDIA_ROOT", str(BASE_DIR / "media"))
+
+STORAGES: dict[str, Any] = {}
+if environ.get("AWS_STORAGE_BUCKET_NAME"):
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    AWS_STORAGE_BUCKET_NAME = environ["AWS_STORAGE_BUCKET_NAME"]
+    AWS_S3_REGION_NAME = environ.get("AWS_S3_REGION_NAME", "")
+    AWS_S3_ENDPOINT_URL = environ.get("AWS_S3_ENDPOINT_URL") or None
+    AWS_ACCESS_KEY_ID = environ.get("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = environ.get("AWS_SECRET_ACCESS_KEY", "")
+    AWS_QUERYSTRING_AUTH = True
+    AWS_S3_FILE_OVERWRITE = False
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": MEDIA_ROOT},
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Redis-backed cache (also used by DRF throttling)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": environ.get("REDIS_CACHE_URL", "redis://localhost:6379/1"),
+    }
+}
+
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "api.authentication.CookieOrBearerJWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "resume_upload": environ.get("RESUME_UPLOAD_THROTTLE_RATE", "10/hour"),
+        "auth_token": environ.get("AUTH_THROTTLE_RATE", "20/minute"),
+    },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+# JWT configuration (Decision 8: 15-minute access, 7-day refresh with rotation)
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# JWT cookie transport for browser clients (Decision 8)
+JWT_AUTH_COOKIE = "mh_access"
+JWT_REFRESH_COOKIE = "mh_refresh"
+JWT_COOKIE_SECURE = environ.get("JWT_COOKIE_SECURE", "false").lower() == "true"
+JWT_COOKIE_SAMESITE = environ.get("JWT_COOKIE_SAMESITE", "Lax")
+JWT_COOKIE_DOMAIN = environ.get("JWT_COOKIE_DOMAIN") or None
+JWT_COOKIE_PATH = "/"
+
+# Resume processing settings.
+# NOTE: size limit, status TTL, and throttle rate are PROPOSED values pending
+# stakeholder approval (see docs/DECISIONS.md, Phase 3B).
+RESUME_MAX_UPLOAD_BYTES = int(environ.get("RESUME_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+RESUME_TASK_STATUS_TTL_SECONDS = int(
+    environ.get("RESUME_TASK_STATUS_TTL_SECONDS", str(24 * 60 * 60))
+)
+RESUME_MIN_TEXT_LENGTH = int(environ.get("RESUME_MIN_TEXT_LENGTH", "20"))
 
 # Celery Configuration
 CELERY_BROKER_URL = environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")

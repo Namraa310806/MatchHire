@@ -14,4 +14,6 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
+JWT_COOKIE_SECURE = True
+
 DATABASES["default"]["NAME"] = environ.get("DB_NAME", "matchhire_prod")

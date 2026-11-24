@@ -101,6 +101,7 @@ class CandidateProfile(models.Model):
     resume_file = models.FileField(max_length=255, blank=True)
     resume_uploaded_at = models.DateTimeField(null=True, blank=True)
     resume_consent_given = models.BooleanField(default=False)
+    extracted_domain_keywords = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

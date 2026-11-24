@@ -1614,3 +1614,139 @@ The following companies are candidates for source review but are NOT approved:
 - Seed data now uses full 500+ skill vocabulary
 - Categories populated from dictionary
 - Development environment has complete skill set for testing
+
+---
+
+## Phase 3B: Asynchronous Resume Upload & Parsing Pipeline
+
+### Authentication Transport for Resume Endpoints
+**Status:** Implemented
+
+**Topic:** How candidates authenticate for resume endpoints given Decision 8.
+
+**Final Decision:**
+- Implemented SimpleJWT (`djangorestframework-simplejwt`) with token blacklist.
+- Browser transport: `POST /api/auth/login/` sets httpOnly `mh_access` /
+  `mh_refresh` cookies; tokens are never returned in the JSON body.
+- Non-browser transport: `POST /api/auth/token/` and
+  `/api/auth/token/refresh/` return JWT pairs as JSON (Bearer).
+- `CookieOrBearerJWTAuthentication` checks the cookie first, then the
+  `Authorization: Bearer` header.
+- `POST /api/auth/register/` creates user + CandidateProfile;
+  `POST /api/auth/logout/` blacklists the refresh token and clears cookies.
+- JWT lifetimes per Decision 8: 15-minute access, 7-day refresh with rotation.
+
+**Rationale:** Decision 8 mandates cookie transport for browsers and Bearer
+for non-browser clients; no auth endpoints existed before this phase.
+
+**Alternatives Considered:**
+- Session auth only: Rejected (Decision 8 specifies JWT).
+- JSON tokens for browsers: Rejected (violates Decision 8).
+
+**Consequences:**
+- New dependency `djangorestframework-simplejwt`; `token_blacklist` app added.
+- Cookie settings configurable via `JWT_COOKIE_*` env vars.
+
+---
+
+### Resume API Surface
+**Status:** Implemented (paths chosen by implementer; documented in
+docs/RESUME_PROCESSING.md)
+
+**Final Decision:**
+- `POST /api/resumes/` — multipart upload (`file`, `consent`), returns 202
+  with `task_id`, `status`, `status_url`.
+- `GET /api/resumes/status/<task_id>/` — owner-only status; 404 for other
+  candidates' tasks and expired records.
+- `DELETE /api/resumes/` — deletes file + upload metadata; extracted profile
+  data retained per Decision 9.
+
+**Rationale:** SPEC defines no resume endpoints; a single-resource REST shape
+was chosen and documented rather than inventing competing structures.
+
+---
+
+### Resume Task Status Storage and TTL
+**Status:** Proposed (TTL value pending approval)
+
+**Final Decision:**
+- Status records stored in Django cache (Redis in deployment) as JSON under
+  `resume:task:<task_id>`.
+- TTL: `RESUME_TASK_STATUS_TTL_SECONDS`, default 86400 (24h). **PROPOSED —
+  no spec-defined TTL exists; requires stakeholder approval.**
+- Statuses: queued, processing, completed, partial, failed. Safe error
+  categories only; no resume content, paths, or exception details.
+
+**Rationale:** Consistent with existing Redis-centric architecture (locks,
+broker) and Celery's default 1-day result expiry.
+
+**Unresolved:** Approved TTL value.
+
+---
+
+### Resume Upload Limits and Throttling
+**Status:** Proposed (values pending approval)
+
+**Final Decision:**
+- `RESUME_MAX_UPLOAD_BYTES` default 10 MiB (**PROPOSED** — SPEC defines no
+  size limit).
+- No page-count limit enforced (SPEC specifies none).
+- `RESUME_UPLOAD_THROTTLE_RATE` default `10/hour` per user (**PROPOSED**).
+- `AUTH_THROTTLE_RATE` default `20/minute` (**PROPOSED**).
+
+**Unresolved:** Approved numeric values.
+
+---
+
+### Resume Storage Backend
+**Status:** Implemented
+
+**Final Decision:**
+- Django default storage via `STORAGES`: `FileSystemStorage` at `MEDIA_ROOT`
+  locally; `S3Boto3Storage` (django-storages) when
+  `AWS_STORAGE_BUCKET_NAME` is set (R2 via `AWS_S3_ENDPOINT_URL`).
+- Server-generated names `resumes/<profile_id>/<uuid>.pdf`;
+  `AWS_S3_FILE_OVERWRITE=False`.
+
+**Rationale:** Reuses Django's storage API; no second abstraction; no
+hardcoded credentials or bucket names.
+
+---
+
+### Resume Extraction and Persistence Semantics
+**Status:** Implemented
+
+**Final Decision:**
+- Phase 3A shared extractors only (`extract_skills`,
+  `extract_domain_keywords`, `estimate_experience_years`); no second
+  implementation or duplicated dictionary.
+- Skills persisted as `Skill`/`CandidateSkill` rows (canonical names only).
+- Domain keywords persisted to new `CandidateProfile.extracted_domain_keywords`
+  JSONField (no relational table exists in the schema).
+- `total_experience_years` is filled from the estimate ONLY when currently
+  NULL; an explicit user value is never overwritten. The schema has no
+  explicit-vs-estimated flag — recorded as a limitation.
+- No `WorkExperience` rows are fabricated from resume text.
+- Staleness: `expected_resume_name` checked before file read and again under
+  `select_for_update` inside the persistence transaction; old tasks fail with
+  `resume_replaced`/`resume_deleted`.
+- Matching-cache invalidation: minimal `invalidate_matching_caches()` stub
+  deleting `match:scores:candidate:<id>` until the matching engine exists.
+
+**Rationale:** Data-model constraints; conservative non-fabrication per
+Phase 3A estimator contract.
+
+**Unresolved:** Whether/how to distinguish estimated vs explicit experience
+(schema lacks a flag); dedicated domain-keyword storage; match-score
+recalculation after resume deletion (Decision 9 open item).
+
+---
+
+### Resume Deletion Semantics
+**Status:** Implemented per Decision 9
+
+**Final Decision:**
+- `DELETE /api/resumes/` removes the file, clears `resume_file`,
+  `resume_uploaded_at`, `resume_consent_given`; retains all extracted profile
+  data. No retention schedule implemented (periods unresolved pending legal
+  review). No PII or resume text in logs or status payloads.

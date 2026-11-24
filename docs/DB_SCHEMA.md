@@ -91,6 +91,7 @@ This document defines the implementation-ready database schema for MatchHire. Al
 - `resume_file` (FileField, blank, max_length=255): Resume file path
 - `resume_uploaded_at` (DateTimeField, null, blank): Resume upload timestamp
 - `resume_consent_given` (BooleanField, default False): Consent for resume processing
+- `extracted_domain_keywords` (JSONField, default list): Domain keywords extracted from resume (Phase 3B)
 - `created_at` (DateTimeField, auto_now_add): Profile creation timestamp
 - `updated_at` (DateTimeField, auto_now=True): Last update timestamp
 

@@ -1,4 +1,4 @@
-"""Celery tasks for automated job ingestion."""
+"""Celery tasks for automated job ingestion and resume parsing."""
 
 import logging
 import time
@@ -9,13 +9,26 @@ import requests
 from celery import shared_task
 from celery.exceptions import Ignore
 from django.conf import settings
+from django.core.files.storage import default_storage
+from django.db import transaction
+from django.db.utils import OperationalError
 from django.utils import timezone
 from redis import Redis
 from redis.exceptions import RedisError
 
+from api.extraction import (
+    ExperienceEstimate,
+    estimate_experience_years,
+    extract_domain_keywords,
+    extract_skills,
+)
 from api.ingestion.pipeline import process_batch
 from api.ingestion.scraper_registry import load_scraper
-from api.models import FetchRun, IngestionSource
+from api.models import CandidateProfile, FetchRun, IngestionSource
+from api.resume import services
+from api.resume import status as resume_status
+from api.resume.pdf import ResumeValidationError, extract_text
+from api.resume.sections import segment_resume
 
 logger = logging.getLogger(__name__)
 
@@ -404,3 +417,211 @@ def _mark_fetch_run_failed(fetch_run: FetchRun, error_message: str) -> None:
     fetch_run.completed_at = timezone.now()
     fetch_run.error_message = error_message
     fetch_run.save(update_fields=["status", "completed_at", "error_message"])
+
+
+# ---------------------------------------------------------------------------
+# Resume parsing task
+# ---------------------------------------------------------------------------
+
+_RESUME_TRANSIENT_ERRORS = (OSError, OperationalError, RedisError)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
+    queue="parse_queue",
+)
+def parse_resume_task(
+    self, profile_id: int, task_id: str, expected_resume_name: str
+) -> dict[str, Any]:
+    """Parse a stored resume PDF and update the candidate profile.
+
+    Args:
+        profile_id: CandidateProfile ID that owns the resume.
+        task_id: Resume task ID (also the Celery task ID); status key.
+        expected_resume_name: Storage name the task was queued for; used to
+            detect resume replacement and prevent stale writes.
+
+    Returns:
+        Dict summarizing the outcome (no resume content or PII).
+    """
+    logger.info(f"Resume parse task received: task_id={task_id}, profile_id={profile_id}")
+
+    record = resume_status.get_status(task_id)
+    if record is None:
+        logger.warning(f"Resume task {task_id} has no status record (expired?)")
+        raise Ignore(f"Resume task {task_id} status record missing")
+
+    # Tolerate duplicate delivery: terminal or in-progress states exit early
+    if record["status"] in resume_status.TERMINAL_STATUSES:
+        logger.info(f"Resume task {task_id} already terminal: {record['status']}")
+        raise Ignore(f"Resume task {task_id} already {record['status']}")
+
+    # Per-task lock prevents concurrent duplicate execution
+    lock_key = f"resume:lock:{task_id}"
+    if not _cache_add(lock_key, "1", timeout=600):
+        logger.info(f"Resume task {task_id} already locked, skipping duplicate")
+        raise Ignore(f"Resume task {task_id} already processing")
+
+    try:
+        resume_status.update_status(task_id, status=resume_status.STATUS_PROCESSING)
+
+        try:
+            profile = CandidateProfile.objects.select_related("user").get(id=profile_id)
+        except CandidateProfile.DoesNotExist:
+            resume_status.fail_status(task_id, "processing_error")
+            logger.error(f"Resume task {task_id}: profile {profile_id} not found")
+            raise Ignore(f"Profile {profile_id} not found") from None
+
+        # Consent and ownership/staleness checks before touching the file
+        if not profile.resume_consent_given:
+            resume_status.fail_status(task_id, "missing_consent")
+            raise Ignore(f"Resume task {task_id}: consent withdrawn")
+
+        if not profile.resume_file or profile.resume_file.name != expected_resume_name:
+            category = (
+                "resume_deleted"
+                if not profile.resume_file
+                else "resume_replaced"
+            )
+            resume_status.fail_status(task_id, category)
+            logger.info(f"Resume task {task_id}: {category}")
+            raise Ignore(f"Resume task {task_id}: {category}")
+
+        # Load stored file bytes
+        try:
+            with default_storage.open(profile.resume_file.name, "rb") as fh:
+                data = fh.read()
+        except OSError as exc:
+            logger.error(f"Resume task {task_id}: storage read failed: {exc}")
+            _retry_or_fail(self, task_id, exc, "file_unavailable")
+            return {"task_id": task_id, "status": "failed"}
+
+        # Structural validation + text extraction (permanent errors -> failed)
+        try:
+            pdf = extract_text(data)
+        except ResumeValidationError as exc:
+            resume_status.fail_status(task_id, exc.code)
+            logger.info(f"Resume task {task_id}: validation failed ({exc.code})")
+            raise Ignore(f"Resume task {task_id}: invalid resume ({exc.code})") from None
+
+        if not pdf.has_text_layer:
+            resume_status.fail_status(task_id, "no_text_layer")
+            logger.info(f"Resume task {task_id}: no text layer (scanned PDF?)")
+            raise Ignore(f"Resume task {task_id}: no text layer")
+
+        # Segment + extract (stage failures degrade to partial, not silent)
+        sections = segment_resume(pdf.text)
+        stage_errors: list[str] = []
+        skills: list[Any] = []
+        domain_keywords: list[Any] = []
+        experience: Any = None
+
+        try:
+            skills = extract_skills(pdf.text)
+        except Exception as exc:  # noqa: BLE001 - stage isolation
+            stage_errors.append("skills")
+            logger.error(f"Resume task {task_id}: skill extraction failed: {exc}")
+
+        try:
+            domain_keywords = extract_domain_keywords(pdf.text)
+        except Exception as exc:  # noqa: BLE001 - stage isolation
+            stage_errors.append("domain_keywords")
+            logger.error(f"Resume task {task_id}: domain extraction failed: {exc}")
+
+        try:
+            experience = estimate_experience_years(pdf.text)
+        except Exception as exc:  # noqa: BLE001 - stage isolation
+            stage_errors.append("experience")
+            logger.error(f"Resume task {task_id}: experience estimation failed: {exc}")
+
+        if experience is None:
+            if "experience" not in stage_errors:
+                stage_errors.append("experience")
+            experience = ExperienceEstimate(
+                total_years=None,
+                confidence="none",
+                methodology="Experience estimation stage failed",
+            )
+
+        if stage_errors and not (skills or domain_keywords or experience):
+            resume_status.fail_status(task_id, "processing_error")
+            raise Ignore(f"Resume task {task_id}: all extraction stages failed")
+
+        # Persist atomically; re-verify staleness inside the transaction so
+        # a newer upload cannot be overwritten by this older task.
+        try:
+            with transaction.atomic():
+                locked = CandidateProfile.objects.select_for_update().get(id=profile_id)
+                if not locked.resume_file or locked.resume_file.name != expected_resume_name:
+                    resume_status.fail_status(task_id, "resume_replaced")
+                    logger.info(f"Resume task {task_id}: superseded before persist")
+                    raise Ignore(f"Resume task {task_id}: superseded")
+                result_summary = services.persist_resume_extraction(
+                    locked, skills, domain_keywords, experience
+                )
+        except OperationalError as exc:
+            logger.error(f"Resume task {task_id}: persist failed: {exc}")
+            _retry_or_fail(self, task_id, exc, "processing_error")
+            return {"task_id": task_id, "status": "failed"}
+
+        services.invalidate_matching_caches(profile_id)
+
+        result_summary.update(
+            {
+                "pages": pdf.page_count,
+                "sections_found": sections.found,
+                "stage_errors": stage_errors,
+            }
+        )
+
+        final_status = (
+            resume_status.STATUS_PARTIAL if stage_errors else resume_status.STATUS_COMPLETED
+        )
+        resume_status.update_status(task_id, status=final_status, result=result_summary)
+        logger.info(
+            f"Resume task {task_id}: {final_status} "
+            f"(skills={result_summary['skills_found']}, "
+            f"keywords={result_summary['domain_keywords']}, "
+            f"experience={result_summary['experience_years']})"
+        )
+        return {"task_id": task_id, "status": final_status, **result_summary}
+
+    except Ignore:
+        raise
+    except _RESUME_TRANSIENT_ERRORS as exc:
+        logger.error(f"Resume task {task_id}: transient error: {exc}")
+        _retry_or_fail(self, task_id, exc, "processing_error")
+        return {"task_id": task_id, "status": "failed"}
+    except Exception:  # noqa: BLE001 - last-resort isolation
+        logger.exception(f"Resume task {task_id}: unexpected error")
+        resume_status.fail_status(task_id, "processing_error")
+        raise Ignore(f"Resume task {task_id}: unexpected error") from None
+    finally:
+        _cache_delete(lock_key)
+
+
+def _cache_add(key: str, value: str, timeout: int) -> bool:
+    """Atomic cache add (SET NX semantics) via the Django cache backend."""
+    from django.core.cache import cache
+
+    return bool(cache.add(key, value, timeout=timeout))
+
+
+def _cache_delete(key: str) -> None:
+    from django.core.cache import cache
+
+    cache.delete(key)
+
+
+def _retry_or_fail(
+    task: Any, task_id: str, exc: Exception, category: str
+) -> None:
+    """Retry transient failures up to max_retries, then mark failed."""
+    if task.request.retries < task.max_retries:
+        raise task.retry(exc=exc) from None
+    resume_status.fail_status(task_id, category)

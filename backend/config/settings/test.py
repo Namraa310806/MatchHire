@@ -14,6 +14,19 @@ DATABASES = {
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
+# Use local-memory cache in tests so Redis is not required
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
+# Disable rate limiting in tests (throttle state would leak across tests)
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "resume_upload": "10000/hour",
+    "auth_token": "10000/minute",
+}
+
 # Silence logging during tests
 LOGGING = {
     "version": 1,
