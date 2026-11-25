@@ -160,6 +160,50 @@ class CandidateSkill(models.Model):
         return f"{self.candidate.user.email} - {self.skill.name}"  # type: ignore[no-any-return]
 
 
+class CandidateSkillEvidence(models.Model):
+    """Per-source evidence supporting a CandidateSkill row.
+
+    Provenance record: which source (manual entry, resume parsing, GitHub
+    ingestion) reported a skill for a candidate. ``CandidateSkill`` remains
+    the merged skill set consumed by matching; this table preserves where
+    each skill claim came from so one source can never overwrite or delete
+    another source's evidence.
+
+    INVARIANT (application-enforced, not a DB constraint): every
+    ``CandidateSkill`` row should have at least one evidence row. All
+    production writers must go through ``api.evidence`` helpers; direct ORM
+    writes can violate the invariant.
+    """
+
+    SOURCE_CHOICES = [
+        ("manual", "Manual"),
+        ("resume", "Resume"),
+        ("github", "GitHub"),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    candidate = models.ForeignKey(
+        CandidateProfile, on_delete=models.CASCADE, db_index=True
+    )
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT, db_index=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, db_index=True)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "candidate_skill_evidence"
+        unique_together = ("candidate", "skill", "source")
+        indexes = [
+            models.Index(fields=["candidate", "source"]),
+        ]
+        verbose_name = "candidate skill evidence"
+        verbose_name_plural = "candidate skill evidence"
+
+    def __str__(self) -> str:
+        return f"{self.candidate.user.email} - {self.skill.name} ({self.source})"  # type: ignore[no-any-return]
+
+
 class WorkExperience(models.Model):
     """Candidate work history entries."""
 
@@ -443,5 +487,53 @@ class ApplicationClick(models.Model):
 
     def __str__(self) -> str:
         return (
-            f"{self.candidate.user.email} clicked {self.job.title} at {self.clicked_at}"
-        )  # type: ignore[no-any-return]
+            f"{self.candidate.user.email} clicked {self.job.title} at {self.clicked_at}"  # type: ignore[no-any-return]
+        )
+
+
+class CandidateGitHubProfile(models.Model):
+    """A candidate's connected GitHub account and last sync snapshot.
+
+    Identity: ``github_user_id`` (GitHub's numeric user id) is the
+    authoritative account identity; ``github_username`` is a mutable
+    attribute stored lowercase-normalized (GitHub logins are
+    case-insensitive). No per-user GitHub credentials are stored — the
+    shared app token lives in environment configuration only.
+
+    ``sync_token`` is regenerated on every connect/re-sync request and
+    invalidates all previously dispatched sync tasks; ``active_sync_task_id``
+    lets disconnect fail the pending status record.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    profile = models.OneToOneField(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        db_index=True,
+        related_name="github_profile",
+    )
+    github_user_id = models.BigIntegerField(null=True, blank=True, unique=True)
+    github_username = models.CharField(max_length=40, unique=True)
+    github_login_raw = models.CharField(max_length=40, blank=True)
+    github_name = models.CharField(max_length=200, blank=True)
+    github_bio = models.TextField(blank=True)
+    public_repo_count = models.IntegerField(null=True, blank=True)
+    language_bytes = models.JSONField(default=dict, blank=True)
+    sync_token = models.UUIDField(null=True, blank=True)
+    active_sync_task_id = models.CharField(max_length=255, blank=True, null=True)
+    # Monotonic fencing counter: incremented under the row lock each time a
+    # sync execution starts; persist verifies it inside the same transaction
+    # so a stale execution can never write after a newer one claimed.
+    exec_fencing = models.BigIntegerField(default=0)
+    connected_at = models.DateTimeField(auto_now_add=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "candidate_github_profile"
+        verbose_name = "candidate GitHub profile"
+        verbose_name_plural = "candidate GitHub profiles"
+
+    def __str__(self) -> str:
+        return f"{self.profile.user.email} - github:{self.github_username}"  # type: ignore[no-any-return]

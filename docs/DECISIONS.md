@@ -1684,6 +1684,56 @@ broker) and Celery's default 1-day result expiry.
 
 ---
 
+## Phase 3C: GitHub Profile Ingestion — Evidence Model (Gate 2)
+
+### Source-Aware Skill Evidence
+**Status:** Approved design; schema/helpers implemented (Gate 2). GitHub API integration pending (Gates 3–4).
+
+**Final Decision:**
+- `CandidateSkill` remains the merged skill set consumed by matching; provenance lives in new `CandidateSkillEvidence` table (`candidate`, `skill`, `source` ∈ {manual, resume, github}, `detail` JSON).
+- Unique `(candidate, skill, source)`: a skill reported by two sources yields two evidence rows and one merged `CandidateSkill` row.
+- The "every CandidateSkill has ≥1 evidence row" invariant is **application-enforced via `api/evidence.py` transactional helpers, not a DB constraint**. Direct ORM writes (test fixtures, ad-hoc shells) can violate it.
+- Helpers: `link_skill` (additive upsert), `replace_source_evidence` (atomic source-scoped replace + reconcile; resume source rejected), `remove_source_evidence` (disconnect), `reconcile_candidate_skills` (deletes CandidateSkill rows with zero remaining evidence; only after source-scoped deletes).
+- Writer inventory: resume persistence (`api/resume/services.py`) and `seed_dev_data` are the only non-test CandidateSkill writers; both route through helpers. Resume writes `source="resume"` evidence with additive-only semantics (Phase 3B behavior preserved). Seed writes `source="manual"` evidence idempotently.
+- Migration 0009 backfills `source="manual"` evidence for all pre-existing CandidateSkill rows. **Limitation:** rows written by the resume task before 3C cannot be reliably attributed and are labeled `manual`.
+- Resume evidence is cumulative (upsert-only, matching 3B never-delete semantics); GitHub evidence is a current-snapshot replace per sync. This asymmetry is deliberate.
+
+**Alternatives Considered:**
+- `source` column on `CandidateSkill` with `(candidate, skill, source)` uniqueness: rejected — conflates merged-set membership with provenance and complicates the existing unique constraint.
+- Generic provenance framework: rejected as premature; smallest maintainable design chosen.
+
+---
+
+### GitHub Account Identity
+**Status:** Implemented (Gates 3–4). API contract: `docs/GITHUB_INTEGRATION.md`.
+
+**Final Decision:**
+- `CandidateGitHubProfile` (OneToOne CandidateProfile): `github_user_id` (unique, nullable) is the **authoritative account identity**; `github_username` stored lowercase-normalized + unique (GitHub logins are case-insensitive).
+- No per-user GitHub credentials stored. A shared app token lives in `GITHUB_TOKEN` env config only (per MatchHire_Prompt_Playbook phase3).
+- Connect resolves identity via `GET /users/{login}` before writing; same account on another candidate → 409. Sync re-verifies `github_user_id` inside the persist transaction; mismatch → `identity_mismatch` failure, nothing written. Same id + changed login → GitHub rename, username updated.
+- `sync_token` UUID regenerated per connect/re-sync invalidates in-flight tasks; `active_sync_task_id` lets disconnect fail the pending status record. Snapshot fields and `last_synced_at` write only on successful sync — failed syncs preserve the last good snapshot.
+- All repo metadata and README content is untrusted input: data-only into `extract_skills`, never executed/rendered; API paths built from validated owner/name fields.
+
+**Alternatives Considered:**
+- Per-user OAuth/PAT: rejected — playbook specifies username + app token; avoids credential storage entirely.
+- Username as identity: rejected — usernames are mutable/reassignable; numeric id is stable.
+
+---
+
+### GitHub Sync Semantics
+**Status:** Implemented (Gates 3–4).
+
+**Final Decision:**
+- Endpoints (planned): `POST /api/profile/github/` (connect/re-sync → 202 + task_id), `GET` (own status), `DELETE` (disconnect), `GET .../status/<task_id>/` (owner-only, 404 non-leak).
+- Task on `parse_queue`; per-task cache lock; terminal-status short-circuit; transient retry (429/5xx/timeout, ≤3, backoff + Retry-After); permanent fail for 404/401/identity_mismatch/disconnected/superseded.
+- Disconnect transaction: fail pending status → delete github evidence → reconcile → delete connection. Persist transaction re-locks the connection row and verifies existence + sync_token + github_user_id before writing — a stale task cannot recreate a connection or restore deleted evidence.
+- Language weighting: bytes-by-language aggregated across eligible repos (repo-size-by-language per playbook), chosen over repo count.
+- Skip forks, archived, and empty repos; caps on repo count and README fetches (env-configurable).
+
+**Unresolved:** Status TTL, repo/README caps, throttle rate (proposed values pending approval, same convention as 3B).
+
+---
+
 ### Resume Upload Limits and Throttling
 **Status:** Proposed (values pending approval)
 

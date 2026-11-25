@@ -8,6 +8,7 @@ from .auth_views import (
     LogoutView,
     RegisterView,
 )
+from .github.views import GitHubConnectionView, GitHubSyncStatusView
 from .resume.views import ResumeStatusView, ResumeUploadView
 from .views import HealthCheckView
 
@@ -26,5 +27,12 @@ urlpatterns = [
         "resumes/status/<str:task_id>/",
         ResumeStatusView.as_view(),
         name="resume-status",
+    ),
+    # GitHub profile connection and sync
+    path("profile/github/", GitHubConnectionView.as_view(), name="github-connection"),
+    path(
+        "profile/github/status/<str:task_id>/",
+        GitHubSyncStatusView.as_view(),
+        name="github-sync-status",
     ),
 ]

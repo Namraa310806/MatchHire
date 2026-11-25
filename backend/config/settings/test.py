@@ -25,6 +25,7 @@ CACHES = {
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "resume_upload": "10000/hour",
     "auth_token": "10000/minute",
+    "github_sync": "10000/hour",
 }
 
 # Silence logging during tests

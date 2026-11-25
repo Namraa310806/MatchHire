@@ -18,13 +18,14 @@ from typing import Any
 from django.core.cache import cache
 from django.db import transaction
 
+from api.evidence import SOURCE_RESUME, link_skill
 from api.extraction import (
     DomainKeywordMatch,
     ExperienceEstimate,
     SkillMatch,
     get_skills_dictionary,
 )
-from api.models import CandidateProfile, CandidateSkill, Skill
+from api.models import CandidateProfile, Skill
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +71,9 @@ def persist_resume_extraction(
             name=match.canonical_name,
             defaults={"category": category},
         )
-        _, created = CandidateSkill.objects.get_or_create(
-            candidate=profile,
-            skill=skill,
-            defaults={"proficiency": ""},
+        detail = {"matched_alias": match.matched_alias} if match.matched_alias else {}
+        _cs, created, _ev, _ev_created = link_skill(
+            profile, skill, source=SOURCE_RESUME, detail=detail, proficiency=""
         )
         if created:
             skills_linked += 1

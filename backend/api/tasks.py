@@ -1,6 +1,7 @@
 """Celery tasks for automated job ingestion and resume parsing."""
 
 import logging
+import threading
 import time
 import uuid
 from typing import Any, cast
@@ -18,13 +19,24 @@ from redis.exceptions import RedisError
 
 from api.extraction import (
     ExperienceEstimate,
+    SkillMatch,
     estimate_experience_years,
     extract_domain_keywords,
     extract_skills,
+    get_skills_dictionary,
 )
+from api.github import client as github_client
+from api.github import services as github_services
+from api.github import status as github_status
 from api.ingestion.pipeline import process_batch
 from api.ingestion.scraper_registry import load_scraper
-from api.models import CandidateProfile, FetchRun, IngestionSource
+from api.models import (
+    CandidateGitHubProfile,
+    CandidateProfile,
+    FetchRun,
+    IngestionSource,
+    Skill,
+)
 from api.resume import services
 from api.resume import status as resume_status
 from api.resume.pdf import ResumeValidationError, extract_text
@@ -625,3 +637,507 @@ def _retry_or_fail(
     if task.request.retries < task.max_retries:
         raise task.retry(exc=exc) from None
     resume_status.fail_status(task_id, category)
+
+
+# ---------------------------------------------------------------------------
+# GitHub profile sync task
+# ---------------------------------------------------------------------------
+
+_GITHUB_LOCK_TTL_SECONDS = 900
+
+
+# Lua scripts for atomic lock ownership operations. Compare the stored
+# token before mutating so a stale execution can never renew, overwrite,
+# or delete a successor's lock.
+RENEW_EXECUTION_LOCK_SCRIPT = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("pexpire", KEYS[1], ARGV[2])
+else
+    return 0
+end
+"""
+
+
+def _lock_redis_client() -> Redis:
+    """Raw Redis client for execution locks (same convention as ingestion)."""
+    redis_url = getattr(settings, "REDIS_LOCK_URL", settings.CELERY_BROKER_URL)
+    return Redis.from_url(redis_url)
+
+
+class _ExecutionLock:
+    """Owned Redis lock for a single task execution.
+
+    Acquire is ``SET key token NX EX ttl``. Renewal and release are Lua
+    compare-and-mutate scripts, so they are atomic with respect to expiry
+    and successor acquisition — a stale execution can never extend,
+    overwrite, or delete a lock it no longer owns. Any Redis error marks
+    ownership lost: the task fails closed and never persists without a
+    concurrency guarantee.
+    """
+
+    def __init__(
+        self,
+        key: str,
+        ttl: int = _GITHUB_LOCK_TTL_SECONDS,
+        redis_client: Redis | None = None,
+    ) -> None:
+        self.key = key
+        self.ttl = ttl
+        self.token = str(uuid.uuid4())
+        self.ownership_lost = False
+        self._redis = redis_client if redis_client is not None else _lock_redis_client()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def acquire(self) -> bool:
+        acquired = self._redis.set(self.key, self.token, nx=True, ex=self.ttl)
+        return bool(acquired)
+
+    def start_renewal(self) -> None:
+        interval = max(self.ttl // 3, 1)
+        self._thread = threading.Thread(
+            target=self._renew_loop, args=(interval,), daemon=True
+        )
+        self._thread.start()
+
+    def _renew_loop(self, interval: float) -> None:
+        while not self._stop.wait(interval):
+            self.renew()
+
+    def renew(self) -> bool:
+        """Atomically extend TTL iff we still own the lock."""
+        if self.ownership_lost:
+            return False
+        try:
+            result = self._redis.eval(
+                RENEW_EXECUTION_LOCK_SCRIPT,
+                1,
+                self.key,
+                self.token,
+                str(self.ttl * 1000),
+            )
+        except Exception:  # noqa: BLE001 - fail closed
+            self.ownership_lost = True
+            return False
+        if not result:
+            self.ownership_lost = True
+            return False
+        return True
+
+    def owns(self) -> bool:
+        """Cheap atomic read used as an early-out before persistence.
+
+        The authoritative guard is the DB fencing token checked inside the
+        persist transaction; this only avoids a wasted persist attempt.
+        """
+        if self.ownership_lost:
+            return False
+        try:
+            return bool(self._redis.get(self.key) == self.token)
+        except Exception:  # noqa: BLE001 - fail closed
+            self.ownership_lost = True
+            return False
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def release(self) -> None:
+        """Atomically delete the lock iff we still own it."""
+        try:
+            self._redis.eval(RELEASE_LOCK_SCRIPT, 1, self.key, self.token)
+        except Exception:  # noqa: BLE001 - TTL expiry is the fallback
+            pass
+
+
+_GITHUB_TRANSIENT_ERRORS = (
+    requests.Timeout,
+    requests.ConnectionError,
+    github_client.GitHubRateLimitError,
+    github_client.GitHubServerError,
+    RedisError,
+    OperationalError,
+)
+
+
+def _is_eligible_repo(repo: github_client.GitHubRepo) -> bool:
+    """Skip forks, archived, and empty repos (size is KB; 0 = empty)."""
+    return not repo.fork and not repo.archived and repo.size_kb > 0
+
+
+def _fetch_repo_languages(
+    repos: list[github_client.GitHubRepo],
+) -> tuple[dict[str, dict[str, int]], list[str]]:
+    """Fetch languages per eligible repo.
+
+    Returns (repo_full_name -> {language: bytes}, stage_errors). Per-repo
+    4xx/404 failures skip that repo; transient failures propagate for
+    task-level retry.
+    """
+    per_repo: dict[str, dict[str, int]] = {}
+    stage_errors: list[str] = []
+
+    for repo in repos:
+        try:
+            per_repo[repo.full_name] = github_client.get_repo_languages(
+                repo.full_name
+            )
+        except github_client.GitHubUserNotFoundError:
+            # Repo deleted since listing: benign, not an incomplete snapshot.
+            continue
+        except github_client.GitHubAPIError as exc:
+            if isinstance(exc, github_client.GitHubRateLimitError):
+                raise
+            stage_errors.append("repo_metadata")
+
+    return per_repo, stage_errors
+
+
+def _aggregate_language_bytes(
+    per_repo: dict[str, dict[str, int]],
+) -> dict[str, int]:
+    """Sum bytes-by-language across all fetched repos."""
+    totals: dict[str, int] = {}
+    for languages in per_repo.values():
+        for lang, byte_count in languages.items():
+            totals[lang] = totals.get(lang, 0) + byte_count
+    return totals
+
+
+def _fetch_readmes(
+    repos: list[github_client.GitHubRepo], limit: int
+) -> tuple[dict[str, str], list[str]]:
+    """Fetch README text for up to ``limit`` repos (priority-ordered)."""
+    readmes: dict[str, str] = {}
+    stage_errors: list[str] = []
+    for repo in repos[:limit]:
+        try:
+            readmes[repo.full_name] = github_client.get_readme(repo.full_name)
+        except github_client.GitHubUserNotFoundError:
+            continue
+        except github_client.GitHubAPIError as exc:
+            if isinstance(exc, github_client.GitHubRateLimitError):
+                raise
+            stage_errors.append("readme")
+    return readmes, stage_errors
+
+
+def _build_evidence_items(
+    repos: list[github_client.GitHubRepo],
+    repo_languages: dict[str, dict[str, int]],
+    readmes: dict[str, str],
+) -> tuple[list[tuple[Skill, dict[str, Any]]], int]:
+    """Extract skills from repo metadata + READMEs via the shared engine.
+
+    Returns (evidence_items, skills_found). Origins are bounded repo tags;
+    no proficiency or experience is inferred.
+    """
+    skill_origins: dict[str, dict[str, Any]] = {}
+
+    def _collect(text: str, origin: str) -> None:
+        for match in extract_skills(text):
+            entry = skill_origins.setdefault(
+                match.canonical_name,
+                {"match": match, "origins": set()},
+            )
+            entry["origins"].add(origin)
+
+    for repo in repos:
+        corpus_parts = [
+            repo.name,
+            repo.full_name,
+            repo.description,
+            " ".join(repo.topics),
+            " ".join(repo_languages.get(repo.full_name, {}).keys()),
+        ]
+        readme = readmes.get(repo.full_name)
+        if readme:
+            corpus_parts.append(readme)
+        _collect("\n".join(p for p in corpus_parts if p), f"repo:{repo.full_name}")
+
+    dictionary = get_skills_dictionary()
+    items: list[tuple[Skill, dict[str, Any]]] = []
+    for canonical, entry in skill_origins.items():
+        match: SkillMatch = entry["match"]
+        category = dictionary.get_category(canonical) or match.category
+        skill, _created = Skill.objects.get_or_create(
+            name=canonical, defaults={"category": category}
+        )
+        origins = sorted(entry["origins"])[:20]
+        detail: dict[str, Any] = {"origins": origins}
+        if match.matched_alias:
+            detail["matched_alias"] = match.matched_alias
+        items.append((skill, detail))
+
+    items.sort(key=lambda pair: pair[0].name)
+    return items, len(items)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+    retry_backoff_max=300,
+    retry_jitter=True,
+    queue="parse_queue",
+)
+def sync_github_profile_task(
+    self, profile_id: int, task_id: str, sync_token: str, github_username: str
+) -> dict[str, Any]:
+    """Sync a candidate's connected GitHub profile.
+
+    Fetches the public profile, eligible repos, language stats, and bounded
+    README text; verifies account identity; then persists the snapshot and
+    replaces only ``github``-source skill evidence — all atomically.
+
+    Args:
+        profile_id: CandidateProfile ID that owns the connection.
+        task_id: Sync task ID (also the status key and Celery task ID).
+        sync_token: Token issued at dispatch; stale tasks fail ``superseded``.
+        github_username: Lowercase-normalized username at dispatch time.
+
+    Returns:
+        Dict summarizing the outcome (counts only, no PII).
+    """
+    logger.info(f"GitHub sync task received: task_id={task_id}, profile_id={profile_id}")
+
+    record = github_status.get_status(task_id)
+    if record is None:
+        logger.warning(f"GitHub task {task_id} has no status record (expired?)")
+        raise Ignore(f"GitHub task {task_id} status record missing")
+
+    if record["status"] in github_status.TERMINAL_STATUSES:
+        logger.info(f"GitHub task {task_id} already terminal: {record['status']}")
+        raise Ignore(f"GitHub task {task_id} already {record['status']}")
+
+    lock = _ExecutionLock(f"github:lock:{task_id}")
+    try:
+        lock_acquired = lock.acquire()
+    except Exception:  # noqa: BLE001 - lock backend unavailable: fail closed
+        logger.exception(f"GitHub task {task_id}: lock backend unavailable")
+        github_status.fail_status(task_id, "github_unavailable")
+        raise Ignore(f"GitHub task {task_id}: lock backend unavailable") from None
+    if not lock_acquired:
+        logger.info(f"GitHub task {task_id} already locked, skipping duplicate")
+        raise Ignore(f"GitHub task {task_id} already processing")
+    lock.start_renewal()
+
+    try:
+        github_status.update_status(task_id, status=github_status.STATUS_PROCESSING)
+
+        try:
+            profile = CandidateProfile.objects.select_related("user").get(
+                id=profile_id
+            )
+        except CandidateProfile.DoesNotExist:
+            github_status.fail_status(task_id, "processing_error")
+            raise Ignore(f"Profile {profile_id} not found") from None
+
+        try:
+            connection = profile.github_profile
+        except CandidateGitHubProfile.DoesNotExist:
+            github_status.fail_status(task_id, "disconnected")
+            raise Ignore(f"GitHub task {task_id}: connection removed") from None
+
+        if connection.sync_token is None or str(connection.sync_token) != sync_token:
+            github_status.fail_status(task_id, "superseded")
+            logger.info(f"GitHub task {task_id}: superseded by newer sync")
+            raise Ignore(f"GitHub task {task_id}: superseded") from None
+
+        # Claim a DB fencing token under the row lock. Persist re-verifies
+        # it inside the same transaction, so even if the Redis execution
+        # lock is lost mid-flight, a stale execution cannot write.
+        try:
+            fencing_token = github_services.claim_execution_fencing(
+                connection.id, sync_token
+            )
+        except github_services.SyncStateError as exc:
+            github_status.fail_status(task_id, exc.category)
+            raise Ignore(f"GitHub task {task_id}: {exc.category}") from None
+
+        # Identity resolution (cached GET /users/{login}).
+        try:
+            gh_user = github_client.get_user(connection.github_username)
+        except github_client.GitHubUserNotFoundError:
+            github_status.fail_status(task_id, "user_not_found")
+            raise Ignore(f"GitHub task {task_id}: user not found") from None
+        except github_client.GitHubAuthError:
+            github_status.fail_status(task_id, "github_auth")
+            raise Ignore(f"GitHub task {task_id}: auth failure") from None
+        except github_client.GitHubRateLimitError as exc:
+            _github_retry_or_fail(
+                self, task_id, exc, "rate_limited", exc.retry_after
+            )
+            return {"task_id": task_id, "status": "failed"}
+        except _GITHUB_TRANSIENT_ERRORS as exc:
+            _github_retry_or_fail(self, task_id, exc, "github_unavailable")
+            return {"task_id": task_id, "status": "failed"}
+        except github_client.GitHubAPIError:
+            github_status.fail_status(task_id, "github_unavailable")
+            raise Ignore(f"GitHub task {task_id}: API error") from None
+
+        # Early identity check; persist re-verifies under row lock.
+        if (
+            connection.github_user_id is not None
+            and connection.github_user_id != gh_user.id
+        ):
+            github_status.fail_status(task_id, "identity_mismatch")
+            raise Ignore(f"GitHub task {task_id}: identity mismatch") from None
+
+        # Repo enumeration.
+        try:
+            repos = github_client.list_user_repos(
+                gh_user.login, int(settings.GITHUB_MAX_REPOS)
+            )
+        except github_client.GitHubRateLimitError as exc:
+            _github_retry_or_fail(
+                self, task_id, exc, "rate_limited", exc.retry_after
+            )
+            return {"task_id": task_id, "status": "failed"}
+        except _GITHUB_TRANSIENT_ERRORS as exc:
+            _github_retry_or_fail(self, task_id, exc, "github_unavailable")
+            return {"task_id": task_id, "status": "failed"}
+        except github_client.GitHubAPIError:
+            github_status.fail_status(task_id, "github_unavailable")
+            raise Ignore(f"GitHub task {task_id}: repos API error") from None
+
+        eligible = [r for r in repos if _is_eligible_repo(r)]
+
+        stage_errors: list[str] = []
+        evidence_items: list[tuple[Skill, dict[str, Any]]] | None = None
+        skills_found = 0
+        language_bytes: dict[str, int] = {}
+        readmes: dict[str, str] = {}
+
+        repo_languages: dict[str, dict[str, int]] = {}
+        try:
+            repo_languages, lang_errors = _fetch_repo_languages(eligible)
+            stage_errors.extend(lang_errors)
+            language_bytes = _aggregate_language_bytes(repo_languages)
+        except github_client.GitHubRateLimitError as exc:
+            _github_retry_or_fail(
+                self, task_id, exc, "rate_limited", exc.retry_after
+            )
+            return {"task_id": task_id, "status": "failed"}
+        except _GITHUB_TRANSIENT_ERRORS as exc:
+            _github_retry_or_fail(self, task_id, exc, "github_unavailable")
+            return {"task_id": task_id, "status": "failed"}
+
+        try:
+            readmes, readme_errors = _fetch_readmes(
+                eligible, int(settings.GITHUB_MAX_README_REPOS)
+            )
+            stage_errors.extend(readme_errors)
+        except github_client.GitHubRateLimitError as exc:
+            _github_retry_or_fail(
+                self, task_id, exc, "rate_limited", exc.retry_after
+            )
+            return {"task_id": task_id, "status": "failed"}
+        except _GITHUB_TRANSIENT_ERRORS as exc:
+            _github_retry_or_fail(self, task_id, exc, "github_unavailable")
+            return {"task_id": task_id, "status": "failed"}
+
+        try:
+            evidence_items, skills_found = _build_evidence_items(
+                eligible, repo_languages, readmes
+            )
+        except Exception as exc:  # noqa: BLE001 - stage isolation
+            stage_errors.append("skills")
+            logger.error(f"GitHub task {task_id}: skill extraction failed: {exc}")
+
+        result_summary = {
+            "repos_listed": len(repos),
+            "repos_eligible": len(eligible),
+            "skills_found": skills_found,
+            "languages": len(language_bytes),
+            "readmes": len(readmes),
+            "stage_errors": sorted(set(stage_errors)),
+        }
+
+        if stage_errors:
+            # Incomplete snapshot: preserve the last complete successful
+            # evidence set and profile snapshot; report partial only.
+            github_status.update_status(
+                task_id, status=github_status.STATUS_PARTIAL, result=result_summary
+            )
+            logger.warning(
+                f"GitHub task {task_id}: partial sync, stage_errors="
+                f"{result_summary['stage_errors']} (previous snapshot kept)"
+            )
+            return {"task_id": task_id, "status": "partial", **result_summary}
+
+        # Execution must still own the lock immediately before persisting;
+        # a delayed execution must never overwrite a newer snapshot.
+        if not lock.owns():
+            logger.warning(
+                f"GitHub task {task_id}: lock ownership lost before persist; "
+                "aborting without writing (status left to lock owner)"
+            )
+            raise Ignore(f"GitHub task {task_id}: lock ownership lost")
+
+        fields = {
+            "github_login_raw": gh_user.login,
+            "github_username": gh_user.login.lower(),
+            "github_name": gh_user.name,
+            "github_bio": gh_user.bio,
+            "public_repo_count": gh_user.public_repos,
+            "language_bytes": language_bytes,
+        }
+
+        try:
+            github_services.persist_github_sync(
+                connection.id,
+                sync_token,
+                gh_user.id,
+                fields=fields,
+                evidence_items=evidence_items,
+                fencing_token=fencing_token,
+            )
+        except github_services.SyncStateError as exc:
+            github_status.fail_status(task_id, exc.category)
+            logger.info(f"GitHub task {task_id}: {exc.category} at persist")
+            raise Ignore(f"GitHub task {task_id}: {exc.category}") from None
+        except OperationalError as exc:
+            _github_retry_or_fail(self, task_id, exc, "processing_error")
+            return {"task_id": task_id, "status": "failed"}
+
+        services.invalidate_matching_caches(profile_id)
+
+        github_status.update_status(
+            task_id, status=github_status.STATUS_COMPLETED, result=result_summary
+        )
+        logger.info(
+            f"GitHub task {task_id}: completed "
+            f"(repos={len(eligible)}, skills={skills_found}, "
+            f"languages={len(language_bytes)})"
+        )
+        return {"task_id": task_id, "status": "completed", **result_summary}
+
+    except Ignore:
+        raise
+    except _GITHUB_TRANSIENT_ERRORS as exc:
+        logger.error(f"GitHub task {task_id}: transient error: {exc}")
+        _github_retry_or_fail(self, task_id, exc, "github_unavailable")
+        return {"task_id": task_id, "status": "failed"}
+    except Exception:  # noqa: BLE001 - last-resort isolation
+        logger.exception(f"GitHub task {task_id}: unexpected error")
+        github_status.fail_status(task_id, "processing_error")
+        raise Ignore(f"GitHub task {task_id}: unexpected error") from None
+    finally:
+        lock.stop()
+        lock.release()
+
+
+def _github_retry_or_fail(
+    task: Any,
+    task_id: str,
+    exc: Exception,
+    category: str,
+    retry_after: int | None = None,
+) -> None:
+    """Retry transient GitHub failures up to max_retries, then mark failed."""
+    if task.request.retries < task.max_retries:
+        if retry_after:
+            raise task.retry(countdown=retry_after, exc=exc) from None
+        raise task.retry(exc=exc) from None
+    github_status.fail_status(task_id, category)

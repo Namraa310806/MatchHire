@@ -161,6 +161,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "resume_upload": environ.get("RESUME_UPLOAD_THROTTLE_RATE", "10/hour"),
         "auth_token": environ.get("AUTH_THROTTLE_RATE", "20/minute"),
+        "github_sync": environ.get("GITHUB_SYNC_THROTTLE_RATE", "10/hour"),
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
@@ -191,6 +192,20 @@ RESUME_TASK_STATUS_TTL_SECONDS = int(
     environ.get("RESUME_TASK_STATUS_TTL_SECONDS", str(24 * 60 * 60))
 )
 RESUME_MIN_TEXT_LENGTH = int(environ.get("RESUME_MIN_TEXT_LENGTH", "20"))
+
+# GitHub profile ingestion (Phase 3C). GITHUB_TOKEN is an optional shared
+# server-side token for rate limits; never a per-user credential.
+GITHUB_API_BASE_URL = environ.get("GITHUB_API_BASE_URL", "https://api.github.com")
+GITHUB_TOKEN = environ.get("GITHUB_TOKEN", "")
+GITHUB_API_TIMEOUT_SECONDS = float(environ.get("GITHUB_API_TIMEOUT_SECONDS", "15"))
+GITHUB_API_CACHE_TTL_SECONDS = int(
+    environ.get("GITHUB_API_CACHE_TTL_SECONDS", str(60 * 60))
+)
+GITHUB_TASK_STATUS_TTL_SECONDS = int(
+    environ.get("GITHUB_TASK_STATUS_TTL_SECONDS", str(24 * 60 * 60))
+)
+GITHUB_MAX_REPOS = int(environ.get("GITHUB_MAX_REPOS", "100"))
+GITHUB_MAX_README_REPOS = int(environ.get("GITHUB_MAX_README_REPOS", "10"))
 
 # Celery Configuration
 CELERY_BROKER_URL = environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")

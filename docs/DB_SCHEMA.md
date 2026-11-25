@@ -26,6 +26,8 @@ This document defines the implementation-ready database schema for MatchHire. Al
 - `JobSkill`: Skills required by jobs
 - `MatchScore`: Candidate-job match scores
 - `ApplicationClick`: Candidate application clicks
+- `CandidateSkillEvidence`: Per-source skill provenance (Phase 3C)
+- `CandidateGitHubProfile`: Connected GitHub account + sync snapshot (Phase 3C)
 - `Subscription`: Candidate subscription entitlements (future)
 
 **Supporting Entities:**
@@ -182,6 +184,70 @@ This document defines the implementation-ready database schema for MatchHire. Al
 **Lifecycle:**
 - Created when candidate adds skill
 - Deleted when candidate removes skill or profile deleted
+
+---
+
+### CandidateSkillEvidence (Intermediate Table)
+
+**Purpose:** Per-source provenance for candidate skills (Phase 3C). Records which source reported a skill so one source can never overwrite or delete another source's evidence. `CandidateSkill` remains the merged skill set consumed by matching.
+
+**Fields:**
+- `id` (BigAutoField, PK): Unique identifier
+- `candidate` (ForeignKey to CandidateProfile, not null, on_delete=CASCADE)
+- `skill` (ForeignKey to Skill, not null, on_delete=PROTECT)
+- `source` (CharField, choices, not null, max_length=20): 'manual', 'resume', 'github'
+- `detail` (JSONField, default dict, blank): Source-specific evidence detail (e.g., matched alias, origin tags); bounded, no raw external payloads
+- `created_at` (DateTimeField, auto_now_add)
+- `updated_at` (DateTimeField, auto_now)
+
+**Constraints:**
+- Unique together: (`candidate`, `skill`, `source`)
+- Index on (`candidate`, `source`)
+
+**Invariant (application-enforced, NOT a DB constraint):**
+- Every `CandidateSkill` row should have at least one evidence row.
+- Enforced through `api.evidence` transactional helpers (`link_skill`, `replace_source_evidence`, `remove_source_evidence`, `reconcile_candidate_skills`); direct ORM writes can violate it.
+- Migration 0009 backfills `source="manual"` evidence for all pre-existing `CandidateSkill` rows (pre-3C rows cannot be reliably attributed to resume vs manual).
+
+**Write semantics:**
+- `manual`/`resume`: additive upserts only; never delete (preserves Phase 3B semantics).
+- `github`: full source-scoped replace on successful sync; disconnect deletes all github evidence.
+- After source-scoped deletes, `reconcile_candidate_skills` removes `CandidateSkill` rows with zero remaining evidence.
+
+**Relationships:**
+- Many-to-one to `CandidateProfile` (CASCADE)
+- Many-to-one to `Skill` (PROTECT)
+
+---
+
+### CandidateGitHubProfile
+
+**Purpose:** A candidate's connected GitHub account and last successful sync snapshot (Phase 3C). No per-user GitHub credentials are stored; the shared app token lives in environment configuration only.
+
+**Fields:**
+- `id` (BigAutoField, PK): Unique identifier
+- `profile` (OneToOneField to CandidateProfile, not null, on_delete=CASCADE, related_name='github_profile')
+- `github_user_id` (BigIntegerField, null, blank, unique): GitHub numeric user id — authoritative account identity
+- `github_username` (CharField, unique, max_length=40): Login stored lowercase-normalized (GitHub logins are case-insensitive)
+- `github_login_raw` (CharField, blank, max_length=40): Login casing as last returned by GitHub (display only)
+- `github_name` (CharField, blank, max_length=200): Profile display name snapshot
+- `github_bio` (TextField, blank): Profile bio snapshot
+- `public_repo_count` (IntegerField, null, blank): Public repo count snapshot
+- `language_bytes` (JSONField, default dict): Aggregated bytes-by-language across eligible repos
+- `sync_token` (UUIDField, null, blank): Regenerated per connect/re-sync; invalidates in-flight sync tasks
+- `active_sync_task_id` (CharField, null, blank, max_length=255): Pending sync task ID for disconnect handling
+- `connected_at` (DateTimeField, auto_now_add)
+- `last_synced_at` (DateTimeField, null, blank): Written only on successful sync
+- `created_at` / `updated_at` (DateTimeField)
+
+**Constraints:**
+- `github_user_id` unique (nullable; Postgres permits multiple NULLs)
+- `github_username` unique (lowercase-normalized at write time)
+
+**Lifecycle:**
+- Created on connect; `sync_token` rotated on every connect/re-sync.
+- Snapshot fields and `last_synced_at` written only inside the successful sync transaction — failed syncs preserve the last good snapshot.
+- Disconnect deletes the row together with all `github`-source skill evidence (transactional).
 
 ---
 
@@ -735,6 +801,9 @@ LIMIT 10;
 
 **Phase 2:**
 - Deferred to future work
+
+**Phase 3C (Implemented):**
+- Added CandidateSkillEvidence and CandidateGitHubProfile (migration 0009, includes manual-evidence backfill)
 
 **Phase 3 (Future):**
 - Create Subscription when paid tier implemented

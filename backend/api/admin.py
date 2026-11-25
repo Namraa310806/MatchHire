@@ -3,8 +3,10 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
     ApplicationClick,
+    CandidateGitHubProfile,
     CandidateProfile,
     CandidateSkill,
+    CandidateSkillEvidence,
     Company,
     FetchRun,
     IngestionSource,
@@ -97,6 +99,72 @@ class CandidateSkillAdmin(admin.ModelAdmin):
     list_display = ("candidate", "skill", "proficiency", "created_at")
     list_filter = ("proficiency", "created_at")
     search_fields = ("candidate__user__email", "skill__name")
+
+
+@admin.register(CandidateSkillEvidence)
+class CandidateSkillEvidenceAdmin(admin.ModelAdmin):
+    """Admin interface for CandidateSkillEvidence (read-only provenance)."""
+
+    list_display = ("candidate", "skill", "source", "updated_at")
+    list_filter = ("source", "updated_at")
+    search_fields = ("candidate__user__email", "skill__name")
+    readonly_fields = (
+        "candidate",
+        "skill",
+        "source",
+        "detail",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CandidateGitHubProfile)
+class CandidateGitHubProfileAdmin(admin.ModelAdmin):
+    """Admin interface for CandidateGitHubProfile (read-only; API-managed)."""
+
+    list_display = (
+        "profile",
+        "github_username",
+        "github_user_id",
+        "public_repo_count",
+        "last_synced_at",
+    )
+    list_filter = ("last_synced_at",)
+    search_fields = ("profile__user__email", "github_username")
+    readonly_fields = (
+        "profile",
+        "github_user_id",
+        "github_username",
+        "github_login_raw",
+        "github_name",
+        "github_bio",
+        "public_repo_count",
+        "language_bytes",
+        "sync_token",
+        "active_sync_task_id",
+        "connected_at",
+        "last_synced_at",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(WorkExperience)

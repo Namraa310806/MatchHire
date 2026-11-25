@@ -23,6 +23,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from api.evidence import SOURCE_MANUAL, link_skill
 from api.ingestion.pipeline import process_batch
 from api.models import (
     ApplicationClick,
@@ -235,10 +236,12 @@ class Command(BaseCommand):
                     if isinstance(skill_name, str):
                         try:
                             skill = Skill.objects.get(name=skill_name)
-                            CandidateSkill.objects.get_or_create(
-                                candidate=profile,
-                                skill=skill,
-                                defaults={"proficiency": "intermediate"},
+                            link_skill(
+                                profile,
+                                skill,
+                                source=SOURCE_MANUAL,
+                                detail={"origin": "seed_dev_data"},
+                                proficiency="intermediate",
                             )
                         except Skill.DoesNotExist:
                             self.stdout.write(
