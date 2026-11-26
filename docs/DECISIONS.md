@@ -1800,3 +1800,93 @@ recalculation after resume deletion (Decision 9 open item).
   `resume_uploaded_at`, `resume_consent_given`; retains all extracted profile
   data. No retention schedule implemented (periods unresolved pending legal
   review). No PII or resume text in logs or status payloads.
+
+---
+
+## Phase 4 Gate 1: v0 Matching Engine
+
+### Matcher Package Location and Purity
+**Status:** Implemented (Gate 1)
+
+**Final Decision:**
+- Matching core lives in `backend/api/matching/` (the playbook's
+  `matchhire/matching/` path was adapted to this repo's `backend/api`
+  package root).
+- The core (`config`, `inputs`, `tfidf`, `experience`, `keywords`,
+  `engine`) has zero Django imports, no DB/Redis/network access, and is
+  importable without Django settings (verified by subprocess test).
+- It reuses `api.extraction` (skills dictionary, domain keywords),
+  which is already pure Python.
+
+### TF-IDF IDF Without a Corpus
+**Status:** Implemented (Gate 1); corpus fitting deferred to integration gate
+
+**Final Decision:**
+- Vocabulary = canonical skill names from the fixed skills dictionary
+  (SPEC fixed-vocabulary strategy). Inputs may be aliases; unknown terms
+  are dropped. Binary term frequency (skill sets carry no counts).
+- `TfidfVectorizer.fit(corpus)` computes sklearn-style smoothed IDF
+  `ln((N+1)/(df+1)) + 1`; `is_corpus_fitted` is True for a non-empty
+  corpus. `TfidfVectorizer.uniform()` / `UNIFORM_VECTORIZER` gives every
+  term weight 1.0 (binary cosine, explicitly NOT corpus-fitted TF-IDF);
+  `fit(())` produces the same uniform weights with
+  `is_corpus_fitted=False`.
+- **Gate 1 review revision:** `match()` requires `vectorizer=` as a
+  keyword-only argument with no default, so production scoring cannot
+  silently use uniform weights — callers must pass `UNIFORM_VECTORIZER`
+  or a fitted vectorizer explicitly. The low-level `skill_similarity()`
+  helper keeps `UNIFORM_VECTORIZER` as a named, documented default.
+  The integration gate will fit the vectorizer once over the active job
+  skill corpus (`TfidfVectorizer.fit(job_skill_sets)`) and inject it
+  into scoring.
+- Pure Python chosen over scikit-learn/numpy: vocabulary is ~500 terms,
+  sparse dict vectors are sufficient; no new dependencies added.
+
+### Jaccard Empty-Set Behavior
+**Status:** Proposed (SPEC is silent)
+
+**Final Decision:**
+- Both domain-keyword sets empty -> `keyword_overlap = 0.0` (no credit
+  for absent data), consistent with the both-empty skill-similarity
+  rule. Exactly one empty -> 0.0.
+
+### Experience Range Edge Cases
+**Status:** Implemented per SPEC
+
+**Final Decision:**
+- Job with `experience_max_years` set but `experience_min_years` unset
+  is treated as a range starting at 0 ("up to X years") -> score 1.0
+  for all candidates including unknown.
+- `experience_max_years` does not enter the formula: SPEC caps at 1.0
+  and never penalizes overqualification.
+- Negative or non-finite experience values raise `ValueError`;
+  non-numeric raises `TypeError`.
+
+### MatchConfig Weight Validation
+**Status:** Implemented
+
+**Final Decision:**
+- Weights must each be finite, non-negative, and sum to 1.0
+  (tolerance 1e-9); violations raise `ValueError`/`TypeError`. This
+  keeps the weighted total inside [0, 1] by construction.
+
+### "81% worked example" — located, does not reproduce
+**Status:** RESOLVED (documented, not forced)
+
+The worked example exists in `MatchHire_Documentation_FINAL.pdf`
+("Concrete Worked Example"): user skills {Python, Django, SQL, Redis}
+vs job {Python, FastAPI, PostgreSQL, Redis} -> raw 0.78; experience
+0.8y vs "0-1 year" -> 1.00; keywords {backend, REST, Django} vs
+{backend, microservices, REST} -> 0.60; total 81%.
+
+Those raw scores came from sklearn's TfidfVectorizer over raw text and
+raw keyword terms — a different input representation than this engine's
+canonical skill sets and fixed domain-keyword vocabulary. Under the v0
+contract the same logical inputs produce skill_similarity 0.5
+(binary cosine 2/sqrt(4*4)), experience_match 1.0, keyword_overlap 0.0
+("backend"/"REST"/"Django" are not domain keywords; only
+"Microservices" resolves), total 0.55. The document's 0.78/0.60/0.81
+are NOT reproduced and are NOT asserted anywhere; a regression test
+pins the contract-consistent outputs instead. Whether corpus-fitted IDF
+(or a different keyword vocabulary) should reproduce the doc's numbers
+is deferred to the integration/eval gates.
