@@ -1,0 +1,61 @@
+job_id,title,company,skills,domain_keywords,experience_min_years,experience_max_years,location,role_type
+j01,Machine Learning Engineering Intern,NovaKart,Python;scikit-learn;TensorFlow;Pandas,"Machine Learning;Data Science",0.0,1.0,Bengaluru,internship
+j02,Data Scientist,BrightLabs,Python;SQL;Pandas;scikit-learn;NumPy,"Data Science;Machine Learning",0.0,2.0,Hyderabad,full-time
+j03,NLP Engineer,TextMind AI,Python;Hugging Face;PyTorch;TensorFlow;NLP,NLP;Artificial Intelligence,1.0,3.0,Pune,full-time
+j04,Computer Vision Engineer,VisionPeak,Python;PyTorch;TensorFlow,Computer Vision,1.0,3.0,Bengaluru,full-time
+j05,MLOps Engineer,CloudNine Systems,Python;Docker;Kubernetes;MLflow;AWS,"Machine Learning;DevOps",2.0,4.0,Mumbai,full-time
+j06,Applied Scientist,DeepCore Research,Python;PyTorch;TensorFlow;scikit-learn,Machine Learning,2.0,5.0,Bengaluru,full-time
+j07,AI Research Assistant,Lumen Labs,Python;PyTorch;TensorFlow,"Machine Learning;Artificial Intelligence",,,Remote,internship
+j08,Deep Learning Engineer,NeuralForge,Python;PyTorch;TensorFlow;Keras,"Deep Learning",1.0,4.0,Hyderabad,full-time
+j09,Recommendation Systems Engineer,ShopSense,Python;Apache Spark;scikit-learn,"Machine Learning;Big Data",1.0,3.0,Gurugram,full-time
+j10,GenAI Engineer,PromptWorks,Python;LangChain;OpenAI;PyTorch;Hugging Face,"Artificial Intelligence;Machine Learning",1.0,3.0,Bengaluru,full-time
+j11,React Developer,WebCraft Studio,JavaScript;TypeScript;React;Redux;HTML;CSS,SaaS,0.0,2.0,Pune,full-time
+j12,Frontend Engineer Intern,PixelForge,JavaScript;React;HTML;CSS,SaaS;User Experience,0.0,1.0,Indore,internship
+j13,Angular Developer,EnterpriseSoft,TypeScript;Angular;RxJS;HTML;CSS,,1.0,3.0,Mumbai,full-time
+j14,Vue.js Developer,AppVantage,JavaScript;Vue;HTML;CSS,,0.0,2.0,Remote,full-time
+j15,Next.js Developer,CloudSaaS Inc,JavaScript;TypeScript;React;Next.js;Node.js,SaaS,1.0,3.0,Bengaluru,full-time
+j16,UI Engineer,Designly,JavaScript;React;HTML;CSS;Figma,User Experience,0.0,2.0,Jaipur,full-time
+j17,Web Developer,LocalBiz Hub,HTML;CSS;JavaScript;PHP,E-commerce,,,Jaipur,contract
+j18,Frontend Tech Lead,ScaleUp Tech,TypeScript;React;Next.js;GraphQL;Node.js,SaaS,3.0,6.0,Bengaluru,full-time
+j19,Python Backend Developer,DataBridge,Python;Django;PostgreSQL;Redis,,0.0,2.0,Hyderabad,full-time
+j20,Django Developer,WebForge,Python;Django;PostgreSQL;REST,,0.0,2.0,Pune,full-time
+j21,FastAPI Developer,APIBuilders,Python;FastAPI;PostgreSQL;Docker,,0.0,2.0,Remote,full-time
+j22,Java Spring Boot Developer,EnterpriseCore,Java;Spring;PostgreSQL;Redis,,1.0,4.0,Mumbai,full-time
+j23,Node.js Developer,JSFactory,JavaScript;Node.js;Express;MongoDB,,0.0,2.0,Chennai,full-time
+j24,Go Backend Engineer,GoSystems,Go;PostgreSQL;Docker;Kubernetes,,1.0,3.0,Bengaluru,full-time
+j25,API Developer,IntegrateNow,Python;FastAPI;REST;gRPC,,0.0,2.0,Remote,full-time
+j26,Backend Engineer Intern,CodeLaunch,Python;Django;SQL;Git,,0.0,1.0,Indore,internship
+j27,Microservices Developer,BankTech Solutions,Java;Spring;Docker;Kubernetes;Apache Kafka,"Microservices;Distributed Systems",2.0,5.0,Mumbai,full-time
+j28,PHP Laravel Developer,WebShops,PHP;Laravel;MySQL;JavaScript,E-commerce,0.0,2.0,Remote,full-time
+j29,DevOps Engineer,InfraScale,Docker;Kubernetes;AWS;Terraform;Jenkins,"DevOps;Cloud Computing",1.0,3.0,Bengaluru,full-time
+j30,Kubernetes Administrator,ContainerPro,Kubernetes;Helm;AWS;Linux;Docker,"DevOps;Cloud Computing",2.0,4.0,Hyderabad,full-time
+j31,Cloud Engineer,MultiCloud Co,AWS;Azure;GCP;Terraform;Linux,Cloud Computing,1.0,3.0,Mumbai,full-time
+j32,Site Reliability Engineer,UptimeFirst,Kubernetes;Prometheus;Grafana;AWS;Linux,"DevOps;Scalability",2.0,5.0,Bengaluru,full-time
+j33,Platform Engineer,DevPlatform,Kubernetes;Docker;Terraform;AWS;Python,"DevOps;Cloud Computing",1.0,3.0,Remote,full-time
+j34,Infrastructure Engineer,GridWorks,Terraform;AWS;Ansible;Linux,Cloud Computing,1.0,3.0,Pune,full-time
+j35,CI/CD Engineer,PipelinePro,Jenkins;GitLab CI;GitHub Actions;Docker;Kubernetes,"DevOps",0.0,2.0,Remote,full-time
+j36,Linux System Administrator,HostCare,Linux;Bash;Nginx;Ubuntu,,0.0,2.0,Jaipur,full-time
+j37,Data Analyst,InsightRetail,SQL;Python;Pandas;MySQL,"Data Analytics;Data Science",0.0,2.0,Noida,full-time
+j38,Data Engineer,Streamline Data,Python;Apache Spark;Apache Kafka;dbt;PostgreSQL,Data Engineering,1.0,3.0,Bengaluru,full-time
+j39,BI Developer,ReportGen,SQL;MySQL;Python;Pandas,Data Analytics,0.0,2.0,Pune,full-time
+j40,SQL Developer,QueryFirst,SQL;PostgreSQL;MySQL,,0.0,2.0,Chennai,full-time
+j41,ETL Developer,DataFlow,Python;Apache Airflow;dbt;SQL;PostgreSQL,Data Engineering,1.0,3.0,Hyderabad,full-time
+j42,Analytics Engineer,MetricsLab,SQL;dbt;Python;PostgreSQL,Data Analytics,0.0,2.0,Remote,full-time
+j43,Database Administrator,DBSecure,PostgreSQL;MySQL;MongoDB;SQL,,1.0,4.0,Mumbai,full-time
+j44,Business Intelligence Analyst,BizIntel,SQL;Python;Pandas;MySQL,Data Analytics,0.0,2.0,Delhi,full-time
+j45,VLSI Design Engineer,SiliconMind,Verilog;SystemVerilog;FPGA;VHDL,VLSI,1.0,3.0,Bengaluru,full-time
+j46,Embedded Software Engineer,IotWorks,Embedded C;C;STM32;FreeRTOS;I2C;SPI,"Embedded Systems;IoT",0.0,2.0,Chennai,full-time
+j47,FPGA Engineer,ChipLogic,Verilog;VHDL;SystemVerilog;FPGA,VLSI,1.0,3.0,Hyderabad,full-time
+j48,Firmware Engineer,DeviceCore,Embedded C;C;ARM;STM32;I2C;UART,Embedded Systems,0.0,2.0,Pune,full-time
+j49,ASIC Verification Engineer,VerifySemi,SystemVerilog;Verilog;VHDL,VLSI,1.0,4.0,Bengaluru,full-time
+j50,Embedded Systems Intern,Makotron,Embedded C;Arduino;C;I2C,"Embedded Systems;IoT",0.0,1.0,Indore,internship
+j51,Security Analyst,CyberGuard,SIEM;SOC;Wireshark;Nmap;Linux,"Cybersecurity;InfoSec",0.0,2.0,Delhi,full-time
+j52,Penetration Tester,RedTeam Labs,Burp Suite;Metasploit;Nmap;OWASP ZAP;Linux,Cybersecurity,1.0,3.0,Remote,full-time
+j53,SOC Analyst,WatchTower Sec,SIEM;Wazuh;Splunk;Linux;Incident Response,"Cybersecurity;InfoSec",0.0,2.0,Mumbai,full-time
+j54,Application Security Engineer,AppShield,Python;Burp Suite;Nmap;Linux,Cybersecurity,1.0,3.0,Bengaluru,full-time
+j55,QA Engineer,QualityFirst,Pytest;Selenium;Postman;Git,Quality Assurance;Test Automation,0.0,2.0,Pune,full-time
+j56,SDET,TestAutomation Pro,Python;Pytest;Selenium;Docker;GitHub Actions,"Test Automation;Quality Assurance",1.0,3.0,Bengaluru,full-time
+j57,Test Automation Engineer,AutoTest Co,Python;Selenium;Cypress;GitHub Actions,Test Automation,1.0,3.0,Hyderabad,full-time
+j58,Manual QA Tester,CheckMate,SQL;Postman;Git,Quality Assurance,0.0,1.0,Jaipur,full-time
+j59,Android Developer,MobileMavens,Kotlin;Android;Jetpack Compose;Java;Gradle,,0.0,2.0,Bengaluru,full-time
+j60,React Native Developer,CrossApp,JavaScript;TypeScript;React Native;React,,0.0,2.0,Remote,full-time

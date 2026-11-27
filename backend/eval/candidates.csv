@@ -1,0 +1,11 @@
+candidate_id,skills,domain_keywords,total_experience_years,note
+c01_ml_fresher,Python;Pandas;NumPy;scikit-learn;SQL,Machine Learning;Data Science,0.0,Python+ML fresher archetype
+c02_frontend_react_fresher,JavaScript;TypeScript;React;HTML;CSS,SaaS;User Experience,0.0,Frontend React fresher archetype
+c03_devops_engineer,Docker;Kubernetes;AWS;Terraform;Linux;Jenkins,DevOps;Cloud Computing,1.0,DevOps archetype
+c04_vlsi_embedded,Verilog;FPGA;VHDL;Embedded C;STM32;C,VLSI;Embedded Systems,0.0,Embedded/VLSI archetype
+c05_java_backend_dev,Java;Spring;PostgreSQL;Redis;Docker,Microservices,2.0,Java backend archetype
+c06_data_analyst,SQL;Python;Pandas;MySQL;PostgreSQL,Data Analytics;Data Science,1.0,Data analyst archetype
+c07_android_dev,Kotlin;Java;Android;Jetpack Compose,,0.0,Mobile Android archetype; no domain keywords
+c08_security_analyst,SIEM;Nmap;Wireshark;Linux;Python;Burp Suite,Cybersecurity;InfoSec,1.0,Cybersecurity archetype
+c09_qa_engineer,Pytest;Selenium;Postman;SQL;Git,Quality Assurance;Test Automation,0.0,QA archetype
+c10_fullstack_unknown,Python;JavaScript;React;Django;PostgreSQL,SaaS;Agile,,Full-stack with unknown experience
