@@ -1890,3 +1890,68 @@ are NOT reproduced and are NOT asserted anywhere; a regression test
 pins the contract-consistent outputs instead. Whether corpus-fitted IDF
 (or a different keyword vocabulary) should reproduce the doc's numbers
 is deferred to the integration/eval gates.
+
+## Phase 4 Gate 3: Property-Based Correctness Testing
+
+### Hypothesis Reproducibility Mechanism
+**Status:** Implemented
+
+**Final Decision:**
+- All property tests use `derandomize=True` — a fixed deterministic
+  example sequence with no example database and no OS randomness.
+  This is the "fixed seed in CI" mechanism; no explicit seed is used.
+- Failures reproduce via Hypothesis's printed `@reproduce_failure`
+  blob, which replays the exact generated inputs deterministically.
+- `hypothesis>=6.170.17` added to the `dev` dependency group only;
+  no runtime dependency added.
+
+### 10,000-Pair Sweep Semantics
+**Status:** Implemented
+
+**Final Decision:**
+- "10,000 random profile/job pairs" is implemented as
+  `max_examples=10_000` on a single `@given` test: 10,000 generated
+  `(CandidateInput, JobInput, vectorizer)` examples through the real
+  `match()`. Not 10,000 assertions — each example performs multiple
+  matcher calls (~40k total invocations).
+- Duplicates are permitted (Hypothesis does not guarantee uniqueness);
+  documented in docs/CORRECTNESS.md rather than claimed otherwise.
+- Invariants requiring constructed inputs (identical sets, guaranteed
+  disjoint sets, monotonic pairs) have dedicated targeted tests; the
+  sweep asserts the universally checkable invariants per pair.
+
+### Invariant Interpretation Resolutions
+**Status:** Implemented (documented in docs/CORRECTNESS.md)
+
+**Final Decision:**
+- Invariant 2 (identical skill sets -> ~1) applies to sets non-empty
+  after vocabulary normalization; two inputs that both normalize to
+  empty score 0.0 per the existing both-empty rule.
+- Invariant 4 (monotonicity) is scoped to skills the job requires;
+  adding non-required skills can decrease cosine similarity.
+- Invariant 5 (experience monotonicity) is over numeric user_yoe;
+  `None` is unordered and covered by boundary examples.
+
+### DEFECT-1: cosine_similarity exceeds 1.0 — RESOLVED
+**Status:** FIXED (approved by user, applied same day)
+
+**Finding:**
+- `api/matching/tfidf.py::cosine_similarity` returns
+  `dot/(norm1*norm2)` unclamped; IEEE-754 rounding yields
+  `1.0000000000000002` for many identical skill sets (e.g.
+  `["Python","Django","React"]`), after which `match()` raises
+  `ValueError` in `MatchResult.__post_init__`. 120/252 sampled
+  identical combos exceeded 1.0 on this machine.
+- Detected by the new property suite (7 failing tests, single root
+  cause). A 10k-pair seeded diagnostic found no other invariant
+  violations.
+- Approved fix applied: `cosine_similarity` now returns
+  `min(max(dot / (norm1 * norm2), 0.0), 1.0)` — mathematically exact
+  for the non-negative TF-IDF weights used on every call path; absorbs
+  only <=1-ulp FP error. Call-site audit confirmed all vectors come
+  from `TfidfVectorizer.transform` (weights >= 1.0) or the uniform
+  vectorizer (1.0); no negative-valued vectors are supported.
+- Regression tests: `TestDefect1CosineClampRegression` in
+  `api/tests/test_matching/test_properties.py`. Full suite green:
+  801 passed, 3 skipped; property file 28 passed incl. complete
+  10,000-pair sweep. Details in docs/CORRECTNESS.md.

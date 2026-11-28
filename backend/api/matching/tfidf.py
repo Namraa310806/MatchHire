@@ -181,7 +181,10 @@ def cosine_similarity(v1: SparseVector, v2: SparseVector) -> float:
 
     if norm1 == 0.0 or norm2 == 0.0:
         return 0.0
-    return dot / (norm1 * norm2)
+    # Clamp to [0, 1]: with non-negative weights cosine is mathematically
+    # in range, but IEEE-754 rounding of dot/(norm1*norm2) can produce
+    # 1.0 + epsilon (e.g. identical vectors) or -epsilon.
+    return min(max(dot / (norm1 * norm2), 0.0), 1.0)
 
 
 def skill_similarity(
